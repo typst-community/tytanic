@@ -1,10 +1,9 @@
 use std::collections::HashSet;
 use std::io::IsTerminal;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::{fs, io};
 
 use clap::{ColorChoice, Parser};
-use project::fs::Fs;
 use project::test::context::ContextResult;
 use project::test::Test;
 use project::ScaffoldMode;
@@ -26,7 +25,6 @@ mod util;
 fn run(
     reporter: Reporter,
     project: &Project,
-    fs: &Fs,
     typst: PathBuf,
     fail_fast: bool,
     compare: bool,
@@ -38,7 +36,7 @@ fn run(
 
     // TODO: fail_fast currently doesn't really do anything other than returning early, other tests
     //       still run, this makes sense as we're not stopping the other threads just yet
-    let ctx = Context::new(project, fs, typst, fail_fast);
+    let ctx = Context::new(project, typst, fail_fast);
     ctx.prepare()?;
     let handles: Vec<_> = project
         .tests()
@@ -82,23 +80,23 @@ fn main() -> anyhow::Result<()> {
 
     let root = if let Some(root) = args.root {
         let canonical_root = fs::canonicalize(&root)?;
-        if !project::fs::is_project_root(&canonical_root)? {
+        if !project::is_project_root(&canonical_root)? {
             tracing::warn!("project root doesn't contain manifest");
         }
         root.to_path_buf()
     } else {
         let pwd = std::env::current_dir()?;
-        if let Some(root) = project::fs::try_find_project_root(&pwd)? {
+        if let Some(root) = project::try_find_project_root(&pwd)? {
             root.to_path_buf()
         } else {
             anyhow::bail!("must be inside a typst project or pass the project root using --root");
         }
     };
 
-    let manifest = project::fs::try_open_manifest(&root)?;
-    let mut project = Project::new(manifest);
     let reporter = Reporter::new(util::term::color_stream(args.color, false));
-    let mut fs = Fs::new(root, "tests".into(), reporter.clone());
+
+    let manifest = project::try_open_manifest(&root)?;
+    let mut project = Project::new(root, Path::new("tests"), manifest, reporter.clone());
 
     let filter_tests = |tests: &mut HashSet<Test>, filter, exact| match (filter, exact) {
         (Some(f), true) => {
@@ -121,55 +119,54 @@ fn main() -> anyhow::Result<()> {
                 ScaffoldMode::WithExample
             };
 
-            if fs.init(mode)? {
+            if project.init(mode)? {
                 println!("initialized tests for {}", project.name());
             } else {
                 println!(
                     "could not initialize tests for {}, {:?} already exists",
                     project.name(),
-                    fs.tests_root_dir()
+                    project.tests_root_dir()
                 );
             }
             return Ok(());
         }
         cli::Command::Uninit => {
-            fs.uninit()?;
+            project.uninit()?;
             println!("removed tests for {}", project.name());
             return Ok(());
         }
         cli::Command::Clean => {
-            fs.clean_artifacts()?;
+            project.clean_artifacts()?;
             println!("removed test artifacts for {}", project.name());
             return Ok(());
         }
         cli::Command::Add { open, test } => {
-            fs.load_template()?;
+            project.load_template()?;
             let test = Test::new(test);
-            fs.add_test(&test)?;
+            project.add_test(&test)?;
             reporter.test_success(test.name(), "added")?;
 
             if open {
                 // BUG: this may fail silently if the path doesn't exist
-                open::that_detached(fs.test_file(&test))?;
+                open::that_detached(project.test_file(&test))?;
             }
 
             return Ok(());
         }
         cli::Command::Edit { test } => {
-            let test = fs.find_test(&test)?;
-            open::that_detached(fs.test_file(&test))?;
+            let test = project.find_test(&test)?;
+            open::that_detached(project.test_file(&test))?;
             return Ok(());
         }
         cli::Command::Remove { test } => {
-            let test = fs.find_test(&test)?;
-            fs.remove_test(test.name())?;
+            let test = project.find_test(&test)?;
+            project.remove_test(test.name())?;
             reporter.test_success(test.name(), "removed")?;
             return Ok(());
         }
         cli::Command::Status => {
-            project.add_tests(fs.load_tests()?);
-            let tests = project.tests();
-            let template = fs.load_template()?;
+            project.load_tests()?;
+            project.load_template()?;
 
             if let Some(manifest) = project.manifest() {
                 println!(
@@ -182,18 +179,18 @@ fn main() -> anyhow::Result<()> {
 
             println!(
                 "Template: {}",
-                if template.is_some() {
+                if project.template().is_some() {
                     "found"
                 } else {
                     "not found"
                 }
             );
 
-            if tests.is_empty() {
+            if project.tests().is_empty() {
                 println!("Tests: none");
             } else {
                 println!("Tests:");
-                for test in tests {
+                for test in project.tests() {
                     println!("  {}", test.name());
                 }
             }
@@ -201,30 +198,27 @@ fn main() -> anyhow::Result<()> {
             return Ok(());
         }
         cli::Command::Update { test_filter, exact } => {
-            let mut tests = fs.load_tests()?;
-            filter_tests(&mut tests, test_filter, exact);
-            project.add_tests(tests);
+            project.load_tests()?;
+            filter_tests(project.tests_mut(), test_filter, exact);
             reporter.set_padding(project.tests().iter().map(|t| t.name().len()).max());
 
-            run(reporter.clone(), &project, &fs, args.typst, true, false)?;
+            run(reporter.clone(), &project, args.typst, true, false)?;
 
             let tests = project.tests();
-            fs.update_tests(tests.par_iter())?;
+            project.update_tests(tests.par_iter())?;
             return Ok(());
         }
         cli::Command::Compile(args) => (args, false),
         cli::Command::Run(args) => (args, true),
     };
 
-    let mut tests = fs.load_tests()?;
-    filter_tests(&mut tests, test_args.test_filter, test_args.exact);
-    project.add_tests(tests);
+    project.load_tests()?;
+    filter_tests(project.tests_mut(), test_args.test_filter, test_args.exact);
     reporter.set_padding(project.tests().iter().map(|t| t.name().len()).max());
 
     run(
         reporter.clone(),
         &project,
-        &fs,
         args.typst,
         test_args.fail_fast,
         compare,

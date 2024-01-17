@@ -9,22 +9,20 @@ use super::{
     CleanupFailure, CompareFailure, ComparePageFailure, CompileFailure, PrepareFailure, Stage,
     Test, TestFailure, TestResult,
 };
-use crate::project::fs::Fs;
 use crate::project::Project;
 use crate::report::Reporter;
 use crate::util;
 
 #[derive(Debug)]
-pub struct Context<'p, 'f> {
-    _project: &'p Project,
-    fs: &'f Fs,
+pub struct Context<'p> {
+    project: &'p Project,
     typst: PathBuf,
     fail_fast: bool,
 }
 
 #[derive(Debug)]
-pub struct TestContext<'c, 'p, 't, 'f> {
-    project_context: &'c Context<'p, 'f>,
+pub struct TestContext<'c, 'p, 't> {
+    project_context: &'c Context<'p>,
     test: &'t Test,
     reporter: Reporter,
     script_file: PathBuf,
@@ -33,25 +31,20 @@ pub struct TestContext<'c, 'p, 't, 'f> {
     diff_dir: PathBuf,
 }
 
-impl<'p, 'f> Context<'p, 'f> {
-    pub fn new(project: &'p Project, fs: &'f Fs, typst: PathBuf, fail_fast: bool) -> Self {
+impl<'p> Context<'p> {
+    pub fn new(project: &'p Project, typst: PathBuf, fail_fast: bool) -> Self {
         Self {
-            _project: project,
-            fs,
+            project,
             typst,
             fail_fast,
         }
     }
 
-    pub fn test<'c, 't>(
-        &'c self,
-        test: &'t Test,
-        reporter: Reporter,
-    ) -> TestContext<'c, 'p, 't, 'f> {
-        let typ_dir = self.fs.test_dir(&test);
-        let out_dir = self.fs.out_dir(&test);
-        let ref_dir = self.fs.ref_dir(&test);
-        let diff_dir = self.fs.diff_dir(&test);
+    pub fn test<'c, 't>(&'c self, test: &'t Test, reporter: Reporter) -> TestContext<'c, 'p, 't> {
+        let typ_dir = self.project.test_dir(&test);
+        let out_dir = self.project.out_dir(&test);
+        let ref_dir = self.project.ref_dir(&test);
+        let diff_dir = self.project.diff_dir(&test);
 
         let script_file = typ_dir.join("test").with_extension("typ");
 
@@ -87,7 +80,7 @@ impl<'p, 'f> Context<'p, 'f> {
     }
 }
 
-impl TestContext<'_, '_, '_, '_> {
+impl TestContext<'_, '_, '_> {
     #[tracing::instrument(skip(self))]
     pub fn send_update(&self, progress: Progress) -> io::Result<()> {
         match progress {
@@ -180,7 +173,7 @@ impl TestContext<'_, '_, '_, '_> {
     pub fn compile(&self) -> ContextResult<CompileFailure> {
         let mut typst = Command::new(&self.project_context.typst);
         typst.args(["compile", "--root"]);
-        typst.arg(self.project_context.fs.root());
+        typst.arg(self.project_context.project.root());
         typst.arg(&self.script_file);
         typst.arg(self.out_dir.join("{n}").with_extension("png"));
 
