@@ -1,10 +1,48 @@
 use std::ffi::OsString;
 use std::fmt::Display;
+use std::path::PathBuf;
 use std::process::Output;
+
+use crate::{util, Project};
 
 pub mod context;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+const REF_DIR: &str = "ref";
+const OUT_DIR: &str = "out";
+const DIFF_DIR: &str = "diff";
+
+#[derive(Debug)]
+pub enum Filter {
+    Contains(String),
+    Exact(String),
+}
+
+impl Filter {
+    pub fn new(filter: String, exact: bool) -> Filter {
+        if exact {
+            Self::Exact(filter)
+        } else {
+            Self::Contains(filter)
+        }
+    }
+
+    pub fn value(&self) -> &str {
+        match self {
+            Filter::Contains(f) => f,
+            Filter::Exact(f) => f,
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn matches(&self, test: &Test) -> bool {
+        match self {
+            Filter::Contains(s) => test.name().contains(s),
+            Filter::Exact(s) => test.name() == s,
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct Test {
     name: String,
     // TODO: comparison
@@ -18,6 +56,27 @@ impl Test {
 
     pub fn name(&self) -> &str {
         &self.name
+    }
+
+    pub fn test_dir(&self, project: &Project) -> PathBuf {
+        util::fs::path_in_root(project.tests_root_dir(), [self.name()])
+    }
+
+    pub fn ref_dir(&self, project: &Project) -> PathBuf {
+        util::fs::path_in_root(project.tests_root_dir(), [self.name(), REF_DIR])
+    }
+
+    pub fn out_dir(&self, project: &Project) -> PathBuf {
+        util::fs::path_in_root(project.tests_root_dir(), [self.name(), OUT_DIR])
+    }
+
+    pub fn diff_dir(&self, project: &Project) -> PathBuf {
+        util::fs::path_in_root(project.tests_root_dir(), [self.name(), DIFF_DIR])
+    }
+
+    pub fn test_file(&self, project: &Project) -> PathBuf {
+        util::fs::path_in_root(project.tests_root_dir(), [self.name(), "test"])
+            .with_extension("typ")
     }
 }
 

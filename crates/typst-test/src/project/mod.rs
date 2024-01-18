@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::fs::{self, File};
 use std::io;
@@ -19,10 +19,6 @@ pub mod test;
 const DEFAULT_TEST_INPUT: &str = include_str!("../../../../assets/default-test/test.typ");
 const DEFAULT_TEST_OUTPUT: &[u8] = include_bytes!("../../../../assets/default-test/test.png");
 const DEFAULT_GIT_IGNORE_LINES: &[&str] = &["**/out/\n", "**/diff/\n"];
-
-const REF_DIR: &str = "ref";
-const OUT_DIR: &str = "out";
-const DIFF_DIR: &str = "diff";
 
 #[tracing::instrument]
 pub fn try_open_manifest(root: &Path) -> io::Result<Option<Manifest>> {
@@ -55,12 +51,12 @@ pub enum ScaffoldMode {
     NoExample,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Project {
     manifest: Option<Manifest>,
     root: PathBuf,
     test_root: PathBuf,
-    tests: HashSet<Test>,
+    tests: BTreeMap<String, Test>,
     template: Option<String>,
     reporter: Reporter,
 }
@@ -76,7 +72,7 @@ impl Project {
 
         Self {
             manifest,
-            tests: HashSet::new(),
+            tests: BTreeMap::new(),
             root,
             test_root,
             template: None,
@@ -99,11 +95,11 @@ impl Project {
         self.manifest.as_ref()
     }
 
-    pub fn tests(&self) -> &HashSet<Test> {
+    pub fn tests(&self) -> &BTreeMap<String, Test> {
         &self.tests
     }
 
-    pub fn tests_mut(&mut self) -> &mut HashSet<Test> {
+    pub fn tests_mut(&mut self) -> &mut BTreeMap<String, Test> {
         &mut self.tests
     }
 
@@ -113,26 +109,6 @@ impl Project {
 
     pub fn tests_root_dir(&self) -> &Path {
         &self.test_root
-    }
-
-    pub fn test_dir(&self, test: &Test) -> PathBuf {
-        util::fs::path_in_root(&self.test_root, [test.name()])
-    }
-
-    pub fn ref_dir(&self, test: &Test) -> PathBuf {
-        util::fs::path_in_root(&self.test_root, [test.name(), REF_DIR])
-    }
-
-    pub fn out_dir(&self, test: &Test) -> PathBuf {
-        util::fs::path_in_root(&self.test_root, [test.name(), OUT_DIR])
-    }
-
-    pub fn diff_dir(&self, test: &Test) -> PathBuf {
-        util::fs::path_in_root(&self.test_root, [test.name(), DIFF_DIR])
-    }
-
-    pub fn test_file(&self, test: &Test) -> PathBuf {
-        util::fs::path_in_root(&self.test_root, [test.name(), "test"]).with_extension("typ")
     }
 
     pub fn root_exists(&self) -> io::Result<bool> {
@@ -176,7 +152,7 @@ impl Project {
         let test = Test::new("example".to_owned());
 
         let tests_root_dir = self.tests_root_dir();
-        let test_dir = self.test_dir(&test);
+        let test_dir = test.test_dir(self);
 
         for (name, path) in [("tests root", tests_root_dir), ("example test", &test_dir)] {
             tracing::trace!(?path, "creating {name} dir");
@@ -197,7 +173,7 @@ impl Project {
 
         if mode == ScaffoldMode::WithExample {
             tracing::debug!("adding default test");
-            self.add_test(&Test::new("test".to_owned()))?;
+            self.create_test(&Test::new("test".to_owned()))?;
         } else {
             tracing::debug!("skipping default test");
         }
@@ -217,9 +193,9 @@ impl Project {
     pub fn clean_artifacts(&self) -> Result<(), Error> {
         self.ensure_init()?;
 
-        self.tests().par_iter().try_for_each(|test| {
-            util::fs::remove_dir(self.out_dir(test), true)?;
-            util::fs::remove_dir(self.diff_dir(test), true)?;
+        self.tests.par_iter().try_for_each(|(_, test)| {
+            util::fs::remove_dir(test.out_dir(self), true)?;
+            util::fs::remove_dir(test.diff_dir(self), true)?;
             Ok(())
         })
     }
@@ -237,31 +213,28 @@ impl Project {
         Ok(())
     }
 
-    #[tracing::instrument(skip(self))]
-    pub fn get_test(&self, test: &str) -> Result<Option<&Test>, Error> {
-        // TODO: don't load all tests?
-        Ok(self.tests().iter().find(|t| t.name() == test))
+    pub fn get_test(&self, test: &str) -> Option<&Test> {
+        self.tests.get(test)
     }
 
-    #[tracing::instrument(skip(self))]
     pub fn find_test(&self, test: &str) -> Result<&Test, Error> {
-        self.get_test(test)?
+        self.get_test(test)
             .ok_or_else(|| Error::TestUnknown(test.to_owned()))
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn add_test(&self, test: &Test) -> Result<(), Error> {
+    pub fn create_test(&self, test: &Test) -> Result<(), Error> {
         self.ensure_init()?;
 
-        if self.get_test(test.name())?.is_some() {
+        if self.get_test(test.name()).is_some() {
             return Err(Error::TestsAlreadyExists(test.name().to_owned()));
         }
 
-        let test_dir = self.test_dir(&test);
+        let test_dir = test.test_dir(self);
         tracing::trace!(path = ?test_dir, "creating test dir");
         util::fs::create_empty_dir(&test_dir, true)?;
 
-        let test_script = self.test_file(&test);
+        let test_script = test.test_file(self);
         tracing::trace!(path = ?test_script , "creating test script");
         let mut test_script = File::options()
             .write(true)
@@ -275,7 +248,7 @@ impl Project {
         )?;
 
         if self.template.is_none() {
-            let ref_dir = self.ref_dir(&test);
+            let ref_dir = test.ref_dir(self);
             tracing::trace!(path = ?ref_dir, "creating ref dir");
             util::fs::create_empty_dir(&ref_dir, false)?;
 
@@ -303,11 +276,11 @@ impl Project {
     pub fn remove_test(&self, test: &str) -> Result<(), Error> {
         self.ensure_init()?;
 
-        let Some(test) = self.get_test(test)? else {
+        let Some(test) = self.get_test(test) else {
             return Err(Error::TestUnknown(test.to_owned()));
         };
 
-        let test_dir = self.test_dir(&test);
+        let test_dir = test.test_dir(self);
         tracing::trace!(path = ?test_dir, "removing test dir");
         util::fs::remove_dir(test_dir, true)?;
 
@@ -342,25 +315,22 @@ impl Project {
 
             let test = Test::new(name.to_owned());
             tracing::debug!(name = ?test.name(), "loaded test");
-            self.tests.insert(test);
+            self.tests.insert(test.name().to_owned(), test);
         }
 
         Ok(())
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn update_tests<'p, I: IntoParallelIterator<Item = &'p Test> + Debug>(
-        &self,
-        tests: I,
-    ) -> Result<(), Error> {
+    pub fn update_tests<'p>(&self) -> Result<(), Error> {
         self.ensure_init()?;
 
         let options = Options::max_compression();
 
-        tests.into_par_iter().try_for_each(|test| {
+        self.tests.par_iter().try_for_each(|(_, test)| {
             tracing::debug!(?test, "updating refs");
-            let out_dir = self.out_dir(test);
-            let ref_dir = self.ref_dir(test);
+            let out_dir = test.out_dir(self);
+            let ref_dir = test.ref_dir(self);
 
             tracing::trace!(path = ?out_dir, "creating out dir");
             util::fs::create_dir(&out_dir, true)?;

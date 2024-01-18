@@ -40,10 +40,10 @@ impl<'p> Context<'p> {
     }
 
     pub fn test<'c, 't>(&'c self, test: &'t Test) -> TestContext<'c, 'p, 't> {
-        let out_dir = self.project.out_dir(&test);
-        let ref_dir = self.project.ref_dir(&test);
-        let diff_dir = self.project.diff_dir(&test);
-        let test_file = self.project.test_file(&test);
+        let out_dir = test.out_dir(self.project);
+        let ref_dir = test.ref_dir(self.project);
+        let diff_dir = test.diff_dir(self.project);
+        let test_file = test.test_file(self.project);
 
         tracing::trace!(test = ?test.name(), "establishing test context");
         TestContext {
