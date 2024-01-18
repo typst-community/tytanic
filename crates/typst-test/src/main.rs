@@ -383,26 +383,39 @@ mod cmd {
 
         reporter.set_padding(project.tests().iter().map(|(name, _)| name.len()).max());
 
-        let all_ok = AtomicBool::new(true);
-
-        // TODO: fail_fast currently doesn't really do anything other than returning early, other tests
-        //       still run, this makes sense as we're not stopping the other threads just yet
         let ctx = Context::new(project, typst, fail_fast);
         ctx.prepare()?;
-        project
-            .tests()
-            .par_iter()
-            .try_for_each(|(_, test)| -> anyhow::Result<()> {
-                match ctx.test(test).run(compare)? {
-                    Ok(_) => reporter.test_success(project, test, "ok")?,
-                    Err(err) => {
-                        all_ok.store(false, Ordering::Relaxed);
-                        reporter.test_failure(project, test, err)?
-                    }
-                }
 
-                Ok(())
-            })?;
+        let all_ok = AtomicBool::new(true);
+        let res = project.tests().par_iter().try_for_each(
+            |(_, test)| -> Result<(), Option<anyhow::Error>> {
+                match ctx.test(test).run(compare) {
+                    Ok(Ok(_)) => {
+                        reporter
+                            .test_success(project, test, "ok")
+                            .map_err(|e| Some(e.into()))?;
+                        Ok(())
+                    }
+                    Ok(Err(err)) => {
+                        all_ok.store(false, Ordering::Relaxed);
+                        reporter
+                            .test_failure(project, test, err)
+                            .map_err(|e| Some(e.into()))?;
+                        if fail_fast {
+                            Err(None)
+                        } else {
+                            Ok(())
+                        }
+                    }
+                    Err(err) => Err(Some(err.into())),
+                }
+            },
+        );
+
+        if let Err(Some(err)) = res {
+            return Err(err);
+        }
+
         ctx.cleanup()?;
 
         Ok(if all_ok.into_inner() {
