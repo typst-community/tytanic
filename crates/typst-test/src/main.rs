@@ -4,7 +4,6 @@ use std::path::{Path, PathBuf};
 use std::{fs, io};
 
 use clap::{ColorChoice, Parser};
-use project::test::context::ContextResult;
 use project::test::Test;
 use project::ScaffoldMode;
 use rayon::prelude::*;
@@ -38,14 +37,18 @@ fn run(
     //       still run, this makes sense as we're not stopping the other threads just yet
     let ctx = Context::new(project, typst, fail_fast);
     ctx.prepare()?;
-    let handles: Vec<_> = project
+    project
         .tests()
         .par_iter()
-        .map(|test| test.run(&ctx, compare, reporter.clone()))
-        .collect();
+        .try_for_each(|test| -> anyhow::Result<()> {
+            match ctx.test(test).run(compare)? {
+                Ok(_) => reporter.test_success(test.name(), "ok")?,
+                Err(err) => reporter.test_failure(test.name(), err)?,
+            }
 
-    // NOTE: inner result ignored as it is reported anyway, see above
-    let _ = handles.into_iter().collect::<ContextResult>()?;
+            Ok(())
+        })?;
+
     ctx.cleanup()?;
 
     Ok(())

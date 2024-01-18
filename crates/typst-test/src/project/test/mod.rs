@@ -2,9 +2,6 @@ use std::ffi::OsString;
 use std::fmt::Display;
 use std::process::Output;
 
-use self::context::{Context, ContextResult};
-use crate::report::Reporter;
-
 pub mod context;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -21,17 +18,6 @@ impl Test {
 
     pub fn name(&self) -> &str {
         &self.name
-    }
-
-    #[tracing::instrument(skip_all, fields(test = ?self.name))]
-    pub fn run<'t>(
-        &'t self,
-        context: &Context,
-        compare: bool,
-        reporter: Reporter,
-    ) -> ContextResult {
-        let context = context.test(self, reporter);
-        context.run(compare)
     }
 }
 

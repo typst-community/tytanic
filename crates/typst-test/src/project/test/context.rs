@@ -1,5 +1,6 @@
 use std::fmt::{Debug, Display};
-use std::io::{self, ErrorKind};
+use std::io;
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -10,7 +11,6 @@ use super::{
     Test, TestFailure, TestResult,
 };
 use crate::project::Project;
-use crate::report::Reporter;
 use crate::util;
 
 #[derive(Debug)]
@@ -23,9 +23,8 @@ pub struct Context<'p> {
 #[derive(Debug)]
 pub struct TestContext<'c, 'p, 't> {
     project_context: &'c Context<'p>,
-    test: &'t Test,
-    reporter: Reporter,
-    script_file: PathBuf,
+    _test: &'t Test,
+    test_file: PathBuf,
     out_dir: PathBuf,
     ref_dir: PathBuf,
     diff_dir: PathBuf,
@@ -40,29 +39,17 @@ impl<'p> Context<'p> {
         }
     }
 
-    pub fn test<'c, 't>(&'c self, test: &'t Test, reporter: Reporter) -> TestContext<'c, 'p, 't> {
-        let typ_dir = self.project.test_dir(&test);
+    pub fn test<'c, 't>(&'c self, test: &'t Test) -> TestContext<'c, 'p, 't> {
         let out_dir = self.project.out_dir(&test);
         let ref_dir = self.project.ref_dir(&test);
         let diff_dir = self.project.diff_dir(&test);
+        let test_file = self.project.test_file(&test);
 
-        let script_file = typ_dir.join("test").with_extension("typ");
-
-        tracing::trace!(
-            test = ?test.name(),
-            ?typ_dir,
-            ?out_dir,
-            ?ref_dir,
-            ?diff_dir,
-            ?script_file,
-            "establishing test context"
-        );
-
+        tracing::trace!(test = ?test.name(), "establishing test context");
         TestContext {
             project_context: self,
-            test,
-            reporter,
-            script_file,
+            _test: test,
+            test_file,
             out_dir,
             ref_dir,
             diff_dir,
@@ -82,61 +69,37 @@ impl<'p> Context<'p> {
 
 impl TestContext<'_, '_, '_> {
     #[tracing::instrument(skip(self))]
-    pub fn send_update(&self, progress: Progress) -> io::Result<()> {
-        match progress {
-            // Progress::Preparation => self.reporter.test_success(self.test.name(), "prepared"),
-            // Progress::Compilation => self.reporter.test_success(self.test.name(), "compiled"),
-            // Progress::Comparison => self.reporter.test_success(self.test.name(), "compared"),
-            // Progress::CleanUp => self.reporter.test_success(self.test.name(), "cleaned up"),
-            Progress::Done => self.reporter.test_success(self.test.name(), "ok"),
-            Progress::Error(err) => self.reporter.test_failure(self.test.name(), err),
-            _ => Ok(()),
-        }
-    }
-
-    #[tracing::instrument(skip(self))]
     pub fn run(&self, compare: bool) -> ContextResult<TestFailure> {
-        macro_rules! bail_if_fail_fast {
+        macro_rules! bail_inner {
             ($err:expr) => {
                 let err: TestFailure = $err.into();
-                self.send_update(Progress::Error(err.clone())).unwrap();
-                if self.project_context.fail_fast {
-                    return Ok(Err(err));
-                } else {
-                    return Ok(Ok(()));
-                }
+                return Ok(Err(err));
             };
         }
 
-        self.send_update(Progress::Preparation).map_err(Error::io)?;
         if let Err(err) = self.prepare()? {
-            bail_if_fail_fast!(err);
+            bail_inner!(err);
         }
 
-        self.send_update(Progress::Compilation).map_err(Error::io)?;
         if let Err(err) = self.compile()? {
-            bail_if_fail_fast!(err);
+            bail_inner!(err);
         }
 
         if compare {
-            self.send_update(Progress::Comparison).map_err(Error::io)?;
             if let Err(err) = self.compare()? {
-                bail_if_fail_fast!(err);
+                bail_inner!(err);
             }
         }
 
-        self.send_update(Progress::CleanUp).map_err(Error::io)?;
         if let Err(err) = self.cleanup()? {
-            bail_if_fail_fast!(err);
+            bail_inner!(err);
         }
 
-        self.send_update(Progress::Done).map_err(Error::io)?;
         Ok(Ok(()))
     }
 
     #[tracing::instrument(skip_all)]
     pub fn prepare(&self) -> ContextResult<PrepareFailure> {
-        let err_fn = |n, p| format!("clearing {} dir: {:?}", n, p);
         let dirs = [
             ("out", true, &self.out_dir),
             ("ref", false, &self.ref_dir),
@@ -149,14 +112,14 @@ impl TestContext<'_, '_, '_> {
                 util::fs::create_empty_dir(path, false).map_err(|e| {
                     Error::io(e)
                         .at(Stage::Preparation)
-                        .context(err_fn(name, path))
+                        .context(format!("clearing {} dir: {:?}", name, path))
                 })?;
             } else {
                 tracing::trace!(?path, "creating {name} dir");
                 util::fs::create_dir(path, false).map_err(|e| {
                     Error::io(e)
                         .at(Stage::Preparation)
-                        .context(err_fn(name, path))
+                        .context(format!("creating {} dir: {:?}", name, path))
                 })?;
             }
         }
@@ -174,7 +137,7 @@ impl TestContext<'_, '_, '_> {
         let mut typst = Command::new(&self.project_context.typst);
         typst.args(["compile", "--root"]);
         typst.arg(self.project_context.project.root());
-        typst.arg(&self.script_file);
+        typst.arg(&self.test_file);
         typst.arg(self.out_dir.join("{n}").with_extension("png"));
 
         tracing::trace!(args = ?[&typst], "running typst");
@@ -318,15 +281,6 @@ impl TestContext<'_, '_, '_> {
     }
 }
 
-#[derive(Debug)]
-pub enum Progress {
-    Preparation,
-    Compilation,
-    Comparison,
-    CleanUp,
-    Done,
-    Error(TestFailure),
-}
 pub type ContextResult<E = TestFailure> = Result<TestResult<E>, Error>;
 
 #[derive(Debug)]
