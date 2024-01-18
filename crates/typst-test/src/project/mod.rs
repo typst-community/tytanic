@@ -174,7 +174,7 @@ impl Project {
 
         if mode == ScaffoldMode::WithExample {
             tracing::debug!("adding default test");
-            self.create_test(&Test::new("test".to_owned()))?;
+            self.create_test(&test)?;
         } else {
             tracing::debug!("skipping default test");
         }
