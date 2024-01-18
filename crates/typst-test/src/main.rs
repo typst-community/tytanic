@@ -43,12 +43,7 @@ fn main() -> ExitCode {
 }
 
 fn main_impl() -> anyhow::Result<CliResult> {
-    let args = match cli::Args::try_parse() {
-        Ok(args) => args,
-        Err(err) => {
-            return Ok(CliResult::operation_failure(err.render()));
-        }
-    };
+    let args = cli::Args::parse();
 
     if args.verbose >= 1 {
         tracing_subscriber::registry()
