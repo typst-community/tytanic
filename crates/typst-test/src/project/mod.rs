@@ -217,6 +217,7 @@ impl Project {
         self.tests.get(test)
     }
 
+    #[allow(dead_code)]
     pub fn find_test(&self, test: &str) -> Result<&Test, Error> {
         self.get_test(test)
             .ok_or_else(|| Error::TestUnknown(test.to_owned()))
@@ -288,7 +289,7 @@ impl Project {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn load_tests(&mut self) -> Result<(), Error> {
+    pub fn discover_tests(&mut self) -> Result<(), Error> {
         self.ensure_init()?;
 
         for entry in WalkDir::new(&self.test_root).min_depth(1) {
@@ -359,7 +360,7 @@ impl Project {
                     .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
                 })?;
 
-            self.reporter.test_success(test.name(), "updated")?;
+            self.reporter.test_success(self, test, "updated")?;
 
             Ok(())
         })

@@ -4,7 +4,8 @@ use std::sync::{Arc, Mutex};
 
 use termcolor::{Color, ColorSpec, WriteColor};
 
-use crate::project::test::{CompareFailure, TestFailure};
+use crate::project::test::{CompareFailure, Test, TestFailure};
+use crate::project::Project;
 
 pub const MAX_PADDING: usize = 20;
 
@@ -113,58 +114,72 @@ impl Reporter {
         f(&mut inner.writer)
     }
 
-    pub fn test_success(&self, name: &str, annot: &str) -> io::Result<()> {
+    pub fn test_success(&self, _project: &Project, test: &Test, annot: &str) -> io::Result<()> {
         let mut inner = self.inner.lock().unwrap();
         let padding = inner.padding;
         write_test(
             &mut inner.writer,
             padding,
-            name,
+            test.name(),
             (annot, Color::Green),
             |_, _| Ok(()),
         )
     }
 
-    pub fn test_failure(&self, name: &str, error: TestFailure) -> io::Result<()> {
+    pub fn test_failure(
+        &self,
+        project: &Project,
+        test: &Test,
+        error: TestFailure,
+    ) -> io::Result<()> {
         let mut inner = self.inner.lock().unwrap();
         let padding = inner.padding;
         write_test(
             &mut inner.writer,
             padding,
-            name,
+            test.name(),
             ("failed", Color::Red),
             |pad, w| {
                 match error {
                     TestFailure::Preparation(e) => writeln!(w, "{pad}{e}")?,
                     TestFailure::Cleanup(e) => writeln!(w, "{pad}{e}")?,
                     TestFailure::Compilation(e) => {
-                        writeln!(w, "{pad}compilation failed ({})", e.output.status)?;
+                        writeln!(w, "{pad}Compilation failed ({})", e.output.status)?;
                         write_program_buffer(w, pad, "stdout", &e.output.stdout)?;
                         write_program_buffer(w, pad, "stderr", &e.output.stderr)?;
                     }
                     TestFailure::Comparison(CompareFailure::PageCount { output, reference }) => {
                         writeln!(
                             w,
-                            "{pad}expected {reference} page{}, got {output} page{}",
+                            "{pad}Expected {reference} page{}, got {output} page{}",
                             if reference == 1 { "" } else { "s" },
                             if output == 1 { "" } else { "s" },
                         )?;
                     }
                     TestFailure::Comparison(CompareFailure::Page { pages }) => {
-                        for (p, f) in pages {
-                            writeln!(w, "{pad}page {p}: {f}")?;
+                        for (p, _) in pages {
+                            writeln!(w, "{pad}Page {p} did not match")?;
                         }
-                    }
-                    TestFailure::Comparison(CompareFailure::MissingOutput) => {
-                        writeln!(w, "{pad}no output generated")?;
-                    }
-                    TestFailure::Comparison(CompareFailure::MissingReferences) => {
-                        writeln!(w, "{pad}no references given")?;
                         write_hint(
                             w,
                             pad,
                             &format!(
-                                "use `typst-test update --exact {name}` to accept the test output"
+                                "Diff images have been saved at {:?}",
+                                test.diff_dir(project)
+                            ),
+                        )?;
+                    }
+                    TestFailure::Comparison(CompareFailure::MissingOutput) => {
+                        writeln!(w, "{pad}No output was generated")?;
+                    }
+                    TestFailure::Comparison(CompareFailure::MissingReferences) => {
+                        writeln!(w, "{pad}No references were found")?;
+                        write_hint(
+                            w,
+                            pad,
+                            &format!(
+                                "Use `typst-test update --exact {}` to accept the test output",
+                                test.name(),
                             ),
                         )?;
                     }
