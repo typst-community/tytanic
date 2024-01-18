@@ -32,7 +32,7 @@ fn main() -> ExitCode {
         Err(err) => {
             eprintln!(
                 "typst-test ran into an unexpected error, this is most likely a bug\n\
-                please consider reporting this at {}\n\
+                please consider reporting this at {}/issues\n\
                 Error: {err}",
                 std::env!("CARGO_PKG_REPOSITORY")
             );
