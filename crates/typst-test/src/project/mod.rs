@@ -135,20 +135,28 @@ impl Project {
         util::fs::path_in_root(&self.test_root, [test.name(), "test"]).with_extension("typ")
     }
 
+    pub fn root_exists(&self) -> io::Result<bool> {
+        self.root.try_exists()
+    }
+
     #[tracing::instrument(skip(self))]
     fn ensure_root(&self) -> Result<(), Error> {
-        if self.root.try_exists()? {
+        if self.root_exists()? {
             Ok(())
         } else {
             Err(Error::RootNotFound(self.root.clone()))
         }
     }
 
+    pub fn is_init(&self) -> io::Result<bool> {
+        self.tests_root_dir().try_exists()
+    }
+
     #[tracing::instrument(skip(self))]
     fn ensure_init(&self) -> Result<(), Error> {
         self.ensure_root()?;
 
-        if self.tests_root_dir().try_exists()? {
+        if self.is_init()? {
             Ok(())
         } else {
             Err(Error::InitNeeded)
@@ -156,13 +164,13 @@ impl Project {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn init(&self, mode: ScaffoldMode) -> Result<bool, Error> {
+    pub fn init(&self, mode: ScaffoldMode) -> Result<(), Error> {
         self.ensure_root()?;
 
         let test_dir = self.tests_root_dir();
         if test_dir.try_exists()? {
             tracing::warn!(path = ?test_dir, "test dir already exists");
-            return Ok(false);
+            return Err(Error::DoubleInit);
         }
 
         let test = Test::new("example".to_owned());
@@ -194,7 +202,7 @@ impl Project {
             tracing::debug!("skipping default test");
         }
 
-        Ok(true)
+        Ok(())
     }
 
     #[tracing::instrument(skip(self))]
@@ -395,6 +403,9 @@ pub enum Error {
 
     #[error("project is not initalized")]
     InitNeeded,
+
+    #[error("project is already initialzied")]
+    DoubleInit,
 
     #[error("unknown test: {0:?}")]
     TestUnknown(String),

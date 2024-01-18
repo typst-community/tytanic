@@ -1,6 +1,39 @@
+use std::fmt::Display;
 use std::path::PathBuf;
 
 use clap::ColorChoice;
+
+#[repr(u8)]
+pub enum CliResult {
+    /// Typst-test ran succesfully.
+    Ok = EXIT_OK,
+
+    /// At least one test failed.
+    TestFailure = EXIT_TEST_FAILURE,
+
+    /// The requested operation failed gracefully.
+    OperationFailure { message: Option<Box<dyn Display>> } = EXIT_OPERATION_FAILURE,
+}
+
+impl CliResult {
+    pub fn operation_failure<T: Display + 'static>(message: impl Into<Option<T>>) -> Self {
+        Self::OperationFailure {
+            message: message.into().map(|m| Box::new(m) as _),
+        }
+    }
+}
+
+/// Typst-test ran succesfully.
+pub const EXIT_OK: u8 = 0;
+
+/// At least one test failed.
+pub const EXIT_TEST_FAILURE: u8 = 1;
+
+/// The requested operation failed gracefully.
+pub const EXIT_OPERATION_FAILURE: u8 = 2;
+
+/// An unexpected error occured.
+pub const EXIT_ERROR: u8 = 3;
 
 /// Execute, compare and update visual regression tests for typst
 #[derive(clap::Parser, Debug)]
