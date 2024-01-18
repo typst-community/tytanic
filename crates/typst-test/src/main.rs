@@ -235,7 +235,7 @@ mod cmd {
         let test = Test::new(test);
         if project.get_test(test.name()).is_some() {
             return Ok(CliResult::operation_failure(format!(
-                "Test '{}' already exsits",
+                "Test '{}' already exists",
                 test.name()
             )));
         }
