@@ -1,5 +1,6 @@
 [package]
 name = "typst-test"
+repository = "https://github.com/tingerrr/typst-test"
 version = "0.1.0"
 edition = "2021"
 

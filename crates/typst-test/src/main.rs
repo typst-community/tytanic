@@ -32,8 +32,9 @@ fn main() -> ExitCode {
         Err(err) => {
             eprintln!(
                 "typst-test ran into an unexpected error, this is most likely a bug\n\
-                please consider reporting this at https://github.com/tingerrr/typst-test/issues\n\
-                Error: {err}"
+                please consider reporting this at {}\n\
+                Error: {err}",
+                std::env!("CARGO_PKG_REPOSITORY")
             );
 
             cli::EXIT_ERROR
