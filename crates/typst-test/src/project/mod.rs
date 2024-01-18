@@ -141,6 +141,7 @@ impl Project {
 
     #[tracing::instrument(skip(self))]
     pub fn init(&self, mode: ScaffoldMode) -> Result<(), Error> {
+        #[cfg(debug_assertions)]
         self.ensure_root()?;
 
         let test_dir = self.tests_root_dir();
@@ -183,6 +184,7 @@ impl Project {
 
     #[tracing::instrument(skip(self))]
     pub fn uninit(&self) -> Result<(), Error> {
+        #[cfg(debug_assertions)]
         self.ensure_init()?;
 
         util::fs::remove_dir(self.tests_root_dir(), true)?;
@@ -191,6 +193,7 @@ impl Project {
 
     #[tracing::instrument(skip(self))]
     pub fn clean_artifacts(&self) -> Result<(), Error> {
+        #[cfg(debug_assertions)]
         self.ensure_init()?;
 
         self.tests.par_iter().try_for_each(|(_, test)| {
@@ -202,6 +205,7 @@ impl Project {
 
     #[tracing::instrument(skip(self))]
     pub fn load_template(&mut self) -> Result<(), Error> {
+        #[cfg(debug_assertions)]
         self.ensure_init()?;
 
         match fs::read_to_string(self.tests_root_dir().join("template.typ")) {
@@ -225,6 +229,7 @@ impl Project {
 
     #[tracing::instrument(skip(self))]
     pub fn create_test(&self, test: &Test) -> Result<(), Error> {
+        #[cfg(debug_assertions)]
         self.ensure_init()?;
 
         if self.get_test(test.name()).is_some() {
@@ -275,6 +280,7 @@ impl Project {
 
     #[tracing::instrument(skip(self))]
     pub fn remove_test(&self, test: &str) -> Result<(), Error> {
+        #[cfg(debug_assertions)]
         self.ensure_init()?;
 
         let Some(test) = self.get_test(test) else {
@@ -290,6 +296,7 @@ impl Project {
 
     #[tracing::instrument(skip(self))]
     pub fn discover_tests(&mut self) -> Result<(), Error> {
+        #[cfg(debug_assertions)]
         self.ensure_init()?;
 
         for entry in WalkDir::new(&self.test_root).min_depth(1) {
@@ -324,6 +331,7 @@ impl Project {
 
     #[tracing::instrument(skip(self))]
     pub fn update_tests<'p>(&self) -> Result<(), Error> {
+        #[cfg(debug_assertions)]
         self.ensure_init()?;
 
         let options = Options::max_compression();
