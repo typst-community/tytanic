@@ -265,7 +265,7 @@ mod cmd {
         bail_gracefully!(if_test_not_found; test => test, project, reporter);
 
         project.remove_test(test.name())?;
-        reporter.test_success(project, &test, "removed")?;
+        reporter.test_success(project, test, "removed")?;
 
         Ok(CliResult::Ok)
     }
