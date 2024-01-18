@@ -98,7 +98,7 @@ fn main_impl() -> anyhow::Result<CliResult> {
     let (test_args, compare) = match args.cmd {
         cli::Command::Init { no_example } => return cmd::init(&project, reporter, no_example),
         cli::Command::Uninit => return cmd::uninit(&mut project, reporter),
-        cli::Command::Clean => return cmd::clean(&project, reporter),
+        cli::Command::Clean => return cmd::clean(&mut project, reporter),
         cli::Command::Add { open, test } => return cmd::add(&mut project, reporter, test, open),
         cli::Command::Edit { test } => return cmd::edit(&mut project, reporter, test),
         cli::Command::Remove { test } => return cmd::remove(&mut project, reporter, test),
@@ -163,7 +163,7 @@ mod cmd {
         (if_test_not_found; $test:expr => $name:ident, $project:expr, $reporter:expr) => {
             let Some($name) = $project.get_test(&$test) else {
                 return Ok(CliResult::operation_failure(format!(
-                    "Test '{}'could not be found",
+                    "Test '{}' could not be found",
                     $test
                 )));
             };
@@ -213,8 +213,10 @@ mod cmd {
         Ok(CliResult::Ok)
     }
 
-    pub fn clean(project: &Project, reporter: Reporter) -> anyhow::Result<CliResult> {
+    pub fn clean(project: &mut Project, reporter: Reporter) -> anyhow::Result<CliResult> {
         bail_gracefully!(if_uninit; project, reporter);
+
+        project.discover_tests()?;
 
         project.clean_artifacts()?;
         reporter.raw(|w| writeln!(w, "Removed test artifacts"))?;
@@ -230,6 +232,7 @@ mod cmd {
     ) -> anyhow::Result<CliResult> {
         bail_gracefully!(if_uninit; project, reporter);
 
+        project.discover_tests()?;
         project.load_template()?;
 
         let test = Test::new(test);
