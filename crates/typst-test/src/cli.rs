@@ -35,8 +35,35 @@ pub const EXIT_OPERATION_FAILURE: u8 = 2;
 /// An unexpected error occured.
 pub const EXIT_ERROR: u8 = 3;
 
+macro_rules! ansi {
+    ($s:expr; b) => {
+        concat!("\x1B[1m", $s, "\x1B[0m")
+    };
+    ($s:expr; u) => {
+        concat!("\x1B[4m", $s, "\x1B[0m")
+    };
+    ($s:expr;) => {
+        $s
+    };
+    ($s:expr; $first:ident $( + $rest:tt)*) => {
+        ansi!(ansi!($s; $($rest)*); $first)
+    };
+}
+
+// NOTE: we use clap style formatting here and keep it simple to avoid a proc macro dependency for
+// a single use of static ansi formatting
+#[rustfmt::skip]
+static AFTER_LONG_ABOUT: &str = concat!(
+    ansi!("Exit Codes:\n"; u + b),
+    "  ", ansi!("0"; b), "  Success\n",
+    "  ", ansi!("1"; b), "  At least one test failed\n",
+    "  ", ansi!("2"; b), "  The requested operation failed\n",
+    "  ", ansi!("3"; b), "  An unexpected error occured",
+);
+
 /// Execute, compare and update visual regression tests for typst
 #[derive(clap::Parser, Debug)]
+#[clap(after_long_help = AFTER_LONG_ABOUT)]
 pub struct Args {
     /// The project root directory
     #[arg(long, global = true)]
