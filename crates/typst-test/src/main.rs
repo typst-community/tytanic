@@ -90,7 +90,7 @@ fn main_impl() -> anyhow::Result<CliResult> {
     let manifest = project::try_open_manifest(&root)?;
     let mut project = Project::new(root, Path::new("tests"), manifest);
 
-    let (test_args, compare) = match args.cmd {
+    let (filter, compare) = match args.cmd {
         cli::Command::Init { no_example } => return cmd::init(&project, &mut reporter, no_example),
         cli::Command::Uninit => return cmd::uninit(&mut project, &mut reporter),
         cli::Command::Clean => return cmd::clean(&mut project, &mut reporter),
@@ -101,14 +101,13 @@ fn main_impl() -> anyhow::Result<CliResult> {
         cli::Command::Remove { test } => return cmd::remove(&mut project, &mut reporter, test),
         cli::Command::Status => return cmd::status(&mut project, &mut reporter),
         cli::Command::Update {
-            test_filter,
-            exact,
+            filter,
             no_optimize,
         } => {
             return cmd::update(
                 &mut project,
                 &mut reporter,
-                test_filter.map(|f| Filter::new(f, exact)),
+                filter.filter.map(|f| Filter::new(f, filter.exact)),
                 args.typst,
                 args.fail_fast,
                 !no_optimize,
@@ -121,9 +120,7 @@ fn main_impl() -> anyhow::Result<CliResult> {
     cmd::run(
         &mut project,
         &mut reporter,
-        test_args
-            .test_filter
-            .map(|f| Filter::new(f, test_args.exact)),
+        filter.filter.map(|f| Filter::new(f, filter.exact)),
         args.typst,
         args.fail_fast,
         compare,
