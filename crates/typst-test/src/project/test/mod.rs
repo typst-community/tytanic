@@ -212,6 +212,7 @@ pub enum CompareFailure {
     },
     Page {
         pages: Vec<(usize, ComparePageFailure)>,
+        diff_dir: Option<PathBuf>,
     },
     MissingOutput,
     MissingReferences,
@@ -225,7 +226,7 @@ impl Display for CompareFailure {
                 "page count differed: out ({}) != ref ({})",
                 output, reference
             ),
-            CompareFailure::Page { pages } => write!(
+            CompareFailure::Page { pages, diff_dir: _ } => write!(
                 f,
                 "{} page{} differed {:?}",
                 pages.len(),

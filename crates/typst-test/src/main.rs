@@ -91,7 +91,9 @@ fn main_impl() -> anyhow::Result<CliResult> {
     let mut project = Project::new(root, Path::new("tests"), manifest);
 
     let (filter, compare) = match args.cmd {
-        cli::Command::Init { no_example } => return cmd::init(&project, &mut reporter, no_example),
+        cli::Command::Init { no_example } => {
+            return cmd::init(&mut project, &mut reporter, no_example)
+        }
         cli::Command::Uninit => return cmd::uninit(&mut project, &mut reporter),
         cli::Command::Clean => return cmd::clean(&mut project, &mut reporter),
         cli::Command::Add { open, test } => {
@@ -136,7 +138,7 @@ mod cmd {
 
     use crate::cli::CliResult;
     use crate::project::test::context::Context;
-    use crate::project::test::{Filter, Test};
+    use crate::project::test::Filter;
     use crate::project::{Project, ScaffoldMode};
     use crate::report::Reporter;
 
@@ -187,7 +189,7 @@ mod cmd {
     }
 
     pub fn init(
-        project: &Project,
+        project: &mut Project,
         reporter: &mut Reporter,
         no_example: bool,
     ) -> anyhow::Result<CliResult> {
@@ -243,7 +245,7 @@ mod cmd {
     pub fn add(
         project: &mut Project,
         reporter: &mut Reporter,
-        test: String,
+        name: String,
         open: bool,
     ) -> anyhow::Result<CliResult> {
         bail_gracefully!(if_uninit; project, reporter);
@@ -251,20 +253,23 @@ mod cmd {
         project.discover_tests()?;
         project.load_template()?;
 
-        let test = Test::new(test);
-        if project.get_test(test.name()).is_some() {
+        if project.get_test(&name).is_some() {
             return Ok(CliResult::operation_failure(format!(
                 "Test '{}' already exists",
-                test.name()
+                name,
             )));
         };
 
-        reporter.set_padding(Some(test.name().len()));
+        reporter.set_padding(Some(name.len()));
 
-        let no_ref = !project.create_test(&test)?;
-        reporter.test_added(project, &test, no_ref)?;
+        let (test, has_ref) = project.create_test(&name)?;
+        reporter.test_added(test, !has_ref)?;
 
         if open {
+            // NOTE: because test form create_test extends the mutable borrow
+            // we must end it early
+            let test = project.find_test(&name)?;
+
             // BUG: this may fail silently if the path doesn't exist
             open::that_detached(test.test_file(project))?;
         }
@@ -283,7 +288,7 @@ mod cmd {
         bail_gracefully!(if_test_not_found; test => test; project, reporter);
 
         project.remove_test(test.name())?;
-        reporter.test_success(project, test, "removed")?;
+        reporter.test_success(test, "removed")?;
 
         Ok(CliResult::Ok)
     }
@@ -419,7 +424,7 @@ mod cmd {
                         reporter
                             .lock()
                             .unwrap()
-                            .test_success(project, test, done_annot)
+                            .test_success(test, done_annot)
                             .map_err(|e| Some(e.into()))?;
                         Ok(())
                     }
@@ -428,7 +433,7 @@ mod cmd {
                         reporter
                             .lock()
                             .unwrap()
-                            .test_failure(project, test, err)
+                            .test_failure(test, err)
                             .map_err(|e| Some(e.into()))?;
                         if ctx.fail_fast() {
                             Err(None)

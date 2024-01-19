@@ -286,13 +286,19 @@ impl TestContext<'_, '_, '_> {
             if let Err(err) = self.compare_page(p, &out_entry.path(), &ref_entry.path())? {
                 pages.push((p, err));
                 if self.project_context.fail_fast {
-                    return Ok(Err(CompareFailure::Page { pages }));
+                    return Ok(Err(CompareFailure::Page {
+                        pages,
+                        diff_dir: Some(self.test.diff_dir(self.project_context.project)),
+                    }));
                 }
             }
         }
 
         if !pages.is_empty() {
-            return Ok(Err(CompareFailure::Page { pages }));
+            return Ok(Err(CompareFailure::Page {
+                pages,
+                diff_dir: Some(self.test.diff_dir(self.project_context.project)),
+            }));
         }
 
         Ok(Ok(()))

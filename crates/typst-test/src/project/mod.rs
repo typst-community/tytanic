@@ -131,7 +131,7 @@ impl Project {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn init(&self, mode: ScaffoldMode) -> Result<Option<Test>, Error> {
+    pub fn init(&mut self, mode: ScaffoldMode) -> Result<Option<&Test>, Error> {
         #[cfg(debug_assertions)]
         self.ensure_root()?;
 
@@ -141,15 +141,9 @@ impl Project {
             return Err(Error::DoubleInit);
         }
 
-        let test = Test::new("example".to_owned());
-
         let tests_root_dir = self.tests_root_dir();
-        let test_dir = test.test_dir(self);
-
-        for (name, path) in [("tests root", tests_root_dir), ("example test", &test_dir)] {
-            tracing::trace!(?path, "creating {name} dir");
-            util::fs::create_dir(path, false)?;
-        }
+        tracing::trace!(path = ?tests_root_dir, "creating tests root dir");
+        util::fs::create_dir(tests_root_dir, false)?;
 
         let gitignore = tests_root_dir.join(".gitignore");
         tracing::debug!(path = ?gitignore, "writing .gitignore");
@@ -165,7 +159,7 @@ impl Project {
 
         if mode == ScaffoldMode::WithExample {
             tracing::debug!("adding default test");
-            self.create_test(&test)?;
+            let (test, _) = self.create_test("example")?;
             Ok(Some(test))
         } else {
             tracing::debug!("skipping default test");
@@ -212,20 +206,21 @@ impl Project {
         self.tests.get(test)
     }
 
-    #[allow(dead_code)]
     pub fn find_test(&self, test: &str) -> Result<&Test, Error> {
         self.get_test(test)
             .ok_or_else(|| Error::TestUnknown(test.to_owned()))
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn create_test(&self, test: &Test) -> Result<bool, Error> {
+    pub fn create_test(&mut self, test: &str) -> Result<(&Test, bool), Error> {
         #[cfg(debug_assertions)]
         self.ensure_init()?;
 
-        if self.get_test(test.name()).is_some() {
-            return Err(Error::TestsAlreadyExists(test.name().to_owned()));
+        if self.get_test(test).is_some() {
+            return Err(Error::TestsAlreadyExists(test.to_owned()));
         }
+
+        let test = Test::new(test.to_owned());
 
         let test_dir = test.test_dir(self);
         tracing::trace!(path = ?test_dir, "creating test dir");
@@ -256,9 +251,11 @@ impl Project {
                 .create_new(true)
                 .open(test_ref)?;
             test_ref.write_all(DEFAULT_TEST_OUTPUT)?;
-            Ok(true)
+            let test = self.tests.entry(test.name().to_owned()).or_insert(test);
+            Ok((test, true))
         } else {
-            Ok(false)
+            let test = self.tests.entry(test.name().to_owned()).or_insert(test);
+            Ok((test, false))
         }
     }
 

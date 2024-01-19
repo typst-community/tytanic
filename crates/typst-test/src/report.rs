@@ -4,7 +4,6 @@ use std::io;
 use termcolor::{Color, ColorSpec, WriteColor};
 
 use crate::project::test::{CompareFailure, Test, TestFailure, UpdateFailure};
-use crate::project::Project;
 
 pub const MAX_PADDING: usize = 20;
 
@@ -120,7 +119,7 @@ impl Reporter {
         f(&mut self.inner.writer)
     }
 
-    pub fn test_success(&mut self, _project: &Project, test: &Test, annot: &str) -> io::Result<()> {
+    pub fn test_success(&mut self, test: &Test, annot: &str) -> io::Result<()> {
         write_test(
             &mut self.inner.writer,
             self.inner.padding,
@@ -130,7 +129,7 @@ impl Reporter {
         )
     }
 
-    pub fn test_added(&mut self, _project: &Project, test: &Test, no_ref: bool) -> io::Result<()> {
+    pub fn test_added(&mut self, test: &Test, no_ref: bool) -> io::Result<()> {
         write_test(
             &mut self.inner.writer,
             self.inner.padding,
@@ -151,12 +150,7 @@ impl Reporter {
         )
     }
 
-    pub fn test_failure(
-        &mut self,
-        project: &Project,
-        test: &Test,
-        error: TestFailure,
-    ) -> io::Result<()> {
+    pub fn test_failure(&mut self, test: &Test, error: TestFailure) -> io::Result<()> {
         write_test(
             &mut self.inner.writer,
             self.inner.padding,
@@ -179,18 +173,18 @@ impl Reporter {
                             if output == 1 { "" } else { "s" },
                         )?;
                     }
-                    TestFailure::Comparison(CompareFailure::Page { pages }) => {
+                    TestFailure::Comparison(CompareFailure::Page { pages, diff_dir }) => {
                         for (p, _) in pages {
                             writeln!(w, "{pad}Page {p} did not match")?;
                         }
-                        write_hint(
-                            w,
-                            pad,
-                            &format!(
-                                "Diff images have been saved at {:?}",
-                                test.diff_dir(project)
-                            ),
-                        )?;
+
+                        if let Some(diff_dir) = diff_dir {
+                            write_hint(
+                                w,
+                                pad,
+                                &format!("Diff images have been saved at {diff_dir:?}",),
+                            )?;
+                        }
                     }
                     TestFailure::Comparison(CompareFailure::MissingOutput) => {
                         writeln!(w, "{pad}No output was generated")?;
