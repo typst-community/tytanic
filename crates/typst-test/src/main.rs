@@ -156,16 +156,16 @@ mod cmd {
             let Some($name) = $project.get_test(&$test) else {
                 return Ok(CliResult::operation_failure(format!(
                     "Test '{}' could not be found",
-                    $test
+                    $test,
                 )));
             };
         };
         (if_no_tests; $project:expr, $reporter:expr) => {
             if $project.tests().is_empty() {
-                $reporter.raw(|w| {
-                    writeln!(w, "Project '{}' did not contain any tests", $project.name())
-                })?;
-                return Ok(CliResult::Ok);
+                return Ok(CliResult::operation_failure(format!(
+                    "Project '{}' did not contain any tests",
+                    $project.name(),
+                )));
             }
         };
         (if_no_match; $filter:expr; $project:expr, $reporter:expr) => {
@@ -180,10 +180,10 @@ mod cmd {
                 }
 
                 if $project.tests().is_empty() {
-                    $reporter.raw(|w| {
-                        writeln!(w, "Filter '{}' did not match any tests", filter.value())
-                    })?;
-                    return Ok(CliResult::Ok);
+                    return Ok(CliResult::operation_failure(format!(
+                        "Filter '{}' did not match any tests",
+                        filter.value(),
+                    )));
                 }
             }
         };
