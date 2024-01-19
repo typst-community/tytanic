@@ -143,7 +143,7 @@ mod cmd {
     use crate::report::Reporter;
 
     macro_rules! bail_gracefully {
-        (if_uninit; $project:expr, $reporter:expr) => {
+        (if_uninit; $project:expr) => {
             if !$project.is_init()? {
                 return Ok(CliResult::operation_failure(format!(
                     "Project '{}' was not initialized",
@@ -151,7 +151,7 @@ mod cmd {
                 )));
             }
         };
-        (if_test_not_found; $test:expr => $name:ident; $project:expr, $reporter:expr) => {
+        (if_test_not_found; $project:expr; $test:expr => $name:ident) => {
             let Some($name) = $project.get_test(&$test) else {
                 return Ok(CliResult::operation_failure(format!(
                     "Test '{}' could not be found",
@@ -159,7 +159,7 @@ mod cmd {
                 )));
             };
         };
-        (if_no_tests; $project:expr, $reporter:expr) => {
+        (if_no_tests; $project:expr) => {
             if $project.tests().is_empty() {
                 return Ok(CliResult::operation_failure(format!(
                     "Project '{}' did not contain any tests",
@@ -167,7 +167,7 @@ mod cmd {
                 )));
             }
         };
-        (if_no_match; $filter:expr; $project:expr, $reporter:expr) => {
+        (if_no_match; $project:expr; $filter:expr) => {
             if let Some(filter) = &$filter {
                 match filter {
                     Filter::Exact(f) => {
@@ -213,7 +213,7 @@ mod cmd {
     }
 
     pub fn uninit(project: &mut Project, reporter: &mut Reporter) -> anyhow::Result<CliResult> {
-        bail_gracefully!(if_uninit; project, reporter);
+        bail_gracefully!(if_uninit; project);
 
         project.discover_tests()?;
         let count = project.tests().len();
@@ -232,7 +232,7 @@ mod cmd {
     }
 
     pub fn clean(project: &mut Project, reporter: &mut Reporter) -> anyhow::Result<CliResult> {
-        bail_gracefully!(if_uninit; project, reporter);
+        bail_gracefully!(if_uninit; project);
 
         project.discover_tests()?;
 
@@ -248,7 +248,7 @@ mod cmd {
         name: String,
         open: bool,
     ) -> anyhow::Result<CliResult> {
-        bail_gracefully!(if_uninit; project, reporter);
+        bail_gracefully!(if_uninit; project);
 
         project.discover_tests()?;
         project.load_template()?;
@@ -280,12 +280,12 @@ mod cmd {
     pub fn remove(
         project: &mut Project,
         reporter: &mut Reporter,
-        test: String,
+        name: String,
     ) -> anyhow::Result<CliResult> {
-        bail_gracefully!(if_uninit; project, reporter);
+        bail_gracefully!(if_uninit; project);
 
         project.discover_tests()?;
-        bail_gracefully!(if_test_not_found; test => test; project, reporter);
+        bail_gracefully!(if_test_not_found; project; name => test);
 
         project.remove_test(test.name())?;
         reporter.test_success(test, "removed")?;
@@ -295,15 +295,16 @@ mod cmd {
 
     pub fn edit(
         project: &mut Project,
-        _reporter: &mut Reporter,
-        test: String,
+        reporter: &mut Reporter,
+        name: String,
     ) -> anyhow::Result<CliResult> {
-        bail_gracefully!(if_uninit; project, reporter);
+        bail_gracefully!(if_uninit; project);
 
         project.discover_tests()?;
-        bail_gracefully!(if_test_not_found; test => test; project, reporter);
+        bail_gracefully!(if_test_not_found; project; name => test);
 
         open::that_detached(test.test_file(project))?;
+        reporter.test_success(test, "opened")?;
 
         Ok(CliResult::Ok)
     }
@@ -311,18 +312,18 @@ mod cmd {
     pub fn update(
         project: &mut Project,
         reporter: &mut Reporter,
-        test_filter: Option<Filter>,
+        filter: Option<Filter>,
         typst: PathBuf,
         fail_fast: bool,
         optimize: bool,
     ) -> anyhow::Result<CliResult> {
-        bail_gracefully!(if_uninit; project, reporter);
+        bail_gracefully!(if_uninit; project);
 
         project.discover_tests()?;
         run_tests(
             project,
             reporter,
-            test_filter,
+            filter,
             |project| {
                 let mut ctx = Context::new(project, typst);
                 ctx.with_fail_fast(fail_fast)
@@ -335,7 +336,7 @@ mod cmd {
     }
 
     pub fn status(project: &mut Project, reporter: &mut Reporter) -> anyhow::Result<CliResult> {
-        bail_gracefully!(if_uninit; project, reporter);
+        bail_gracefully!(if_uninit; project);
 
         project.discover_tests()?;
         project.load_template()?;
@@ -379,18 +380,18 @@ mod cmd {
     pub fn run(
         project: &mut Project,
         reporter: &mut Reporter,
-        test_filter: Option<Filter>,
+        filter: Option<Filter>,
         typst: PathBuf,
         fail_fast: bool,
         compare: bool,
     ) -> anyhow::Result<CliResult> {
-        bail_gracefully!(if_uninit; project, reporter);
+        bail_gracefully!(if_uninit; project);
 
         project.discover_tests()?;
         run_tests(
             project,
             reporter,
-            test_filter,
+            filter,
             |project| {
                 let mut ctx = Context::new(project, typst);
                 ctx.with_fail_fast(fail_fast).with_compare(compare);
@@ -403,12 +404,12 @@ mod cmd {
     fn run_tests(
         project: &mut Project,
         reporter: &mut Reporter,
-        test_filter: Option<Filter>,
+        filter: Option<Filter>,
         prepare_ctx: impl FnOnce(&Project) -> Context,
         done_annot: &str,
     ) -> anyhow::Result<CliResult> {
-        bail_gracefully!(if_no_tests; project, reporter);
-        bail_gracefully!(if_no_match; test_filter; project, reporter);
+        bail_gracefully!(if_no_tests; project);
+        bail_gracefully!(if_no_match; project; filter);
 
         reporter.set_padding(project.tests().iter().map(|(name, _)| name.len()).max());
 
