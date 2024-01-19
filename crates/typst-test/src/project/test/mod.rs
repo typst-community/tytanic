@@ -3,6 +3,8 @@ use std::fmt::Display;
 use std::path::PathBuf;
 use std::process::Output;
 
+use oxipng::PngError;
+
 use crate::{util, Project};
 
 pub mod context;
@@ -11,7 +13,7 @@ const REF_DIR: &str = "ref";
 const OUT_DIR: &str = "out";
 const DIFF_DIR: &str = "diff";
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Filter {
     Contains(String),
     Exact(String),
@@ -86,6 +88,8 @@ pub enum Stage {
     Compilation,
     Comparison,
     #[allow(dead_code)]
+    Update,
+    #[allow(dead_code)]
     Cleanup,
 }
 
@@ -98,6 +102,7 @@ impl Display for Stage {
                 Stage::Preparation => "preparation",
                 Stage::Compilation => "compilation",
                 Stage::Comparison => "comparison",
+                Stage::Update => "update",
                 Stage::Cleanup => "cleanup",
             }
         )
@@ -111,6 +116,7 @@ pub enum TestFailure {
     Preparation(PrepareFailure),
     Compilation(CompileFailure),
     Comparison(CompareFailure),
+    Update(UpdateFailure),
     Cleanup(CleanupFailure),
 }
 
@@ -138,6 +144,12 @@ impl From<CompareFailure> for TestFailure {
     }
 }
 
+impl From<UpdateFailure> for TestFailure {
+    fn from(value: UpdateFailure) -> Self {
+        Self::Update(value)
+    }
+}
+
 impl From<CleanupFailure> for TestFailure {
     fn from(value: CleanupFailure) -> Self {
         Self::Cleanup(value)
@@ -150,6 +162,7 @@ impl std::error::Error for TestFailure {
             TestFailure::Preparation(e) => e,
             TestFailure::Compilation(e) => e,
             TestFailure::Comparison(e) => e,
+            TestFailure::Update(e) => e,
             TestFailure::Cleanup(e) => e,
         })
     }
@@ -252,3 +265,22 @@ impl Display for ComparePageFailure {
 }
 
 impl std::error::Error for ComparePageFailure {}
+
+#[derive(Debug, Clone)]
+pub enum UpdateFailure {
+    Optimize { error: PngError },
+}
+
+impl Display for UpdateFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "update failed")
+    }
+}
+
+impl std::error::Error for UpdateFailure {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            UpdateFailure::Optimize { error } => Some(error),
+        }
+    }
+}

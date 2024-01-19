@@ -3,27 +3,53 @@ use std::io;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::time::Duration;
 
 use image::{ImageResult, RgbImage};
+use oxipng::{Deflaters, InFile, IndexSet, Options, OutFile, PngResult, StripChunks};
+use rayon::prelude::*;
 
 use super::{
     CleanupFailure, CompareFailure, ComparePageFailure, CompileFailure, PrepareFailure, Stage,
-    Test, TestFailure, TestResult,
+    Test, TestFailure, TestResult, UpdateFailure,
 };
 use crate::project::Project;
 use crate::util;
+
+fn no_optimize_options() -> Options {
+    Options {
+        fix_errors: false,
+        force: true,
+        filter: IndexSet::new(),
+        interlace: None,
+        optimize_alpha: false,
+        bit_depth_reduction: false,
+        color_type_reduction: false,
+        palette_reduction: false,
+        grayscale_reduction: false,
+        idat_recoding: false,
+        scale_16: false,
+        strip: StripChunks::None,
+        deflate: Deflaters::Libdeflater { compression: 0 },
+        fast_evaluation: true,
+        timeout: Some(Duration::new(0, 0)),
+    }
+}
 
 #[derive(Debug)]
 pub struct Context<'p> {
     project: &'p Project,
     typst: PathBuf,
     fail_fast: bool,
+    compare: bool,
+    update: bool,
+    optimize_options: Box<Options>,
 }
 
 #[derive(Debug)]
 pub struct TestContext<'c, 'p, 't> {
     project_context: &'c Context<'p>,
-    _test: &'t Test,
+    test: &'t Test,
     test_file: PathBuf,
     out_dir: PathBuf,
     ref_dir: PathBuf,
@@ -31,12 +57,44 @@ pub struct TestContext<'c, 'p, 't> {
 }
 
 impl<'p> Context<'p> {
-    pub fn new(project: &'p Project, typst: PathBuf, fail_fast: bool) -> Self {
+    pub fn new(project: &'p Project, typst: PathBuf) -> Self {
         Self {
             project,
             typst,
-            fail_fast,
+            fail_fast: false,
+            compare: false,
+            update: false,
+            optimize_options: Box::new(no_optimize_options()),
         }
+    }
+
+    pub fn fail_fast(&self) -> bool {
+        self.fail_fast
+    }
+
+    pub fn with_fail_fast(&mut self, yes: bool) -> &mut Self {
+        self.fail_fast = yes;
+        self
+    }
+
+    pub fn with_compare(&mut self, yes: bool) -> &mut Self {
+        self.compare = yes;
+        self
+    }
+
+    pub fn with_update(&mut self, yes: bool) -> &mut Self {
+        self.update = yes;
+        self
+    }
+
+    pub fn with_optimize(&mut self, yes: bool) -> &mut Self {
+        self.update = true;
+        self.optimize_options = Box::new(if yes {
+            Options::max_compression()
+        } else {
+            no_optimize_options()
+        });
+        self
     }
 
     pub fn test<'c, 't>(&'c self, test: &'t Test) -> TestContext<'c, 'p, 't> {
@@ -48,7 +106,7 @@ impl<'p> Context<'p> {
         tracing::trace!(test = ?test.name(), "establishing test context");
         TestContext {
             project_context: self,
-            _test: test,
+            test,
             test_file,
             out_dir,
             ref_dir,
@@ -67,16 +125,16 @@ impl<'p> Context<'p> {
     }
 }
 
+macro_rules! bail_inner {
+    ($err:expr) => {
+        let err: TestFailure = $err.into();
+        return Ok(Err(err));
+    };
+}
+
 impl TestContext<'_, '_, '_> {
     #[tracing::instrument(skip(self))]
-    pub fn run(&self, compare: bool) -> ContextResult<TestFailure> {
-        macro_rules! bail_inner {
-            ($err:expr) => {
-                let err: TestFailure = $err.into();
-                return Ok(Err(err));
-            };
-        }
-
+    pub fn run(&self) -> ContextResult<TestFailure> {
         if let Err(err) = self.prepare()? {
             bail_inner!(err);
         }
@@ -85,8 +143,14 @@ impl TestContext<'_, '_, '_> {
             bail_inner!(err);
         }
 
-        if compare {
+        if self.project_context.compare {
             if let Err(err) = self.compare()? {
+                bail_inner!(err);
+            }
+        }
+
+        if self.project_context.update {
+            if let Err(err) = self.update()? {
                 bail_inner!(err);
             }
         }
@@ -98,7 +162,28 @@ impl TestContext<'_, '_, '_> {
         Ok(Ok(()))
     }
 
-    #[tracing::instrument(skip_all)]
+    #[tracing::instrument(skip(self))]
+    pub fn compile_and_update(&self) -> ContextResult<TestFailure> {
+        if let Err(err) = self.prepare()? {
+            bail_inner!(err);
+        }
+
+        if let Err(err) = self.compile()? {
+            bail_inner!(err);
+        }
+
+        if let Err(err) = self.update()? {
+            bail_inner!(err);
+        }
+
+        if let Err(err) = self.cleanup()? {
+            bail_inner!(err);
+        }
+
+        Ok(Ok(()))
+    }
+
+    #[tracing::instrument(skip(self))]
     pub fn prepare(&self) -> ContextResult<PrepareFailure> {
         let dirs = [
             ("out", true, &self.out_dir),
@@ -127,12 +212,12 @@ impl TestContext<'_, '_, '_> {
         Ok(Ok(()))
     }
 
-    #[tracing::instrument(skip_all)]
+    #[tracing::instrument(skip(self))]
     pub fn cleanup(&self) -> ContextResult<CleanupFailure> {
         Ok(Ok(()))
     }
 
-    #[tracing::instrument(skip_all)]
+    #[tracing::instrument(skip(self))]
     pub fn compile(&self) -> ContextResult<CompileFailure> {
         let mut typst = Command::new(&self.project_context.typst);
         typst.args(["compile", "--root"]);
@@ -160,7 +245,7 @@ impl TestContext<'_, '_, '_> {
         Ok(Ok(()))
     }
 
-    #[tracing::instrument(skip_all)]
+    #[tracing::instrument(skip(self))]
     pub fn compare(&self) -> ContextResult<CompareFailure> {
         let err_fn = |n, e, p| {
             Error::io(e)
@@ -214,7 +299,7 @@ impl TestContext<'_, '_, '_> {
     }
 
     #[tracing::instrument(skip_all, fields(page = ?page_number))]
-    pub fn compare_page(
+    fn compare_page(
         &self,
         page_number: usize,
         out_file: &Path,
@@ -255,7 +340,7 @@ impl TestContext<'_, '_, '_> {
     }
 
     #[tracing::instrument(skip_all, fields(page = ?page_number))]
-    pub fn save_diff_page(
+    fn save_diff_page(
         &self,
         page_number: usize,
         out_image: &RgbImage,
@@ -274,10 +359,41 @@ impl TestContext<'_, '_, '_> {
             .join(page_number.to_string())
             .with_extension("png");
 
-        tracing::debug!(?path, "saving diff image");
+        tracing::trace!(?path, "saving diff image");
         diff_image.save(path)?;
 
         Ok(())
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub fn update(&self) -> ContextResult<UpdateFailure> {
+        tracing::trace!(path = ?self.out_dir, "collecting new refs from out dir");
+        let entries = util::fs::collect_dir_entries(&self.out_dir).map_err(Error::io)?;
+
+        if let Err(err) = entries.par_iter().try_for_each(|entry| {
+            let name = entry.file_name();
+            self.update_optimize_ref(&entry.path(), &self.ref_dir.join(name))
+        }) {
+            return Ok(Err(UpdateFailure::Optimize { error: err }));
+        }
+
+        Ok(Ok(()))
+    }
+
+    #[tracing::instrument(skip(self))]
+    fn update_optimize_ref(&self, out_file: &Path, ref_file: &Path) -> PngResult<()> {
+        let name = out_file.file_name().expect("we only pass files paths here");
+        tracing::trace!(
+            test = ?self.test.name(),
+            "ref" = ?name.to_str().expect("we only write utf-8 paths").trim_end_matches(".png"),
+            "optimizing ref"
+        );
+
+        oxipng::optimize(
+            &InFile::Path(out_file.to_path_buf()),
+            &OutFile::from_path(ref_file.to_path_buf()),
+            &self.project_context.optimize_options,
+        )
     }
 }
 

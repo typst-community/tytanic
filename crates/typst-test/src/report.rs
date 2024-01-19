@@ -1,10 +1,9 @@
 use std::fmt::Debug;
 use std::io;
-use std::sync::{Arc, Mutex};
 
 use termcolor::{Color, ColorSpec, WriteColor};
 
-use crate::project::test::{CompareFailure, Test, TestFailure};
+use crate::project::test::{CompareFailure, Test, TestFailure, UpdateFailure};
 use crate::project::Project;
 
 pub const MAX_PADDING: usize = 20;
@@ -23,7 +22,16 @@ fn write_bold_colored<W: WriteColor + ?Sized>(
 fn write_hint<W: WriteColor + ?Sized>(w: &mut W, pad: &str, hint: &str) -> io::Result<()> {
     write!(w, "{pad}")?;
     write_bold_colored(w, "hint: ", Color::Cyan)?;
-    writeln!(w, "{}", hint)?;
+
+    let mut lines = hint.lines();
+    if let Some(first) = lines.next() {
+        writeln!(w, "{}", first)?;
+    }
+
+    for line in lines {
+        writeln!(w, "{pad}      {}", line)?;
+    }
+
     Ok(())
 }
 
@@ -84,9 +92,8 @@ struct Inner<W: ?Sized> {
     writer: W,
 }
 
-#[derive(Clone)]
 pub struct Reporter {
-    inner: Arc<Mutex<Inner<dyn WriteColor + Send + 'static>>>,
+    inner: Box<Inner<dyn WriteColor + Send + Sync + 'static>>,
 }
 
 impl Debug for Reporter {
@@ -96,47 +103,63 @@ impl Debug for Reporter {
 }
 
 impl Reporter {
-    pub fn new<W: WriteColor + Send + 'static>(writer: W) -> Self {
+    pub fn new<W: WriteColor + Send + Sync + 'static>(writer: W) -> Self {
         Self {
-            inner: Arc::new(Mutex::new(Inner {
+            inner: Box::new(Inner {
                 padding: None,
                 writer,
-            })),
+            }),
         }
     }
 
-    pub fn set_padding(&self, max_padding: Option<usize>) {
-        self.inner.lock().unwrap().padding = max_padding;
+    pub fn set_padding(&mut self, max_padding: Option<usize>) {
+        self.inner.padding = max_padding;
     }
 
-    pub fn raw(&self, f: impl FnOnce(&mut dyn WriteColor) -> io::Result<()>) -> io::Result<()> {
-        let mut inner = self.inner.lock().unwrap();
-        f(&mut inner.writer)
+    pub fn raw(&mut self, f: impl FnOnce(&mut dyn WriteColor) -> io::Result<()>) -> io::Result<()> {
+        f(&mut self.inner.writer)
     }
 
-    pub fn test_success(&self, _project: &Project, test: &Test, annot: &str) -> io::Result<()> {
-        let mut inner = self.inner.lock().unwrap();
-        let padding = inner.padding;
+    pub fn test_success(&mut self, _project: &Project, test: &Test, annot: &str) -> io::Result<()> {
         write_test(
-            &mut inner.writer,
-            padding,
+            &mut self.inner.writer,
+            self.inner.padding,
             test.name(),
             (annot, Color::Green),
             |_, _| Ok(()),
         )
     }
 
+    pub fn test_added(&mut self, _project: &Project, test: &Test, no_ref: bool) -> io::Result<()> {
+        write_test(
+            &mut self.inner.writer,
+            self.inner.padding,
+            test.name(),
+            ("added", Color::Green),
+            |pad, w| {
+                if no_ref {
+                    write_hint(
+                        w,
+                        pad,
+                        &format!("Test template used, no default reference generated\nrun `typst-test update --exact {}` to accept test",
+                        test.name(),)
+                    )?;
+                }
+
+                Ok(())
+            },
+        )
+    }
+
     pub fn test_failure(
-        &self,
+        &mut self,
         project: &Project,
         test: &Test,
         error: TestFailure,
     ) -> io::Result<()> {
-        let mut inner = self.inner.lock().unwrap();
-        let padding = inner.padding;
         write_test(
-            &mut inner.writer,
-            padding,
+            &mut self.inner.writer,
+            self.inner.padding,
             test.name(),
             ("failed", Color::Red),
             |pad, w| {
@@ -182,6 +205,10 @@ impl Reporter {
                                 test.name(),
                             ),
                         )?;
+                    }
+                    TestFailure::Update(UpdateFailure::Optimize { error }) => {
+                        writeln!(w, "{pad}Failed to optimize image")?;
+                        writeln!(w, "{pad}{error}")?;
                     }
                 }
 

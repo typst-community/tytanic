@@ -5,13 +5,11 @@ use std::io;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use oxipng::{InFile, Options, OutFile};
 use rayon::prelude::*;
 use typst_manifest::Manifest;
 use walkdir::WalkDir;
 
 use self::test::Test;
-use crate::report::Reporter;
 use crate::util;
 
 pub mod test;
@@ -58,16 +56,10 @@ pub struct Project {
     test_root: PathBuf,
     tests: BTreeMap<String, Test>,
     template: Option<String>,
-    reporter: Reporter,
 }
 
 impl Project {
-    pub fn new(
-        root: PathBuf,
-        tests_dir: &Path,
-        manifest: Option<Manifest>,
-        reporter: Reporter,
-    ) -> Self {
+    pub fn new(root: PathBuf, tests_dir: &Path, manifest: Option<Manifest>) -> Self {
         let test_root = root.join(tests_dir);
 
         Self {
@@ -76,7 +68,6 @@ impl Project {
             root,
             test_root,
             template: None,
-            reporter,
         }
     }
 
@@ -140,7 +131,7 @@ impl Project {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn init(&self, mode: ScaffoldMode) -> Result<(), Error> {
+    pub fn init(&self, mode: ScaffoldMode) -> Result<Option<Test>, Error> {
         #[cfg(debug_assertions)]
         self.ensure_root()?;
 
@@ -167,7 +158,7 @@ impl Project {
             .create_new(true)
             .open(gitignore)?;
 
-        gitignore.write_all(b"# added by typst-test, do not edit this line\n")?;
+        gitignore.write_all(b"# added by typst-test, do not edit this section\n")?;
         for pattern in DEFAULT_GIT_IGNORE_LINES {
             gitignore.write_all(pattern.as_bytes())?;
         }
@@ -175,11 +166,11 @@ impl Project {
         if mode == ScaffoldMode::WithExample {
             tracing::debug!("adding default test");
             self.create_test(&test)?;
+            Ok(Some(test))
         } else {
             tracing::debug!("skipping default test");
+            Ok(None)
         }
-
-        Ok(())
     }
 
     #[tracing::instrument(skip(self))]
@@ -228,7 +219,7 @@ impl Project {
     }
 
     #[tracing::instrument(skip(self))]
-    pub fn create_test(&self, test: &Test) -> Result<(), Error> {
+    pub fn create_test(&self, test: &Test) -> Result<bool, Error> {
         #[cfg(debug_assertions)]
         self.ensure_init()?;
 
@@ -265,17 +256,10 @@ impl Project {
                 .create_new(true)
                 .open(test_ref)?;
             test_ref.write_all(DEFAULT_TEST_OUTPUT)?;
+            Ok(true)
         } else {
-            self.reporter.raw(|w| {
-                writeln!(
-                    w,
-                    "Test template used, no default reference generated, run `typst-test update --exact {}` to accept test",
-                    test.name(),
-                )
-            })?;
+            Ok(false)
         }
-
-        Ok(())
     }
 
     #[tracing::instrument(skip(self))]
@@ -327,51 +311,6 @@ impl Project {
         }
 
         Ok(())
-    }
-
-    #[tracing::instrument(skip(self))]
-    pub fn update_tests<'p>(&self) -> Result<(), Error> {
-        #[cfg(debug_assertions)]
-        self.ensure_init()?;
-
-        let options = Options::max_compression();
-
-        self.tests.par_iter().try_for_each(|(_, test)| {
-            tracing::debug!(?test, "updating refs");
-            let out_dir = test.out_dir(self);
-            let ref_dir = test.ref_dir(self);
-
-            tracing::trace!(path = ?out_dir, "creating out dir");
-            util::fs::create_dir(&out_dir, true)?;
-
-            tracing::trace!(path = ?ref_dir, "clearing ref dir");
-            util::fs::create_empty_dir(&ref_dir, false)?;
-
-            tracing::trace!(path = ?out_dir, "collecting new refs from out dir");
-            let entries = util::fs::collect_dir_entries(&out_dir)?;
-
-            // TODO: this is rather crude, get the indices without enumerate to allow random access
-            entries
-                .into_iter()
-                .enumerate()
-                .par_bridge()
-                .try_for_each(|(idx, entry)| {
-                    tracing::debug!(?test, "ref" = ?idx + 1, "writing optimized ref");
-                    let name = entry.file_name();
-
-                    // TODO: better error handling
-                    oxipng::optimize(
-                        &InFile::Path(entry.path()),
-                        &OutFile::from_path(ref_dir.join(name)),
-                        &options,
-                    )
-                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e))
-                })?;
-
-            self.reporter.test_success(self, test, "updated")?;
-
-            Ok(())
-        })
     }
 }
 

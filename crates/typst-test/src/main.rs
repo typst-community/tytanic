@@ -86,24 +86,32 @@ fn main_impl() -> anyhow::Result<CliResult> {
         }
     };
 
-    let reporter = Reporter::new(util::term::color_stream(args.color, false));
+    let mut reporter = Reporter::new(util::term::color_stream(args.color, false));
     let manifest = project::try_open_manifest(&root)?;
-    let mut project = Project::new(root, Path::new("tests"), manifest, reporter.clone());
+    let mut project = Project::new(root, Path::new("tests"), manifest);
 
     let (test_args, compare) = match args.cmd {
-        cli::Command::Init { no_example } => return cmd::init(&project, reporter, no_example),
-        cli::Command::Uninit => return cmd::uninit(&mut project, reporter),
-        cli::Command::Clean => return cmd::clean(&mut project, reporter),
-        cli::Command::Add { open, test } => return cmd::add(&mut project, reporter, test, open),
-        cli::Command::Edit { test } => return cmd::edit(&mut project, reporter, test),
-        cli::Command::Remove { test } => return cmd::remove(&mut project, reporter, test),
-        cli::Command::Status => return cmd::status(&mut project, reporter),
-        cli::Command::Update { test_filter, exact } => {
+        cli::Command::Init { no_example } => return cmd::init(&project, &mut reporter, no_example),
+        cli::Command::Uninit => return cmd::uninit(&mut project, &mut reporter),
+        cli::Command::Clean => return cmd::clean(&mut project, &mut reporter),
+        cli::Command::Add { open, test } => {
+            return cmd::add(&mut project, &mut reporter, test, open)
+        }
+        cli::Command::Edit { test } => return cmd::edit(&mut project, &mut reporter, test),
+        cli::Command::Remove { test } => return cmd::remove(&mut project, &mut reporter, test),
+        cli::Command::Status => return cmd::status(&mut project, &mut reporter),
+        cli::Command::Update {
+            test_filter,
+            exact,
+            no_optimize,
+        } => {
             return cmd::update(
                 &mut project,
-                reporter,
-                args.typst,
+                &mut reporter,
                 test_filter.map(|f| Filter::new(f, exact)),
+                args.typst,
+                args.fail_fast,
+                !no_optimize,
             )
         }
         cli::Command::Compile(args) => (args, false),
@@ -112,12 +120,12 @@ fn main_impl() -> anyhow::Result<CliResult> {
 
     cmd::run(
         &mut project,
-        reporter,
+        &mut reporter,
         test_args
             .test_filter
             .map(|f| Filter::new(f, test_args.exact)),
         args.typst,
-        test_args.fail_fast,
+        args.fail_fast,
         compare,
     )
 }
@@ -126,6 +134,7 @@ mod cmd {
     use std::collections::BTreeMap;
     use std::path::PathBuf;
     use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Mutex;
 
     use rayon::prelude::*;
 
@@ -155,7 +164,7 @@ mod cmd {
                 )));
             }
         };
-        (if_test_not_found; $test:expr => $name:ident, $project:expr, $reporter:expr) => {
+        (if_test_not_found; $test:expr => $name:ident; $project:expr, $reporter:expr) => {
             let Some($name) = $project.get_test(&$test) else {
                 return Ok(CliResult::operation_failure(format!(
                     "Test '{}' could not be found",
@@ -163,11 +172,31 @@ mod cmd {
                 )));
             };
         };
+        (if_no_tests; $project:expr, $reporter:expr) => {
+            if $project.tests().is_empty() {
+                $reporter.raw(|w| {
+                    writeln!(w, "Project '{}' did not contain any tests", $project.name())
+                })?;
+                return Ok(CliResult::Ok);
+            }
+        };
+        (if_no_match; $filter:expr; $project:expr, $reporter:expr) => {
+            if let Some(filter) = &$filter {
+                filter_tests($project.tests_mut(), filter);
+
+                if $project.tests().is_empty() {
+                    $reporter.raw(|w| {
+                        writeln!(w, "Filter '{}' did not match any tests", filter.value())
+                    })?;
+                    return Ok(CliResult::Ok);
+                }
+            }
+        };
     }
 
     pub fn init(
         project: &Project,
-        reporter: Reporter,
+        reporter: &mut Reporter,
         no_example: bool,
     ) -> anyhow::Result<CliResult> {
         if project.is_init()? {
@@ -189,7 +218,7 @@ mod cmd {
         Ok(CliResult::Ok)
     }
 
-    pub fn uninit(project: &mut Project, reporter: Reporter) -> anyhow::Result<CliResult> {
+    pub fn uninit(project: &mut Project, reporter: &mut Reporter) -> anyhow::Result<CliResult> {
         bail_gracefully!(if_uninit; project, reporter);
 
         project.discover_tests()?;
@@ -208,7 +237,7 @@ mod cmd {
         Ok(CliResult::Ok)
     }
 
-    pub fn clean(project: &mut Project, reporter: Reporter) -> anyhow::Result<CliResult> {
+    pub fn clean(project: &mut Project, reporter: &mut Reporter) -> anyhow::Result<CliResult> {
         bail_gracefully!(if_uninit; project, reporter);
 
         project.discover_tests()?;
@@ -221,7 +250,7 @@ mod cmd {
 
     pub fn add(
         project: &mut Project,
-        reporter: Reporter,
+        reporter: &mut Reporter,
         test: String,
         open: bool,
     ) -> anyhow::Result<CliResult> {
@@ -236,10 +265,12 @@ mod cmd {
                 "Test '{}' already exists",
                 test.name()
             )));
-        }
+        };
 
-        project.create_test(&test)?;
-        reporter.test_success(project, &test, "added")?;
+        reporter.set_padding(Some(test.name().len()));
+
+        let no_ref = !project.create_test(&test)?;
+        reporter.test_added(project, &test, no_ref)?;
 
         if open {
             // BUG: this may fail silently if the path doesn't exist
@@ -251,13 +282,13 @@ mod cmd {
 
     pub fn remove(
         project: &mut Project,
-        reporter: Reporter,
+        reporter: &mut Reporter,
         test: String,
     ) -> anyhow::Result<CliResult> {
         bail_gracefully!(if_uninit; project, reporter);
 
         project.discover_tests()?;
-        bail_gracefully!(if_test_not_found; test => test, project, reporter);
+        bail_gracefully!(if_test_not_found; test => test; project, reporter);
 
         project.remove_test(test.name())?;
         reporter.test_success(project, test, "removed")?;
@@ -267,13 +298,13 @@ mod cmd {
 
     pub fn edit(
         project: &mut Project,
-        _reporter: Reporter,
+        _reporter: &mut Reporter,
         test: String,
     ) -> anyhow::Result<CliResult> {
         bail_gracefully!(if_uninit; project, reporter);
 
         project.discover_tests()?;
-        bail_gracefully!(if_test_not_found; test => test, project, reporter);
+        bail_gracefully!(if_test_not_found; test => test; project, reporter);
 
         open::that_detached(test.test_file(project))?;
 
@@ -282,25 +313,31 @@ mod cmd {
 
     pub fn update(
         project: &mut Project,
-        reporter: Reporter,
-        typst: PathBuf,
+        reporter: &mut Reporter,
         test_filter: Option<Filter>,
+        typst: PathBuf,
+        fail_fast: bool,
+        optimize: bool,
     ) -> anyhow::Result<CliResult> {
         bail_gracefully!(if_uninit; project, reporter);
 
-        let res = run_tests(project, reporter, typst, test_filter, true, false)?;
-        if matches!(res, CliResult::TestFailure) {
-            return Ok(CliResult::operation_failure(
-                "At least one test failed, aborting update...",
-            ));
-        }
-
-        project.update_tests()?;
-
-        Ok(CliResult::Ok)
+        project.discover_tests()?;
+        run_tests(
+            project,
+            reporter,
+            test_filter,
+            |project| {
+                let mut ctx = Context::new(project, typst);
+                ctx.with_fail_fast(fail_fast)
+                    .with_update(true)
+                    .with_optimize(optimize);
+                ctx
+            },
+            "updated",
+        )
     }
 
-    pub fn status(project: &mut Project, reporter: Reporter) -> anyhow::Result<CliResult> {
+    pub fn status(project: &mut Project, reporter: &mut Reporter) -> anyhow::Result<CliResult> {
         bail_gracefully!(if_uninit; project, reporter);
 
         project.discover_tests()?;
@@ -344,63 +381,64 @@ mod cmd {
 
     pub fn run(
         project: &mut Project,
-        reporter: Reporter,
+        reporter: &mut Reporter,
         test_filter: Option<Filter>,
         typst: PathBuf,
         fail_fast: bool,
         compare: bool,
     ) -> anyhow::Result<CliResult> {
         bail_gracefully!(if_uninit; project, reporter);
-        run_tests(project, reporter, typst, test_filter, fail_fast, compare)
+
+        project.discover_tests()?;
+        run_tests(
+            project,
+            reporter,
+            test_filter,
+            |project| {
+                let mut ctx = Context::new(project, typst);
+                ctx.with_fail_fast(fail_fast).with_compare(compare);
+                ctx
+            },
+            "ok",
+        )
     }
 
     fn run_tests(
         project: &mut Project,
-        reporter: Reporter,
-        typst: PathBuf,
+        reporter: &mut Reporter,
         test_filter: Option<Filter>,
-        fail_fast: bool,
-        compare: bool,
+        prepare_ctx: impl FnOnce(&Project) -> Context,
+        done_annot: &str,
     ) -> anyhow::Result<CliResult> {
-        project.discover_tests()?;
-
-        if project.tests().is_empty() {
-            reporter
-                .raw(|w| writeln!(w, "Project '{}' did not contain any tests", project.name()))?;
-            return Ok(CliResult::Ok);
-        }
-
-        if let Some(filter) = &test_filter {
-            filter_tests(project.tests_mut(), filter);
-
-            if project.tests().is_empty() {
-                reporter
-                    .raw(|w| writeln!(w, "Filter '{}' did not match any tests", filter.value()))?;
-                return Ok(CliResult::Ok);
-            }
-        }
+        bail_gracefully!(if_no_tests; project, reporter);
+        bail_gracefully!(if_no_match; test_filter; project, reporter);
 
         reporter.set_padding(project.tests().iter().map(|(name, _)| name.len()).max());
 
-        let ctx = Context::new(project, typst, fail_fast);
+        let ctx = prepare_ctx(project);
         ctx.prepare()?;
 
+        let reporter = Mutex::new(reporter);
         let all_ok = AtomicBool::new(true);
         let res = project.tests().par_iter().try_for_each(
             |(_, test)| -> Result<(), Option<anyhow::Error>> {
-                match ctx.test(test).run(compare) {
+                match ctx.test(test).run() {
                     Ok(Ok(_)) => {
                         reporter
-                            .test_success(project, test, "ok")
+                            .lock()
+                            .unwrap()
+                            .test_success(project, test, done_annot)
                             .map_err(|e| Some(e.into()))?;
                         Ok(())
                     }
                     Ok(Err(err)) => {
                         all_ok.store(false, Ordering::Relaxed);
                         reporter
+                            .lock()
+                            .unwrap()
                             .test_failure(project, test, err)
                             .map_err(|e| Some(e.into()))?;
-                        if fail_fast {
+                        if ctx.fail_fast() {
                             Err(None)
                         } else {
                             Ok(())

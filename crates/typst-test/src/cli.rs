@@ -73,6 +73,10 @@ pub struct Args {
     #[arg(long, global = true, default_value = "typst")]
     pub typst: PathBuf,
 
+    /// Whether to abort after the first test failure
+    #[arg(long)]
+    pub fail_fast: bool,
+
     /// When to use colorful output
     ///
     /// auto = use color if a capable terminal is detected
@@ -125,6 +129,13 @@ pub enum Command {
     /// Update tests
     #[command(alias = "u")]
     Update {
+        /// Whether reference images should be optimized for size
+        ///
+        /// This will significantly slow down the updating process, but ensure
+        /// that images are as small as possible, reducing repository bloat
+        #[arg(long)]
+        no_optimize: bool,
+
         /// Whether the test filter should be an exact match
         #[arg(long, short)]
         exact: bool,
@@ -165,10 +176,6 @@ pub enum Command {
 
 #[derive(clap::Parser, Debug, Clone)]
 pub struct TestArgs {
-    /// Whether to abort after the first test failure
-    #[arg(long)]
-    pub fail_fast: bool,
-
     /// Whether the test filter should be an exact match
     #[arg(long, short)]
     pub exact: bool,
