@@ -131,7 +131,6 @@ fn main_impl() -> anyhow::Result<CliResult> {
 }
 
 mod cmd {
-    use std::collections::BTreeMap;
     use std::path::PathBuf;
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Mutex;
@@ -143,17 +142,6 @@ mod cmd {
     use crate::project::test::{Filter, Test};
     use crate::project::{Project, ScaffoldMode};
     use crate::report::Reporter;
-
-    fn filter_tests(tests: &mut BTreeMap<String, Test>, filter: &Filter) {
-        match filter {
-            Filter::Exact(f) => {
-                tests.retain(|n, _| n == f);
-            }
-            Filter::Contains(f) => {
-                tests.retain(|n, _| n.contains(f));
-            }
-        }
-    }
 
     macro_rules! bail_gracefully {
         (if_uninit; $project:expr, $reporter:expr) => {
@@ -182,7 +170,14 @@ mod cmd {
         };
         (if_no_match; $filter:expr; $project:expr, $reporter:expr) => {
             if let Some(filter) = &$filter {
-                filter_tests($project.tests_mut(), filter);
+                match filter {
+                    Filter::Exact(f) => {
+                        $project.tests_mut().retain(|n, _| n == f);
+                    }
+                    Filter::Contains(f) => {
+                        $project.tests_mut().retain(|n, _| n.contains(f));
+                    }
+                }
 
                 if $project.tests().is_empty() {
                     $reporter.raw(|w| {
