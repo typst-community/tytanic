@@ -397,7 +397,7 @@ mod cmd {
                 ctx.with_fail_fast(fail_fast).with_compare(compare);
                 ctx
             },
-            "ok",
+            if compare { "ok" } else { "compiled" },
         )
     }
 
