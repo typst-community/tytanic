@@ -341,38 +341,7 @@ mod cmd {
         project.discover_tests()?;
         project.load_template()?;
 
-        if let Some(manifest) = project.manifest() {
-            reporter.raw(|w| {
-                writeln!(
-                    w,
-                    "Package: {}:{}",
-                    manifest.package.name, manifest.package.version
-                )
-            })?;
-
-            // TODO: list [tool.typst-test] settings
-        }
-
-        reporter.raw(|w| {
-            writeln!(
-                w,
-                "Template: {}",
-                if project.template().is_some() {
-                    "found"
-                } else {
-                    "not found"
-                }
-            )
-        })?;
-
-        if project.tests().is_empty() {
-            reporter.raw(|w| writeln!(w, "Tests: none"))?;
-        } else {
-            reporter.raw(|w| writeln!(w, "Tests:"))?;
-            for name in project.tests().keys() {
-                reporter.raw(|w| writeln!(w, "  {}", name))?;
-            }
-        }
+        reporter.project(project)?;
 
         Ok(CliResult::Ok)
     }

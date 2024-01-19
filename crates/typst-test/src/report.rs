@@ -4,8 +4,10 @@ use std::io;
 use termcolor::{Color, ColorSpec, WriteColor};
 
 use crate::project::test::{CompareFailure, Test, TestFailure, UpdateFailure};
+use crate::project::Project;
 
 pub const MAX_PADDING: usize = 20;
+pub const MAX_TEST_LIST: usize = 10;
 
 fn write_bold_colored<W: WriteColor + ?Sized>(
     w: &mut W,
@@ -209,5 +211,71 @@ impl Reporter {
                 Ok(())
             },
         )
+    }
+
+    pub fn project(&mut self, project: &Project) -> io::Result<()> {
+        if let Some(manifest) = project.manifest() {
+            self.raw(|w| {
+                write!(w, " Project ┌ ")?;
+                write_bold_colored(w, &manifest.package.name.to_string(), Color::Cyan)?;
+                write!(w, ":")?;
+                write_bold_colored(w, &manifest.package.version.to_string(), Color::Cyan)?;
+                writeln!(w)
+            })?;
+
+            // TODO: list [tool.typst-test] settings
+        } else {
+            self.raw(|w| {
+                write!(w, " Project ┌ ")?;
+                write_bold_colored(w, "none", Color::Yellow)?;
+                writeln!(w)
+            })?;
+        }
+
+        self.raw(|w| {
+            write!(w, "Template ├ ")?;
+            if project.template().is_some() {
+                write_bold_colored(w, "found", Color::Green)?;
+            } else {
+                write_bold_colored(w, "not found", Color::Yellow)?;
+                write!(
+                    w,
+                    " (looked at {:?})",
+                    project.tests_root_dir().join("template.typ")
+                )?;
+            }
+            writeln!(w)
+        })?;
+
+        let tests = project.tests();
+        if tests.is_empty() {
+            self.raw(|w| {
+                write!(w, "   Tests └ ")?;
+                write_bold_colored(w, "none", Color::Cyan)
+            })?;
+        } else if tests.len() <= MAX_TEST_LIST {
+            self.raw(|w| {
+                write!(w, "   Tests ├ ")?;
+                write_bold_colored(w, &tests.len().to_string(), Color::Cyan)?;
+                writeln!(w)?;
+                for (idx, name) in project.tests().keys().enumerate() {
+                    if idx == tests.len() - 1 {
+                        writeln!(w, "         └ {}", name)?;
+                    } else {
+                        writeln!(w, "         │ {}", name)?;
+                    }
+                }
+
+                Ok(())
+            })?;
+        } else {
+            self.raw(|w| {
+                write!(w, "   Tests └ ")?;
+                write_bold_colored(w, &tests.len().to_string(), Color::Cyan)?;
+                writeln!(w)
+            })?;
+        }
+
+        Ok(())
     }
 }
