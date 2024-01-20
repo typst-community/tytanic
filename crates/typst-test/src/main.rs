@@ -1,7 +1,7 @@
+use std::io;
 use std::io::IsTerminal;
 use std::path::Path;
 use std::process::ExitCode;
-use std::{fs, io};
 
 use clap::{ColorChoice, Parser};
 use project::test::Filter;
@@ -69,20 +69,18 @@ fn main_impl() -> anyhow::Result<CliResult> {
             .init();
     }
 
-    let root = if let Some(root) = args.root.clone() {
-        let canonical_root = fs::canonicalize(&root)?;
-        if !project::is_project_root(&canonical_root)? {
-            tracing::warn!("project root doesn't contain manifest");
-        }
-        root.to_path_buf()
-    } else {
-        let pwd = std::env::current_dir()?;
-        if let Some(root) = project::try_find_project_root(&pwd)? {
-            root.to_path_buf()
-        } else {
-            return Ok(CliResult::operation_failure(
-                "Must be inside a typst project or pass the project root using --root",
-            ));
+    let root = match args.root {
+        Some(root) => root,
+        None => {
+            let pwd = std::env::current_dir()?;
+            match project::try_find_project_root(&pwd)? {
+                Some(root) => root.to_path_buf(),
+                None => {
+                    return Ok(CliResult::operation_failure(
+                        "Must be inside a typst project or pass the project root using --root",
+                    ));
+                }
+            }
         }
     };
 
