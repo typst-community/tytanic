@@ -68,6 +68,10 @@ impl<'p> Context<'p> {
         }
     }
 
+    pub fn typst(&self) -> &Path {
+        &self.typst
+    }
+
     pub fn fail_fast(&self) -> bool {
         self.fail_fast
     }

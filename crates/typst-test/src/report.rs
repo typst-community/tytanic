@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 use std::io;
+use std::path::PathBuf;
 
 use termcolor::{Color, ColorSpec, WriteColor};
 
@@ -213,7 +214,12 @@ impl Reporter {
         )
     }
 
-    pub fn project(&mut self, project: &Project) -> io::Result<()> {
+    pub fn project(
+        &mut self,
+        project: &Project,
+        typst: PathBuf,
+        typst_path: Option<PathBuf>,
+    ) -> io::Result<()> {
         if let Some(manifest) = project.manifest() {
             self.raw(|w| {
                 write!(w, " Project ┌ ")?;
@@ -240,9 +246,20 @@ impl Reporter {
                 write_bold_colored(w, "not found", Color::Yellow)?;
                 write!(
                     w,
-                    " (looked at {:?})",
-                    project.tests_root_dir().join("template.typ")
+                    " (looked at {})",
+                    project.tests_root_dir().join("template.typ").display()
                 )?;
+            }
+            writeln!(w)
+        })?;
+
+        self.raw(|w| {
+            write!(w, "   Typst ├ ")?;
+            if let Some(path) = typst_path {
+                write_bold_colored(w, &format!("{}", path.display()), Color::Green)?;
+            } else {
+                write_bold_colored(w, "not found", Color::Red)?;
+                write!(w, " (searched for '{}')", typst.display())?;
             }
             writeln!(w)
         })?;

@@ -101,7 +101,7 @@ fn main_impl() -> anyhow::Result<CliResult> {
         }
         cli::Command::Edit { test } => return cmd::edit(&mut project, &mut reporter, test),
         cli::Command::Remove { test } => return cmd::remove(&mut project, &mut reporter, test),
-        cli::Command::Status => return cmd::status(&mut project, &mut reporter),
+        cli::Command::Status => return cmd::status(&mut project, &mut reporter, args.typst),
         cli::Command::Update {
             filter,
             no_optimize,
@@ -109,8 +109,8 @@ fn main_impl() -> anyhow::Result<CliResult> {
             return cmd::update(
                 &mut project,
                 &mut reporter,
-                filter.filter.map(|f| Filter::new(f, filter.exact)),
                 args.typst,
+                filter.filter.map(|f| Filter::new(f, filter.exact)),
                 args.fail_fast,
                 !no_optimize,
             )
@@ -122,8 +122,8 @@ fn main_impl() -> anyhow::Result<CliResult> {
     cmd::run(
         &mut project,
         &mut reporter,
-        filter.filter.map(|f| Filter::new(f, filter.exact)),
         args.typst,
+        filter.filter.map(|f| Filter::new(f, filter.exact)),
         args.fail_fast,
         compare,
     )
@@ -143,6 +143,13 @@ mod cmd {
     use crate::report::Reporter;
 
     macro_rules! bail_gracefully {
+        (if_no_typst; $project:expr; $typst:expr) => {
+            if let Err(which::Error::CannotFindBinaryPath) = which::which($typst) {
+                return Ok(CliResult::operation_failure(format!(
+                    "No typst binary found in PATH, consider using the --typst option",
+                )));
+            }
+        };
         (if_uninit; $project:expr) => {
             if !$project.is_init()? {
                 return Ok(CliResult::operation_failure(format!(
@@ -152,14 +159,22 @@ mod cmd {
             }
         };
         (if_test_not_found; $project:expr; $test:expr => $name:ident) => {
-            let Some($name) = $project.get_test(&$test) else {
+            let Some($name) = $project.get_test($test) else {
                 return Ok(CliResult::operation_failure(format!(
                     "Test '{}' could not be found",
                     $test,
                 )));
             };
         };
-        (if_no_tests; $project:expr) => {
+        (if_test_not_new; $project:expr; $name:expr) => {
+            if $project.get_test($name).is_some() {
+                return Ok(CliResult::operation_failure(format!(
+                    "Test '{}' already exists",
+                    $name,
+                )));
+            }
+        };
+        (if_no_tests_found; $project:expr) => {
             if $project.tests().is_empty() {
                 return Ok(CliResult::operation_failure(format!(
                     "Project '{}' did not contain any tests",
@@ -167,8 +182,8 @@ mod cmd {
                 )));
             }
         };
-        (if_no_match; $project:expr; $filter:expr) => {
-            if let Some(filter) = &$filter {
+        (if_no_tests_match; $project:expr; $filter:expr) => {
+            if let Some(filter) = $filter {
                 match filter {
                     Filter::Exact(f) => {
                         $project.tests_mut().retain(|n, _| n == f);
@@ -253,12 +268,7 @@ mod cmd {
         project.discover_tests()?;
         project.load_template()?;
 
-        if project.get_test(&name).is_some() {
-            return Ok(CliResult::operation_failure(format!(
-                "Test '{}' already exists",
-                name,
-            )));
-        };
+        bail_gracefully!(if_test_not_new; project; &name);
 
         reporter.set_padding(Some(name.len()));
 
@@ -285,7 +295,7 @@ mod cmd {
         bail_gracefully!(if_uninit; project);
 
         project.discover_tests()?;
-        bail_gracefully!(if_test_not_found; project; name => test);
+        bail_gracefully!(if_test_not_found; project; &name => test);
 
         project.remove_test(test.name())?;
         reporter.test_success(test, "removed")?;
@@ -301,7 +311,7 @@ mod cmd {
         bail_gracefully!(if_uninit; project);
 
         project.discover_tests()?;
-        bail_gracefully!(if_test_not_found; project; name => test);
+        bail_gracefully!(if_test_not_found; project; &name => test);
 
         open::that_detached(test.test_file(project))?;
         reporter.test_success(test, "opened")?;
@@ -312,14 +322,11 @@ mod cmd {
     pub fn update(
         project: &mut Project,
         reporter: &mut Reporter,
-        filter: Option<Filter>,
         typst: PathBuf,
+        filter: Option<Filter>,
         fail_fast: bool,
         optimize: bool,
     ) -> anyhow::Result<CliResult> {
-        bail_gracefully!(if_uninit; project);
-
-        project.discover_tests()?;
         run_tests(
             project,
             reporter,
@@ -335,13 +342,18 @@ mod cmd {
         )
     }
 
-    pub fn status(project: &mut Project, reporter: &mut Reporter) -> anyhow::Result<CliResult> {
+    pub fn status(
+        project: &mut Project,
+        reporter: &mut Reporter,
+        typst: PathBuf,
+    ) -> anyhow::Result<CliResult> {
         bail_gracefully!(if_uninit; project);
 
         project.discover_tests()?;
         project.load_template()?;
 
-        reporter.project(project)?;
+        let path = which::which(&typst).ok();
+        reporter.project(project, typst, path)?;
 
         Ok(CliResult::Ok)
     }
@@ -349,14 +361,11 @@ mod cmd {
     pub fn run(
         project: &mut Project,
         reporter: &mut Reporter,
-        filter: Option<Filter>,
         typst: PathBuf,
+        filter: Option<Filter>,
         fail_fast: bool,
         compare: bool,
     ) -> anyhow::Result<CliResult> {
-        bail_gracefully!(if_uninit; project);
-
-        project.discover_tests()?;
         run_tests(
             project,
             reporter,
@@ -377,12 +386,17 @@ mod cmd {
         prepare_ctx: impl FnOnce(&Project) -> Context,
         done_annot: &str,
     ) -> anyhow::Result<CliResult> {
-        bail_gracefully!(if_no_tests; project);
-        bail_gracefully!(if_no_match; project; filter);
+        bail_gracefully!(if_uninit; project);
+
+        project.discover_tests()?;
+        bail_gracefully!(if_no_tests_found; project);
+        bail_gracefully!(if_no_tests_match; project; &filter);
+
+        let ctx = prepare_ctx(project);
+        bail_gracefully!(if_no_typst; project; ctx.typst());
 
         reporter.set_padding(project.tests().iter().map(|(name, _)| name.len()).max());
 
-        let ctx = prepare_ctx(project);
         ctx.prepare()?;
 
         let reporter = Mutex::new(reporter);
