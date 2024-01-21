@@ -89,6 +89,10 @@ impl Reporter {
         self.indents.pop();
     }
 
+    pub fn dedent_all(&mut self) {
+        self.indents.clear();
+    }
+
     pub fn write_annot(&mut self, annot: &str, color: Color) -> io::Result<()> {
         self.set_color(ColorSpec::new().set_bold(true).set_fg(Some(color)))?;
         write!(self, "{annot:>ANNOT_PADDING$}")?;

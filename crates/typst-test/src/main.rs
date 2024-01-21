@@ -53,7 +53,7 @@ fn main() -> ExitCode {
     let res = main_impl(args, &mut reporter);
     reporter.dedent();
 
-    ExitCode::from(match res {
+    let exit_code = match res {
         Ok(cli_res) => match cli_res {
             CliResult::Ok => cli::EXIT_OK,
             CliResult::TestFailure => cli::EXIT_TEST_FAILURE,
@@ -87,7 +87,13 @@ fn main() -> ExitCode {
 
             cli::EXIT_ERROR
         }
-    })
+    };
+
+    // NOTE: ensure we completely reset the terminal to standard
+    reporter.dedent_all();
+    reporter.reset().unwrap();
+    write!(reporter, "").unwrap();
+    ExitCode::from(exit_code)
 }
 
 fn main_impl(args: cli::Args, reporter: &mut Reporter) -> anyhow::Result<CliResult> {
