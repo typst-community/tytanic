@@ -12,13 +12,31 @@ pub enum CliResult {
     TestFailure = EXIT_TEST_FAILURE,
 
     /// The requested operation failed gracefully.
-    OperationFailure { message: Box<dyn Display> } = EXIT_OPERATION_FAILURE,
+    OperationFailure {
+        message: Box<dyn Display>,
+        hint: Option<Box<dyn Display>>,
+    } = EXIT_OPERATION_FAILURE,
 }
 
 impl CliResult {
-    pub fn operation_failure<T: Display + 'static>(message: T) -> Self {
+    pub fn operation_failure<M>(message: M) -> Self
+    where
+        M: Display + 'static,
+    {
         Self::OperationFailure {
             message: Box::new(message) as _,
+            hint: None,
+        }
+    }
+
+    pub fn hinted_operation_failure<M, H>(message: M, hint: H) -> Self
+    where
+        M: Display + 'static,
+        H: Display + 'static,
+    {
+        Self::OperationFailure {
+            message: Box::new(message) as _,
+            hint: Some(Box::new(hint) as _),
         }
     }
 }

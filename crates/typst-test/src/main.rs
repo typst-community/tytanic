@@ -1,10 +1,11 @@
 use std::io;
-use std::io::IsTerminal;
+use std::io::{IsTerminal, Write};
 use std::path::Path;
 use std::process::ExitCode;
 
 use clap::{ColorChoice, Parser};
 use project::test::Filter;
+use termcolor::{Color, ColorSpec, WriteColor};
 use tracing::Level;
 use tracing_subscriber::filter::Targets;
 use tracing_subscriber::prelude::*;
@@ -20,29 +21,6 @@ mod report;
 mod util;
 
 fn main() -> ExitCode {
-    ExitCode::from(match main_impl() {
-        Ok(cli_res) => match cli_res {
-            CliResult::Ok => cli::EXIT_OK,
-            CliResult::TestFailure => cli::EXIT_TEST_FAILURE,
-            CliResult::OperationFailure { message } => {
-                eprintln!("{message}");
-                cli::EXIT_OPERATION_FAILURE
-            }
-        },
-        Err(err) => {
-            eprintln!(
-                "typst-test ran into an unexpected error, this is most likely a bug\n\
-                please consider reporting this at {}/issues\n\
-                Error: {err}",
-                std::env!("CARGO_PKG_REPOSITORY")
-            );
-
-            cli::EXIT_ERROR
-        }
-    })
-}
-
-fn main_impl() -> anyhow::Result<CliResult> {
     let args = cli::Args::parse();
 
     if args.verbose >= 1 {
@@ -69,6 +47,50 @@ fn main_impl() -> anyhow::Result<CliResult> {
             .init();
     }
 
+    let mut reporter = Reporter::new(util::term::color_stream(args.color, false));
+
+    reporter.indent(2);
+    let res = main_impl(args, &mut reporter);
+    reporter.dedent();
+
+    ExitCode::from(match res {
+        Ok(cli_res) => match cli_res {
+            CliResult::Ok => cli::EXIT_OK,
+            CliResult::TestFailure => cli::EXIT_TEST_FAILURE,
+            CliResult::OperationFailure { message, hint } => {
+                writeln!(reporter, "{message}").unwrap();
+                if let Some(hint) = hint {
+                    reporter.hint(&hint.to_string()).unwrap();
+                }
+                cli::EXIT_OPERATION_FAILURE
+            }
+        },
+        Err(err) => {
+            writeln!(
+                reporter,
+                "typst-test ran into an unexpected error, this is most likely a bug\n\
+                Please consider reporting this at {}/issues/new",
+                std::env!("CARGO_PKG_REPOSITORY")
+            )
+            .unwrap();
+
+            reporter.indent(2);
+            reporter
+                .set_color(ColorSpec::new().set_bold(true).set_fg(Some(Color::Red)))
+                .unwrap();
+            write!(reporter, "Error: ").unwrap();
+            reporter.indent("Error: ".len() as isize);
+            reporter.reset().unwrap();
+            writeln!(reporter, "{err}").unwrap();
+            reporter.dedent();
+            reporter.dedent();
+
+            cli::EXIT_ERROR
+        }
+    })
+}
+
+fn main_impl(args: cli::Args, reporter: &mut Reporter) -> anyhow::Result<CliResult> {
     let root = match args.root {
         Some(root) => root,
         None => {
@@ -76,37 +98,33 @@ fn main_impl() -> anyhow::Result<CliResult> {
             match project::try_find_project_root(&pwd)? {
                 Some(root) => root.to_path_buf(),
                 None => {
-                    return Ok(CliResult::operation_failure(
-                        "Must be inside a typst project or pass the project root using --root",
+                    return Ok(CliResult::hinted_operation_failure(
+                        "Must be inside a typst project",
+                        "You can pass the project root using '--root <path>'",
                     ));
                 }
             }
         }
     };
 
-    let mut reporter = Reporter::new(util::term::color_stream(args.color, false));
     let manifest = project::try_open_manifest(&root)?;
     let mut project = Project::new(root, Path::new("tests"), manifest);
 
     let (filter, compare) = match args.cmd {
-        cli::Command::Init { no_example } => {
-            return cmd::init(&mut project, &mut reporter, no_example)
-        }
-        cli::Command::Uninit => return cmd::uninit(&mut project, &mut reporter),
-        cli::Command::Clean => return cmd::clean(&mut project, &mut reporter),
-        cli::Command::Add { open, test } => {
-            return cmd::add(&mut project, &mut reporter, test, open)
-        }
-        cli::Command::Edit { test } => return cmd::edit(&mut project, &mut reporter, test),
-        cli::Command::Remove { test } => return cmd::remove(&mut project, &mut reporter, test),
-        cli::Command::Status => return cmd::status(&mut project, &mut reporter, args.typst),
+        cli::Command::Init { no_example } => return cmd::init(&mut project, reporter, no_example),
+        cli::Command::Uninit => return cmd::uninit(&mut project, reporter),
+        cli::Command::Clean => return cmd::clean(&mut project, reporter),
+        cli::Command::Add { open, test } => return cmd::add(&mut project, reporter, test, open),
+        cli::Command::Edit { test } => return cmd::edit(&mut project, reporter, test),
+        cli::Command::Remove { test } => return cmd::remove(&mut project, reporter, test),
+        cli::Command::Status => return cmd::status(&mut project, reporter, args.typst),
         cli::Command::Update {
             filter,
             no_optimize,
         } => {
             return cmd::update(
                 &mut project,
-                &mut reporter,
+                reporter,
                 args.typst,
                 filter.filter.map(|f| Filter::new(f, filter.exact)),
                 args.fail_fast,
@@ -119,7 +137,7 @@ fn main_impl() -> anyhow::Result<CliResult> {
 
     cmd::run(
         &mut project,
-        &mut reporter,
+        reporter,
         args.typst,
         filter.filter.map(|f| Filter::new(f, filter.exact)),
         args.fail_fast,
@@ -128,6 +146,7 @@ fn main_impl() -> anyhow::Result<CliResult> {
 }
 
 mod cmd {
+    use std::io::Write;
     use std::path::PathBuf;
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Mutex;
@@ -143,9 +162,11 @@ mod cmd {
     macro_rules! bail_gracefully {
         (if_no_typst; $project:expr; $typst:expr) => {
             if let Err(which::Error::CannotFindBinaryPath) = which::which($typst) {
-                return Ok(CliResult::operation_failure(format!(
-                    "No typst binary found in PATH, consider using the --typst option",
-                )));
+                // TODO: test
+                return Ok(CliResult::hinted_operation_failure(
+                    "No typst binary found in PATH",
+                    "You can pass the typst binary using '--typst <path or name>'",
+                ));
             }
         };
         (if_uninit; $project:expr) => {
@@ -220,7 +241,7 @@ mod cmd {
         };
 
         project.init(mode)?;
-        reporter.raw(|w| writeln!(w, "Initialized project '{}'", project.name()))?;
+        writeln!(reporter, "Initialized project '{}'", project.name())?;
 
         Ok(CliResult::Ok)
     }
@@ -232,14 +253,12 @@ mod cmd {
         let count = project.tests().len();
 
         project.uninit()?;
-        reporter.raw(|w| {
-            writeln!(
-                w,
-                "Removed {} test{}",
-                count,
-                if count == 1 { "" } else { "s" }
-            )
-        })?;
+        writeln!(
+            reporter,
+            "Removed {} test{}",
+            count,
+            if count == 1 { "" } else { "s" }
+        )?;
 
         Ok(CliResult::Ok)
     }
@@ -250,8 +269,7 @@ mod cmd {
         project.discover_tests()?;
 
         project.clean_artifacts()?;
-        reporter.raw(|w| writeln!(w, "Removed test artifacts"))?;
-
+        writeln!(reporter, "Removed test artifacts")?;
         Ok(CliResult::Ok)
     }
 
@@ -267,8 +285,6 @@ mod cmd {
         project.load_template()?;
 
         bail_gracefully!(if_test_not_new; project; &name);
-
-        reporter.set_padding(Some(name.len()));
 
         let (test, has_ref) = project.create_test(&name)?;
         reporter.test_added(test, !has_ref)?;
@@ -392,8 +408,6 @@ mod cmd {
 
         let ctx = prepare_ctx(project);
         bail_gracefully!(if_no_typst; project; ctx.typst());
-
-        reporter.set_padding(project.tests().iter().map(|(name, _)| name.len()).max());
 
         ctx.prepare()?;
 
