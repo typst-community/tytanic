@@ -113,6 +113,13 @@ fn main_impl(args: cli::Args, reporter: &mut Reporter) -> anyhow::Result<CliResu
         }
     };
 
+    if !root.try_exists()? {
+        return Ok(CliResult::operation_failure(format!(
+            "Root '{}' directory not found",
+            root.display(),
+        )));
+    }
+
     let manifest = project::try_open_manifest(&root)?;
     let mut project = Project::new(root, Path::new("tests"), manifest);
 
