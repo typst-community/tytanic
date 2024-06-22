@@ -549,7 +549,9 @@ mod cmd {
                                 Ok(())
                             }
                         }
-                        Err(err) => Err(Some(err.into())),
+                        Err(err) => Err(Some(
+                            err.context(format!("Fatally failed when running test {}", test.id())),
+                        )),
                     }
                 },
             );
