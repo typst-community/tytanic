@@ -2,7 +2,8 @@ use std::fmt::Display;
 use std::path::PathBuf;
 
 use clap::{ArgAction, ColorChoice};
-use typst_test_lib::store::test::matcher::{IdentifierMatcher, Matcher};
+use typst_test_lib::matcher;
+use typst_test_lib::matcher::eval::Matcher;
 
 use crate::fonts::FontSearcher;
 use crate::project::Project;
@@ -168,17 +169,15 @@ pub struct MatcherArgs {
 }
 
 impl MatcherArgs {
-    pub fn matcher(&self) -> Matcher {
-        let mut matcher = Matcher::default();
-        if let Some(term) = self.term.as_ref() {
-            matcher.name(Some(IdentifierMatcher::Simple {
-                term: term.into(),
-                exact: self.exact,
-            }));
-        }
-
-        matcher.filter_ignored(!self.include_ignored);
-        matcher
+    pub fn matcher(&self) -> anyhow::Result<Matcher> {
+        Ok(self
+            .term
+            .as_deref()
+            .map(matcher::parsing::parse_matcher_expr)
+            .transpose()?
+            .flatten()
+            .map(matcher::build_matcher)
+            .unwrap_or_default())
     }
 }
 
@@ -306,7 +305,20 @@ macro_rules! bail_if_uninit {
     };
 }
 
-pub(crate) use bail_if_uninit;
+macro_rules! bail_if_invalid_matcher_expr {
+    ($global:expr => $ident:ident) => {
+        let $ident = match $global.matcher.matcher() {
+            Ok(matcher) => matcher,
+            Err(err) => {
+                return Ok(CliResult::operation_failure(format!(
+                    "Could not parse matcher expression: {err}",
+                )));
+            }
+        };
+    };
+}
+
+pub(crate) use {bail_if_invalid_matcher_expr, bail_if_uninit};
 
 impl Command {
     pub fn run(&self, ctx: Context, global: &Global) -> anyhow::Result<CliResult> {

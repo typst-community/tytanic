@@ -1,5 +1,5 @@
 use super::{Context, Global, MutationArgs};
-use crate::cli::{bail_if_uninit, CliResult};
+use crate::cli::{bail_if_invalid_matcher_expr, bail_if_uninit, CliResult};
 
 #[derive(clap::Args, Debug, Clone)]
 pub struct Args {
@@ -10,7 +10,7 @@ pub struct Args {
 pub fn run(ctx: Context, global: &Global, args: &Args) -> anyhow::Result<CliResult> {
     bail_if_uninit!(ctx);
 
-    let matcher = global.matcher.matcher();
+    bail_if_invalid_matcher_expr!(global => matcher);
     ctx.project.collect_tests(matcher)?;
 
     match ctx.project.matched().len() {

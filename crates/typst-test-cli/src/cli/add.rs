@@ -2,7 +2,7 @@ use typst_test_lib::test::id::Identifier;
 use typst_test_lib::test::ReferenceKind;
 
 use super::{CliResult, Context, Global};
-use crate::cli::bail_if_uninit;
+use crate::cli::{bail_if_invalid_matcher_expr, bail_if_uninit};
 
 #[derive(clap::Args, Debug, Clone)]
 pub struct Args {
@@ -28,7 +28,7 @@ pub struct Args {
 pub fn run(ctx: Context, global: &Global, args: &Args) -> anyhow::Result<CliResult> {
     bail_if_uninit!(ctx);
 
-    let matcher = global.matcher.matcher();
+    bail_if_invalid_matcher_expr!(global => matcher);
     ctx.project.collect_tests(matcher)?;
     ctx.project.load_template()?;
 

@@ -13,7 +13,6 @@ use crate::test::ReferenceKind;
 use crate::util;
 
 pub mod collector;
-pub mod matcher;
 
 /// A thin test handle for managing on-disk resources.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -41,6 +40,15 @@ impl Test {
             id,
             ref_kind: None,
             is_ignored: false,
+        }
+    }
+
+    #[cfg(test)]
+    pub fn new_test(id: Identifier, ref_kind: Option<ReferenceKind>, is_ignored: bool) -> Self {
+        Self {
+            id,
+            ref_kind,
+            is_ignored,
         }
     }
 

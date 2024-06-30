@@ -9,7 +9,7 @@ use rayon::prelude::*;
 use termcolor::Color;
 
 use super::{Context, Global};
-use crate::cli::{bail_if_uninit, CliResult};
+use crate::cli::{bail_if_invalid_matcher_expr, bail_if_uninit, CliResult};
 use crate::fonts::FontSlot;
 use crate::report::Summary;
 use crate::test::runner::{Event, EventPayload, RunnerConfig};
@@ -40,7 +40,7 @@ where
 {
     bail_if_uninit!(ctx);
 
-    let matcher = global.matcher.matcher();
+    bail_if_invalid_matcher_expr!(global => matcher);
     ctx.project.collect_tests(matcher)?;
 
     if ctx.project.matched().is_empty() {

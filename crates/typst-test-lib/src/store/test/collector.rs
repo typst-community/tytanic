@@ -4,8 +4,9 @@ use std::io;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 
-use super::matcher::Matcher;
 use super::{ReferenceKind, Test};
+use crate::matcher::eval::Matcher;
+use crate::matcher::Matcher as _;
 use crate::store::project::{Resolver, TestTarget};
 use crate::test::id::{Identifier, ParseIdentifierError};
 
