@@ -4,19 +4,39 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{mpsc, Mutex};
 use std::time::Instant;
 
-use comemo::Prehashed;
+use chrono::{DateTime, Utc};
 use rayon::prelude::*;
 use termcolor::Color;
 
 use super::{Context, Global};
 use crate::cli::{bail_if_invalid_matcher_expr, bail_if_uninit, CliResult};
-use crate::fonts::FontSlot;
+use crate::package::PackageStorage;
 use crate::report::Summary;
 use crate::test::runner::{Event, EventPayload, RunnerConfig};
 use crate::test::Stage;
+use crate::world::SystemWorld;
+
+fn parse_source_date_epoch(raw: &str) -> Result<DateTime<Utc>, String> {
+    let timestamp: i64 = raw
+        .parse()
+        .map_err(|err| format!("timestamp must be decimal integer ({err})"))?;
+    DateTime::from_timestamp(timestamp, 0).ok_or_else(|| "timestamp out of range".to_string())
+}
 
 #[derive(clap::Parser, Debug, Clone)]
 pub struct Args {
+    /// The timestamp used for compilation.
+    ///
+    /// For more information, see
+    /// <https://reproducible-builds.org/specs/source-date-epoch/>.
+    #[clap(
+        long = "creation-timestamp",
+        env = "SOURCE_DATE_EPOCH",
+        value_name = "UNIX_TIMESTAMP",
+        value_parser = parse_source_date_epoch,
+    )]
+    pub now: Option<DateTime<Utc>>,
+
     /// Whether to abort after the first failure
     ///
     /// Keep in mind that because tests are run in parallel, this may not stop
@@ -46,22 +66,12 @@ where
         )));
     }
 
-    let searcher = global.fonts.searcher();
-
-    // TODO: port proper typst-cli impl
-    let mut world = typst_test_lib::_dev::GlobalTestWorld::new(
+    let world = SystemWorld::new(
         ctx.project.root().to_path_buf(),
-        typst_test_lib::library::augmented_default_library(),
-    );
-
-    world.fonts = searcher
-        .fonts
-        .iter()
-        .map(FontSlot::get)
-        .map(Option::unwrap)
-        .collect();
-
-    world.book = Prehashed::new(searcher.book);
+        global.fonts.searcher(),
+        PackageStorage::from_args(&global.package),
+        args.now,
+    )?;
 
     let mut config = RunnerConfig::default();
     config.with_fail_fast(args.fail_fast);
@@ -172,7 +182,7 @@ where
                             .unwrap();
 
                         // clear the progress lines
-                        print!("\x1B[{}F\x1B[0J", tests.len() + 1);
+                        reporter.clear_last_lines(tests.len() + 1).unwrap();
                     }
                 });
             }

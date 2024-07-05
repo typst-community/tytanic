@@ -5,13 +5,18 @@ members = ["crates/*"]
 [workspace.dependencies]
 typst-project = { git = "https://github.com/tingerrr/typst-project", rev = "a71db5451ebdca2174adc0a323c71ba5ab2f8120" }
 
-anyhow = { version = "1.0.78", features = ["backtrace"] }
-clap = { version = "4.4.12", features = ["derive"] }
+anyhow = "1.0.78"
+clap = "4.4.12"
 bitflags = "2.4.2"
+chrono = "0.4.38"
 comemo = "0.4.0"
+dirs = "5.0.1"
 ecow = "0.2.2"
+env_proxy = "0.4.1"
+flate2 = "1.0.30"
 fontdb = "0.18.0"
 ignore = "0.4.22"
+native-tls = "0.2.12"
 pest_derive = "2.7.10"
 pest = "2.7.10"
 png = "0.17.13"
@@ -19,6 +24,7 @@ rayon = "1.8.0"
 regex = "1.10.5"
 semver = "1.0.23"
 serde = "1.0.195"
+tar = "0.4.41"
 termcolor = "1.4.0"
 tiny-skia = "0.11.4"
 thiserror = "1.0.56"
@@ -30,8 +36,8 @@ typst = "0.11.1"
 typst-assets = "0.11.0"
 typst-render = "0.11.1"
 unscanny = "0.1.0"
+ureq = "2.9.7"
 
 # [workspace.dev-dependencies]
-dirs = "5.0.1"
 tempdir = "0.3.7"
 typst-dev-assets = { git = "https://github.com/typst/typst-dev-assets", rev = "ee8ae61cca138dc92f9d818fc7f2fc046d0148c5" }

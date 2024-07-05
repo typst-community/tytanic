@@ -1,7 +1,7 @@
 use std::fmt::Display;
 use std::path::PathBuf;
 
-use clap::{ArgAction, ColorChoice};
+use clap::ColorChoice;
 use typst_test_lib::matcher;
 use typst_test_lib::matcher::eval::Matcher;
 
@@ -21,6 +21,9 @@ pub mod status;
 pub mod uninit;
 pub mod update;
 pub mod util;
+
+/// The separator used for multiple paths.
+const ENV_PATH_SEP: char = if cfg!(windows) { ';' } else { ':' };
 
 pub struct Context<'a> {
     pub project: &'a mut Project,
@@ -143,7 +146,13 @@ pub struct FontArgs {
     pub ignore_system_fonts: bool,
 
     /// Add a directory to read fonts from (can be repeated)
-    #[arg(long = "font-path", value_name = "FONT_PATH", global = true, action = ArgAction::Append)]
+    #[arg(
+        long = "font-path",
+        env = "TYPST_FONT_PATHS",
+        value_name = "DIR",
+        value_delimiter = ENV_PATH_SEP,
+        global = true,
+    )]
     pub font_paths: Vec<PathBuf>,
 }
 
@@ -161,7 +170,17 @@ impl FontArgs {
 
 #[derive(clap::Args, Debug, Clone)]
 pub struct PackageArgs {
-    // TODO: add package dir args
+    /// Custom path to local packages, defaults to system-dependent location
+    #[clap(env = "TYPST_PACKAGE_PATH", value_name = "DIR")]
+    pub package_path: Option<PathBuf>,
+
+    /// Custom path to package cache, defaults to system-dependent location
+    #[clap(env = "TYPST_PACKAGE_CACHE_PATH", value_name = "DIR")]
+    pub package_cache_path: Option<PathBuf>,
+
+    /// Path to a custom CA certificate to use when making network requests
+    #[clap(long = "cert", env = "TYPST_CERT")]
+    pub cert: Option<PathBuf>,
 }
 
 #[derive(clap::Args, Debug, Clone)]
@@ -172,9 +191,9 @@ pub struct OutputArgs {
     #[arg(
         long,
         short,
-        global = true,
         visible_alias = "fmt",
-        default_value = "pretty"
+        default_value = "pretty",
+        global = true
     )]
     pub format: OutputFormat,
 
@@ -185,12 +204,12 @@ pub struct OutputArgs {
     #[clap(
         long,
         short,
-        global = true,
         value_name = "WHEN",
         require_equals = true,
         num_args = 0..=1,
         default_value = "auto",
         default_missing_value = "always",
+        global = true,
     )]
     pub color: ColorChoice,
 
@@ -198,7 +217,7 @@ pub struct OutputArgs {
     ///
     /// Logs are written to stderr, the increasing number of verbose flags
     /// corresponds to the log levels ERROR, WARN, INFO, DEBUG, TRACE.
-    #[arg(long, short, global = true, action = clap::ArgAction::Count)]
+    #[arg(long, short, action = clap::ArgAction::Count, global = true)]
     pub verbose: u8,
 }
 

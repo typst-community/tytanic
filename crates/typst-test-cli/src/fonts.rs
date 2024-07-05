@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// This file was basically copied verbatim from github.com/typst/typst
+// Credits: The Typst Authors
 
 use std::fs;
 use std::path::{Path, PathBuf};

@@ -11,13 +11,19 @@ typst-test-lib = { path = "../typst-test-lib" }
 
 anyhow = { workspace = true, features = ["backtrace"] }
 bitflags.workspace = true
-clap = { workspace = true, features = ["derive"] }
+clap = { workspace = true, features = ["derive", "env"] }
+chrono.workspace = true
 comemo.workspace = true
+dirs.workspace = true
 ecow.workspace = true
+env_proxy.workspace = true
+flate2.workspace = true
 fontdb.workspace = true
+native-tls.workspace = true
 rayon.workspace = true
 semver.workspace = true
 serde.workspace = true
+tar.workspace = true
 termcolor.workspace = true
 tiny-skia.workspace = true
 thiserror.workspace = true
@@ -28,6 +34,7 @@ tracing-tree.workspace = true
 typst.workspace = true
 typst-project.workspace = true
 typst-assets = { workspace = true, optional = true, features = ["fonts"] }
+ureq = { workspace = true, default-features = false, features = ["native-tls", "gzip", "json"] }
 
 [features]
 default = ["embed-fonts"]

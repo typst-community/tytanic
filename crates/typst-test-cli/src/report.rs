@@ -456,6 +456,13 @@ impl Reporter {
             Ok(())
         })
     }
+
+    pub fn clear_last_lines(&mut self, lines: usize) -> io::Result<()> {
+        write!(self, "\x1B[{}F\x1B[0J", lines)?;
+        self.need_indent = true;
+
+        Ok(())
+    }
 }
 
 impl fmt::Write for Reporter {

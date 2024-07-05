@@ -1,3 +1,5 @@
+#![feature(once_cell_try)]
+
 use std::io::{ErrorKind, Write};
 use std::process::ExitCode;
 
@@ -14,11 +16,14 @@ use self::project::Project;
 use self::report::Reporter;
 
 mod cli;
+mod download;
 mod fonts;
+mod package;
 mod project;
 mod report;
 mod test;
 mod util;
+mod world;
 
 const IS_OUTPUT_STDERR: bool = false;
 
