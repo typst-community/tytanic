@@ -9,19 +9,18 @@ use crate::fonts::FontSearcher;
 use crate::project::Project;
 use crate::report::Reporter;
 
-mod add;
-mod clean;
-mod compare;
-mod compile;
-mod edit;
-mod init;
-mod list;
-mod remove;
-mod run;
-mod status;
-mod uninit;
-mod update;
-mod util;
+pub mod add;
+pub mod compare;
+pub mod compile;
+pub mod edit;
+pub mod init;
+pub mod list;
+pub mod remove;
+pub mod run;
+pub mod status;
+pub mod uninit;
+pub mod update;
+pub mod util;
 
 pub struct Context<'a> {
     pub project: &'a mut Project,
@@ -107,71 +106,27 @@ static AFTER_LONG_ABOUT: &str = concat!(
 #[derive(clap::Parser, Debug, Clone)]
 pub struct Global {
     /// The project root directory
-    #[arg(long, global = true)]
+    #[arg(long, short, global = true)]
     pub root: Option<PathBuf>,
 
-    #[command(flatten, next_help_heading = "Filter Args")]
-    pub matcher: MatcherArgs,
+    /// A matcher expression for which tests to include in the given operation
+    #[arg(long, short, global = true)]
+    pub expression: Option<String>,
 
-    #[command(flatten, next_help_heading = "Font Args")]
+    #[command(flatten, next_help_heading = "Font Options")]
     pub fonts: FontArgs,
 
-    #[command(flatten, next_help_heading = "Package Args")]
+    #[command(flatten, next_help_heading = "Package Options")]
     pub package: PackageArgs,
 
-    /// The output format to use
-    ///
-    /// Using anything but pretty implies --color=never
-    #[arg(long, short, global = true, alias = "fmt", default_value = "pretty")]
-    pub format: OutputFormat,
-
-    /// When to use colorful output
-    ///
-    /// If set to auto, color will only be enabled if a capable terminal is
-    /// detected.
-    #[clap(
-        long,
-        global = true,
-        value_name = "WHEN",
-        require_equals = true,
-        num_args = 0..=1,
-        default_value = "auto",
-        default_missing_value = "always",
-    )]
-    pub color: ColorChoice,
-
-    /// Produce more logging output [-v .. -vvvvv]
-    ///
-    /// Logs are written to stderr, the increasing number of verbose flags
-    /// corresponds to the log levels ERROR, WARN, INFO, DEBUG, TRACE.
-    #[arg(long, short, global = true, action = clap::ArgAction::Count)]
-    pub verbose: u8,
+    #[command(flatten, next_help_heading = "Output Options")]
+    pub output: OutputArgs,
 }
 
-#[derive(clap::Args, Debug, Clone)]
-pub struct MatcherArgs {
-    /// A filter for which tests to run, any test matching this filter is
-    /// run
-    #[arg(long = "filter", global = true)]
-    pub term: Option<String>,
-
-    /// Whether the ignored tests should be included anyway
-    #[arg(long, global = true)]
-    pub include_ignored: bool,
-
-    /// Whether the test filter should be an exact match
-    #[arg(long, global = true)]
-    pub exact: bool,
-
-    /// Allow operating on more than one test if multiple tests match
-    #[arg(long, global = true)]
-    pub all: bool,
-}
-
-impl MatcherArgs {
+impl Global {
     pub fn matcher(&self) -> anyhow::Result<Matcher> {
         Ok(self
-            .term
+            .expression
             .as_deref()
             .map(matcher::parsing::parse_matcher_expr)
             .transpose()?
@@ -188,7 +143,7 @@ pub struct FontArgs {
     pub ignore_system_fonts: bool,
 
     /// Add a directory to read fonts from (can be repeated)
-    #[arg(long = "font-path", global = true, action = ArgAction::Append)]
+    #[arg(long = "font-path", value_name = "FONT_PATH", global = true, action = ArgAction::Append)]
     pub font_paths: Vec<PathBuf>,
 }
 
@@ -207,6 +162,44 @@ impl FontArgs {
 #[derive(clap::Args, Debug, Clone)]
 pub struct PackageArgs {
     // TODO: add package dir args
+}
+
+#[derive(clap::Args, Debug, Clone)]
+pub struct OutputArgs {
+    /// The output format to use
+    ///
+    /// Using anything but pretty implies --color=never
+    #[arg(
+        long,
+        short,
+        global = true,
+        visible_alias = "fmt",
+        default_value = "pretty"
+    )]
+    pub format: OutputFormat,
+
+    /// When to use colorful output
+    ///
+    /// If set to auto, color will only be enabled if a capable terminal is
+    /// detected.
+    #[clap(
+        long,
+        short,
+        global = true,
+        value_name = "WHEN",
+        require_equals = true,
+        num_args = 0..=1,
+        default_value = "auto",
+        default_missing_value = "always",
+    )]
+    pub color: ColorChoice,
+
+    /// Produce more logging output [-v ... -vvvvv]
+    ///
+    /// Logs are written to stderr, the increasing number of verbose flags
+    /// corresponds to the log levels ERROR, WARN, INFO, DEBUG, TRACE.
+    #[arg(long, short, global = true, action = clap::ArgAction::Count)]
+    pub verbose: u8,
 }
 
 // TODO: add json
@@ -251,42 +244,39 @@ pub enum Command {
     /// Remove the test directory from the current project
     Uninit,
 
-    /// Remove test output artifacts
-    Clean,
-
     /// Show information about the current project
-    #[command(alias = "st")]
+    #[command(visible_alias = "st")]
     Status,
 
     /// List the tests in the current project
-    #[command(alias = "ls")]
+    #[command(visible_alias = "ls")]
     List,
 
     /// Compile and compare tests
-    #[command(name = "run", alias = "r")]
-    Compare(run::Args),
+    #[command(name = "run", visible_alias = "r")]
+    Compare(compare::Args),
 
     /// Compile tests
-    #[command(alias = "c")]
-    Compile(run::Args),
+    #[command(visible_alias = "c")]
+    Compile(compile::Args),
 
-    /// Update tests
-    #[command(alias = "u")]
+    /// Compile and update tests
+    #[command(visible_alias = "u")]
     Update(update::Args),
 
     /// Add a new test
     ///
     /// The default test simply contains `Hello World`, if a
-    /// `tests/template.typ` file is given, it is used instead.
-    #[command(alias = "a")]
+    /// test template file is given, it is used instead.
+    #[command(visible_alias = "a")]
     Add(add::Args),
 
     /// Edit existing tests
-    #[command(alias = "e")]
+    #[command()]
     Edit(edit::Args),
 
     /// Remove tests
-    #[command(alias = "rm")]
+    #[command(visible_alias = "rm")]
     Remove(remove::Args),
 
     /// Utility commands
@@ -307,7 +297,7 @@ macro_rules! bail_if_uninit {
 
 macro_rules! bail_if_invalid_matcher_expr {
     ($global:expr => $ident:ident) => {
-        let $ident = match $global.matcher.matcher() {
+        let $ident = match $global.matcher() {
             Ok(matcher) => matcher,
             Err(err) => {
                 return Ok(CliResult::operation_failure(format!(
@@ -325,15 +315,14 @@ impl Command {
         match self {
             Command::Init(args) => init::run(ctx, global, args),
             Command::Uninit => uninit::run(ctx, global),
-            Command::Clean => clean::run(ctx, global),
             Command::Add(args) => add::run(ctx, global, args),
             Command::Edit(args) => edit::run(ctx, global, args),
             Command::Remove(args) => remove::run(ctx, global, args),
             Command::Status => status::run(ctx, global),
             Command::List => list::run(ctx, global),
             Command::Update(args) => update::run(ctx, global, args),
-            Command::Compile(args) => compile::run(ctx, global, args),
             Command::Compare(args) => compare::run(ctx, global, args),
+            Command::Compile(args) => compile::run(ctx, global, args),
             Command::Util(args) => args.cmd.run(ctx, global),
         }
     }

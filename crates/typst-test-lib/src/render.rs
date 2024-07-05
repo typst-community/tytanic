@@ -14,9 +14,22 @@ impl Default for Strategy {
         Self {
             // NOTE: this doesn't seem to be quite exactly 2, so we use this to
             // ensure we get the same default value as typst-cli
-            pixel_per_pt: 144.0 / 72.0,
+            pixel_per_pt: ppi_to_ppp(144.0),
         }
     }
+}
+
+/// The factor used to convert pixel per pt to pixel per inch.
+pub const PPP_TO_PPI_FACTOR: f32 = 72.0;
+
+/// Converts pixel per pt to pixel per inch.
+pub fn ppp_to_ppi(pixel_per_pt: f32) -> f32 {
+    pixel_per_pt * PPP_TO_PPI_FACTOR
+}
+
+/// Converts pixel per inch to pixel per pt.
+pub fn ppi_to_ppp(pixel_per_inch: f32) -> f32 {
+    pixel_per_inch / PPP_TO_PPI_FACTOR
 }
 
 // TODO: add explicit iterators for this

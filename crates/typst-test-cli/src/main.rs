@@ -25,20 +25,23 @@ const IS_OUTPUT_STDERR: bool = false;
 fn main() -> ExitCode {
     let mut args = cli::Args::parse();
 
-    if !args.global.format.is_pretty() {
-        args.global.color = ColorChoice::Never;
+    if !args.global.output.format.is_pretty() {
+        args.global.output.color = ColorChoice::Never;
     }
 
-    if args.global.verbose >= 1 {
+    if args.global.output.verbose >= 1 {
         tracing_subscriber::registry()
             .with(
                 HierarchicalLayer::new(4)
                     .with_targets(true)
-                    .with_ansi(util::term::color(args.global.color, IS_OUTPUT_STDERR)),
+                    .with_ansi(util::term::color(
+                        args.global.output.color,
+                        IS_OUTPUT_STDERR,
+                    )),
             )
             .with(Targets::new().with_target(
                 std::env!("CARGO_CRATE_NAME"),
-                match args.global.verbose {
+                match args.global.output.verbose {
                     1 => Level::ERROR,
                     2 => Level::WARN,
                     3 => Level::INFO,
@@ -51,8 +54,8 @@ fn main() -> ExitCode {
 
     // TODO: simpler output when using plain
     let mut reporter = Reporter::new(
-        util::term::color_stream(args.global.color, IS_OUTPUT_STDERR),
-        args.global.format,
+        util::term::color_stream(args.global.output.color, IS_OUTPUT_STDERR),
+        args.global.output.format,
     );
 
     let res = reporter.with_indent(2, |r| main_impl(args, r));

@@ -25,11 +25,7 @@ pub struct Args {
     #[arg(long)]
     pub fail_fast: bool,
 
-    /// Whether to save temporary output
-    #[arg(long)]
-    pub save_temporary: bool,
-
-    /// Show a summary of the test run instread of the individual test results
+    /// Show a summary of the test run instead of the individual test results
     #[arg(long)]
     pub summary: bool,
 }
@@ -68,7 +64,7 @@ where
     world.book = Prehashed::new(searcher.book);
 
     let mut config = RunnerConfig::default();
-    config.with_save_temporary(true);
+    config.with_fail_fast(args.fail_fast);
     f(&mut config);
     let runner = config.build(ctx.project, &world);
 
