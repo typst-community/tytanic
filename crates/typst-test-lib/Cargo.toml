@@ -8,6 +8,7 @@ edition = "2021"
 
 [dependencies]
 bitflags.workspace = true
+bytemuck.workspace = true
 comemo.workspace = true
 ecow.workspace = true
 ignore.workspace = true

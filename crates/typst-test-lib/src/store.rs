@@ -46,10 +46,23 @@ impl Document {
         }
     }
 
+    // TODO: diff from already rendered pixmaps
+
     /// Fully renders a typst [`Document`][typst::model::Document].
     pub fn render(document: &typst::model::Document, strategy: Strategy) -> Self {
         Self {
             pages: render::render_document(document, strategy).collect(),
+        }
+    }
+
+    /// Fully renders diff of two typst [`Document`][typst::model::Document]s.
+    pub fn render_diff(
+        base: &typst::model::Document,
+        change: &typst::model::Document,
+        strategy: Strategy,
+    ) -> Self {
+        Self {
+            pages: render::render_document_diff(base, change, strategy).collect(),
         }
     }
 

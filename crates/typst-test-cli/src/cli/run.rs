@@ -76,6 +76,7 @@ where
     let mut config = RunnerConfig::default();
     config.with_fail_fast(args.fail_fast);
     f(&mut config);
+    tracing::trace!(?config, "prepared project config");
     let runner = config.build(ctx.project, &world);
 
     let done_annot = if runner.config().compare() {

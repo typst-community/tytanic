@@ -8,6 +8,7 @@ typst-project = { git = "https://github.com/tingerrr/typst-project", rev = "a71d
 anyhow = "1.0.78"
 clap = "4.4.12"
 bitflags = "2.4.2"
+bytemuck = "1.16.1"
 chrono = "0.4.38"
 comemo = "0.4.0"
 dirs = "5.0.1"

@@ -1,3 +1,4 @@
+use typst::visualize::Color;
 use typst_test_lib::{compare, render};
 
 use super::util::export;
@@ -27,6 +28,7 @@ pub struct Args {
 pub fn run(ctx: Context, global: &Global, args: &Args) -> anyhow::Result<CliResult> {
     let render_strategy = render::Strategy {
         pixel_per_pt: render::ppi_to_ppp(args.export_args.pixel_per_inch),
+        fill: Color::WHITE,
     };
 
     let compare_strategy = compare::Strategy::Visual(compare::visual::Strategy::Simple {
@@ -44,6 +46,6 @@ pub fn run(ctx: Context, global: &Global, args: &Args) -> anyhow::Result<CliResu
     run::run(ctx, global, &args.export_args.run_args, |ctx| {
         ctx.with_compare_strategy(Some(compare_strategy))
             .with_render_strategy(Some(render_strategy))
-            .with_save_temporary(args.export_args.save_temporary)
+            .with_no_save_temporary(args.export_args.no_save_temporary)
     })
 }

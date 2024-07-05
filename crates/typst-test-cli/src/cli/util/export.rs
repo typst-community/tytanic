@@ -1,3 +1,4 @@
+use typst::visualize::Color;
 use typst_test_lib::render;
 
 use super::super::run;
@@ -10,7 +11,7 @@ pub struct Args {
 
     /// Whether to save temporary output, such as ephemeral references
     #[arg(long)]
-    pub save_temporary: bool,
+    pub no_save_temporary: bool,
 
     /// Whether to output raster images
     #[arg(long)]
@@ -37,6 +38,7 @@ pub struct Args {
 pub fn run(ctx: Context, global: &Global, args: &Args) -> anyhow::Result<CliResult> {
     let strategy = render::Strategy {
         pixel_per_pt: render::ppi_to_ppp(args.pixel_per_inch),
+        fill: Color::WHITE,
     };
 
     if args.pdf || args.svg {
@@ -48,6 +50,6 @@ pub fn run(ctx: Context, global: &Global, args: &Args) -> anyhow::Result<CliResu
     // TODO: with pdf + with svg export
     run::run(ctx, global, &args.run_args, |ctx| {
         ctx.with_render_strategy(Some(strategy))
-            .with_save_temporary(args.save_temporary)
+            .with_no_save_temporary(args.no_save_temporary)
     })
 }

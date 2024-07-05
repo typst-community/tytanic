@@ -23,7 +23,7 @@ pub struct RunnerConfig {
     fail_fast: bool,
 
     /// Whether to save the temporary documents to disk.
-    save_temporary: bool,
+    no_save_temporary: bool,
 
     /// The strategy to use when rendering documents.
     render_strategy: Option<render::Strategy>,
@@ -46,8 +46,8 @@ impl RunnerConfig {
         self.fail_fast
     }
 
-    pub fn save_temporary(&self) -> bool {
-        self.save_temporary
+    pub fn no_save_temporary(&self) -> bool {
+        self.no_save_temporary
     }
 
     pub fn render_strategy(&self) -> Option<render::Strategy> {
@@ -75,8 +75,8 @@ impl RunnerConfig {
         self
     }
 
-    pub fn with_save_temporary(&mut self, yes: bool) -> &mut Self {
-        self.save_temporary = yes;
+    pub fn with_no_save_temporary(&mut self, yes: bool) -> &mut Self {
+        self.no_save_temporary = yes;
         self
     }
 
@@ -149,6 +149,10 @@ pub struct TestRunner<'c, 'p, 't> {
     reference_source: Option<Option<Source>>,
     reference_document: Option<Option<TypstDocument>>,
     reference_store_document: Option<Option<Document>>,
+
+    difference_store_document: Option<Option<Document>>,
+
+    saved_difference_document: bool,
 }
 
 impl<'p> Runner<'p> {
@@ -177,6 +181,8 @@ impl<'p> Runner<'p> {
             reference_source: None,
             reference_document: None,
             reference_store_document: None,
+            difference_store_document: None,
+            saved_difference_document: false,
         }
     }
 
@@ -265,7 +271,7 @@ impl<'t> TestRunner<'_, '_, 't> {
             if self.config.update || self.config.compare {
                 self.run_stage(&progress, Stage::Rendering, |this| this.render_document())?;
 
-                if self.config.save_temporary {
+                if !self.config.no_save_temporary {
                     self.run_stage(&progress, Stage::Saving, |this| this.save_document())?;
                 }
             }
@@ -286,7 +292,7 @@ impl<'t> TestRunner<'_, '_, 't> {
                         this.render_reference_document()
                     })?;
 
-                    if self.config.save_temporary {
+                    if !self.config.no_save_temporary {
                         self.run_stage(&progress, Stage::Saving, |this| {
                             this.save_reference_document()
                         })?;
@@ -294,6 +300,15 @@ impl<'t> TestRunner<'_, '_, 't> {
                 } else {
                     self.run_stage(&progress, Stage::Loading, |this| {
                         this.load_reference_document()
+                    })?;
+                }
+
+                if !self.config.no_save_temporary {
+                    self.run_stage(&progress, Stage::Rendering, |this| {
+                        this.render_difference_document()
+                    })?;
+                    self.run_stage(&progress, Stage::Saving, |this| {
+                        this.save_difference_document()
                     })?;
                 }
 
@@ -404,7 +419,7 @@ impl<'t> TestRunner<'_, '_, 't> {
         let document = self
             .document
             .as_ref()
-            .ok_or_else(|| MissingStage(Stage::Compilation))?;
+            .ok_or_else(|| MissingStage(vec![Stage::Compilation]))?;
 
         let strategy = self
             .project_runner
@@ -423,7 +438,7 @@ impl<'t> TestRunner<'_, '_, 't> {
         let document = self
             .reference_document
             .as_ref()
-            .ok_or_else(|| MissingStage(Stage::Compilation))?
+            .ok_or_else(|| MissingStage(vec![Stage::Compilation]))?
             .as_ref()
             .ok_or_else(|| IncorrectKind(self.test.ref_kind().copied()))
             .context("Only ephemeral tests can have their reference rendered")?;
@@ -435,6 +450,34 @@ impl<'t> TestRunner<'_, '_, 't> {
             .unwrap_or_default();
 
         self.reference_store_document = Some(Some(Document::render(document, strategy)));
+
+        Ok(())
+    }
+
+    pub fn render_difference_document(&mut self) -> anyhow::Result<()> {
+        tracing::trace!(test = ?self.test.id(), "rendering difference document");
+
+        let output = self
+            .document
+            .as_ref()
+            .ok_or_else(|| MissingStage(vec![Stage::Compilation]))?;
+
+        let reference = self
+            .reference_document
+            .as_ref()
+            .ok_or_else(|| MissingStage(vec![Stage::Compilation, Stage::Loading]))?
+            .as_ref()
+            .ok_or_else(|| IncorrectKind(self.test.ref_kind().copied()))
+            .context("Compile only tests cannot be compared")?;
+
+        let strategy = self
+            .project_runner
+            .config
+            .render_strategy
+            .unwrap_or_default();
+
+        self.difference_store_document =
+            Some(Some(Document::render_diff(reference, output, strategy)));
 
         Ok(())
     }
@@ -457,14 +500,14 @@ impl<'t> TestRunner<'_, '_, 't> {
         let source = if is_reference {
             self.reference_source
                 .as_ref()
-                .ok_or_else(|| MissingStage(Stage::Loading))?
+                .ok_or_else(|| MissingStage(vec![Stage::Loading]))?
                 .as_ref()
                 .ok_or_else(|| IncorrectKind(self.test.ref_kind().copied()))
                 .context("Only ephemeral tests can have their reference compiled")?
         } else {
             self.source
                 .as_ref()
-                .ok_or_else(|| MissingStage(Stage::Loading))?
+                .ok_or_else(|| MissingStage(vec![Stage::Loading]))?
         };
 
         match compile::compile(
@@ -497,7 +540,7 @@ impl<'t> TestRunner<'_, '_, 't> {
         let document = self
             .reference_store_document
             .as_ref()
-            .ok_or_else(|| MissingStage(Stage::Compilation))?
+            .ok_or_else(|| MissingStage(vec![Stage::Compilation]))?
             .as_ref()
             .ok_or_else(|| IncorrectKind(self.test.ref_kind().copied()))
             .context("Only ephemeral tests can save their reference document")?;
@@ -518,7 +561,7 @@ impl<'t> TestRunner<'_, '_, 't> {
         let document = self
             .store_document
             .as_ref()
-            .ok_or_else(|| MissingStage(Stage::Compilation))?;
+            .ok_or_else(|| MissingStage(vec![Stage::Compilation]))?;
 
         document.save(
             self.project_runner
@@ -530,19 +573,42 @@ impl<'t> TestRunner<'_, '_, 't> {
         Ok(())
     }
 
+    pub fn save_difference_document(&mut self) -> anyhow::Result<()> {
+        tracing::trace!(test = ?self.test.id(), "saving difference document");
+
+        let document = self
+            .difference_store_document
+            .as_ref()
+            .ok_or_else(|| MissingStage(vec![Stage::Comparison]))?
+            .as_ref()
+            .ok_or_else(|| IncorrectKind(self.test.ref_kind().copied()))
+            .context("Compile only tests cannot be compared")?;
+
+        document.save(
+            self.project_runner
+                .project
+                .resolver()
+                .resolve(self.test.id(), TestTarget::DiffDir),
+        )?;
+
+        self.saved_difference_document = true;
+
+        Ok(())
+    }
+
     pub fn compare(&mut self) -> anyhow::Result<Result<(), CompareFailure>> {
         tracing::trace!(test = ?self.test.id(), "comparing");
 
         let output = self
             .store_document
             .as_ref()
-            .ok_or_else(|| MissingStage(Stage::Loading))?
+            .ok_or_else(|| MissingStage(vec![Stage::Loading]))?
             .clone();
 
         let reference = self
             .reference_store_document
             .as_ref()
-            .ok_or_else(|| MissingStage(Stage::Loading))?
+            .ok_or_else(|| MissingStage(vec![Stage::Loading]))?
             .as_ref()
             .ok_or_else(|| IncorrectKind(self.test.ref_kind().copied()))
             .context("Compile only tests cannot be compared")?;
@@ -562,7 +628,13 @@ impl<'t> TestRunner<'_, '_, 't> {
             Ok(_) => Ok(Ok(())),
             Err(error) => Ok(Err(CompareFailure::Visual {
                 error,
-                diff_dir: None,
+                diff_dir: self.saved_difference_document.then(|| {
+                    self.project_runner
+                        .project
+                        .resolver()
+                        .resolve(self.test.id(), TestTarget::DiffDir)
+                        .to_path_buf()
+                }),
             })),
         }
     }
@@ -573,7 +645,7 @@ impl<'t> TestRunner<'_, '_, 't> {
         let document = self
             .store_document
             .as_ref()
-            .ok_or_else(|| MissingStage(Stage::Loading))?;
+            .ok_or_else(|| MissingStage(vec![Stage::Loading]))?;
 
         self.test
             .create_reference_document(self.project_runner.project.resolver(), document)?;
@@ -610,5 +682,20 @@ impl Display for IncorrectKind {
 }
 
 #[derive(Debug, thiserror::Error)]
-#[error("Required to run stage {0}, but did not")]
-pub struct MissingStage(Stage);
+pub struct MissingStage(Vec<Stage>);
+
+impl Display for MissingStage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.0[..] {
+            [other @ .., second, last] => {
+                write!(f, "Required to run one of the stages")?;
+                for stage in other {
+                    write!(f, " {stage},")?;
+                }
+                write!(f, "{second} or {last}, but did not")
+            }
+            [single] => write!(f, "Required to run stage {single}, but did not"),
+            [] => unreachable!(),
+        }
+    }
+}
