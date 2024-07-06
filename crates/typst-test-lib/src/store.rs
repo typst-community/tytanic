@@ -46,8 +46,6 @@ impl Document {
         }
     }
 
-    // TODO: diff from already rendered pixmaps
-
     /// Fully renders a typst [`Document`][typst::model::Document].
     pub fn render(document: &typst::model::Document, strategy: Strategy) -> Self {
         Self {

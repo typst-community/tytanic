@@ -102,92 +102,94 @@ where
     let reporter = Mutex::new(ctx.reporter);
     rayon::scope(|scope| {
         let (tx, rx) = mpsc::channel();
-        scope.spawn({
-            let reporter = &reporter;
-            let failed_compilation = &failed_compilation;
-            let failed_comparison = &failed_comparison;
-            let failed_otherwise = &failed_otherwise;
-            let passed = &passed;
+        if global.output.format.is_pretty() {
+            scope.spawn({
+                let reporter = &reporter;
+                let failed_compilation = &failed_compilation;
+                let failed_comparison = &failed_comparison;
+                let failed_otherwise = &failed_otherwise;
+                let passed = &passed;
 
-            move |_| {
-                reporter.lock().unwrap().with_indent(2, |reporter| {
-                    let mut tests = BTreeMap::new();
-                    let mut count = 0;
+                move |_| {
+                    reporter.lock().unwrap().with_indent(2, |reporter| {
+                        let mut tests = BTreeMap::new();
+                        let mut count = 0;
 
-                    // TODO: track times by comparing stage instants
-                    while let Ok(Event {
-                        test,
-                        instant: _,
-                        message: _,
-                        payload,
-                    }) = rx.recv()
-                    {
-                        let id = test.id();
-                        match payload {
-                            EventPayload::StartedTest => {
-                                tests.insert(id.clone(), (test, "start"));
-                            }
-                            EventPayload::StartedStage(stage) => {
-                                tests.get_mut(id).unwrap().1 = match stage {
-                                    Stage::Preparation => "prepare",
-                                    Stage::Loading => "load",
-                                    Stage::Compilation => "compile",
-                                    Stage::Saving => "save",
-                                    Stage::Rendering => "render",
-                                    Stage::Comparison => "compare",
-                                    Stage::Update => "update",
-                                    Stage::Cleanup => "cleanup",
-                                };
-                            }
-                            EventPayload::FinishedStage(_) => {
-                                continue;
-                            }
-                            EventPayload::FailedStage(stage) => match stage {
-                                Stage::Compilation => {
-                                    failed_compilation.fetch_add(1, Ordering::SeqCst);
+                        // TODO: track times by comparing stage instants
+                        while let Ok(Event {
+                            test,
+                            instant: _,
+                            message: _,
+                            payload,
+                        }) = rx.recv()
+                        {
+                            let id = test.id();
+                            match payload {
+                                EventPayload::StartedTest => {
+                                    tests.insert(id.clone(), (test, "start"));
                                 }
-                                Stage::Comparison => {
-                                    failed_comparison.fetch_add(1, Ordering::SeqCst);
+                                EventPayload::StartedStage(stage) => {
+                                    tests.get_mut(id).unwrap().1 = match stage {
+                                        Stage::Preparation => "prepare",
+                                        Stage::Loading => "load",
+                                        Stage::Compilation => "compile",
+                                        Stage::Saving => "save",
+                                        Stage::Rendering => "render",
+                                        Stage::Comparison => "compare",
+                                        Stage::Update => "update",
+                                        Stage::Cleanup => "cleanup",
+                                    };
                                 }
-                                _ => {
-                                    failed_otherwise.fetch_add(1, Ordering::SeqCst);
+                                EventPayload::FinishedStage(_) => {
+                                    continue;
                                 }
-                            },
-                            EventPayload::FinishedTest => {
-                                tests.remove(id);
-                                reporter.test_success(&test, done_annot).unwrap();
-                                count += 1;
-                                passed.fetch_add(1, Ordering::SeqCst);
+                                EventPayload::FailedStage(stage) => match stage {
+                                    Stage::Compilation => {
+                                        failed_compilation.fetch_add(1, Ordering::SeqCst);
+                                    }
+                                    Stage::Comparison => {
+                                        failed_comparison.fetch_add(1, Ordering::SeqCst);
+                                    }
+                                    _ => {
+                                        failed_otherwise.fetch_add(1, Ordering::SeqCst);
+                                    }
+                                },
+                                EventPayload::FinishedTest => {
+                                    tests.remove(id);
+                                    reporter.test_success(&test, done_annot).unwrap();
+                                    count += 1;
+                                    passed.fetch_add(1, Ordering::SeqCst);
+                                }
+                                EventPayload::FailedTest(failure) => {
+                                    tests.remove(id);
+                                    reporter.test_failure(&test, failure).unwrap();
+                                    count += 1;
+                                }
                             }
-                            EventPayload::FailedTest(failure) => {
-                                tests.remove(id);
-                                reporter.test_failure(&test, failure).unwrap();
-                                count += 1;
+
+                            for (_, (test, msg)) in &tests {
+                                reporter.test_progress(test, msg).unwrap();
                             }
+
+                            reporter
+                                .write_annotated("tested", Color::Cyan, |reporter| {
+                                    writeln!(
+                                        reporter,
+                                        "{} / {} ({} tests running)",
+                                        count,
+                                        len,
+                                        tests.len(),
+                                    )
+                                })
+                                .unwrap();
+
+                            // clear the progress lines
+                            reporter.clear_last_lines(tests.len() + 1).unwrap();
                         }
-
-                        for (_, (test, msg)) in &tests {
-                            reporter.test_progress(test, msg).unwrap();
-                        }
-
-                        reporter
-                            .write_annotated("tested", Color::Cyan, |reporter| {
-                                writeln!(
-                                    reporter,
-                                    "{} / {} ({} tests running)",
-                                    count,
-                                    len,
-                                    tests.len(),
-                                )
-                            })
-                            .unwrap();
-
-                        // clear the progress lines
-                        reporter.clear_last_lines(tests.len() + 1).unwrap();
-                    }
-                });
-            }
-        });
+                    });
+                }
+            });
+        }
 
         let res = ctx.project.matched().par_iter().try_for_each(
             |(_, test)| -> Result<(), Option<anyhow::Error>> {

@@ -4,6 +4,7 @@ use std::io::{ErrorKind, Write};
 use std::process::ExitCode;
 
 use clap::{ColorChoice, Parser};
+use cli::OutputFormat;
 use termcolor::{Color, WriteColor};
 use tracing::Level;
 use tracing_subscriber::filter::Targets;
@@ -30,10 +31,7 @@ const IS_OUTPUT_STDERR: bool = false;
 fn main() -> ExitCode {
     let mut args = cli::Args::parse();
 
-    if !args.global.output.format.is_pretty() {
-        args.global.output.color = ColorChoice::Never;
-    }
-
+    // BUG: this interferes with the live printing
     if args.global.output.verbose >= 1 {
         tracing_subscriber::registry()
             .with(
@@ -55,6 +53,13 @@ fn main() -> ExitCode {
                 },
             ))
             .init();
+
+        // don't do any fancy line clearing if we're logging
+        args.global.output.format = OutputFormat::Plain;
+    }
+
+    if !args.global.output.format.is_pretty() {
+        args.global.output.color = ColorChoice::Never;
     }
 
     // TODO: simpler output when using plain
