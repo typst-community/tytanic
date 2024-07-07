@@ -6,10 +6,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use super::{ReferenceKind, Test};
-use crate::matcher;
-use crate::matcher::Matcher;
 use crate::store::project::{Resolver, TestTarget};
 use crate::test::id::{Identifier, ParseIdentifierError};
+use crate::test_set;
+use crate::test_set::Matcher;
 
 /// An error that can occur during [`Test`] collection using a [`Collector`].
 #[derive(Debug, thiserror::Error)]
@@ -42,7 +42,7 @@ impl<'p, R: Resolver + Sync> Collector<'p, R> {
     pub fn new(project: &'p R) -> Self {
         Self {
             resolver: project,
-            matcher: matcher::eval::default_matcher(),
+            matcher: test_set::default_test_set(),
             tests: BTreeMap::new(),
             filtered: BTreeMap::new(),
             errors: vec![],

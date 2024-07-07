@@ -17,27 +17,21 @@ static PRATT_PARSER: LazyLock<PrattParser<Rule>> = LazyLock::new(|| {
         .op(Op::prefix(complement))
 });
 
-/// A [`pest`] parser for matcher expressions.
+/// A [`pest`] parser for test set expressions.
 #[derive(Parser)]
-#[grammar = "matcher/grammar.pest"]
-pub struct MatcherParser;
+#[grammar = "test_set/grammar.pest"]
+pub struct TestSetParser;
 
-/// Parses a given input string into a matcher expression.
-pub fn parse_matcher_expr(input: &str) -> Result<Option<Expr>, Error<Rule>> {
+/// Parses a given input string into a test set expression.
+pub fn parse_test_set_expr(input: &str) -> Result<Expr, Error<Rule>> {
     use pest::Parser;
 
-    let input = input.trim();
-
-    if input.is_empty() {
-        return Ok(None);
-    }
-
-    Ok(Some(parse_expr(
-        MatcherParser::parse(Rule::main, input)?
+    Ok(parse_expr(
+        TestSetParser::parse(Rule::main, input)?
             .next()
             .expect("main is not optional")
             .into_inner(),
-    )))
+    ))
 }
 
 /// A binary operation token.
@@ -49,7 +43,7 @@ pub fn parse_matcher_expr(input: &str) -> Result<Option<Expr>, Error<Rule>> {
 /// 4. complement
 ///
 /// All binary operators are left associative.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BinaryOp {
     /// A symmetric difference operator (`xor` and `^`, etc.).
     SymmetricDifference,
@@ -65,7 +59,7 @@ pub enum BinaryOp {
 }
 
 /// A unary operation token.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnaryOp {
     /// The prefix complement operator (`!`, etc.), has highest precedence of
     /// all operators.
@@ -73,7 +67,7 @@ pub enum UnaryOp {
 }
 
 /// An expression token.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expr {
     /// A unary expression.
     Unary(UnaryExpr),
@@ -86,7 +80,7 @@ pub enum Expr {
 }
 
 /// A unary prefix expresssion token.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UnaryExpr {
     /// The unary prefix operator.
     pub op: UnaryOp,
@@ -96,7 +90,7 @@ pub struct UnaryExpr {
 }
 
 /// A binary expresssion token.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BinaryExpr {
     /// The binary infix operator.
     pub op: BinaryOp,
@@ -109,7 +103,7 @@ pub struct BinaryExpr {
 }
 
 /// An atom token.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Atom {
     /// A value.
     Value(Value),
@@ -118,22 +112,22 @@ pub enum Atom {
     Function(Function),
 }
 
-/// An identifier token for matcher values and matcher functions.
-#[derive(Debug, PartialEq, Eq)]
+/// An identifier token for test set values and test set functions.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Identifier {
     /// The identifier string, must be a valid identifier.
     pub value: String,
 }
 
 /// A value token.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Value {
     /// The value identifier.
     pub id: Identifier,
 }
 
 /// A function token.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Function {
     /// The function identifier.
     pub id: Identifier,
@@ -144,7 +138,7 @@ pub struct Function {
 
 /// A function arguments token. This currently holds a single argument but my
 /// hold more in the future.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Arguments {
     /// The single function argument.
     pub arg: Argument,
@@ -152,14 +146,14 @@ pub struct Arguments {
 
 /// A single function argument token. This curently only holds a name matcher
 /// but may hold other values in the future.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Argument {
     /// The name matcher.
     pub matcher: NameMatcher,
 }
 
 /// A name matcher token.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NameMatcher {
     /// An exact identifier matcher.
     Exact(String),
@@ -378,16 +372,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_matcher_expr_empty() {
-        assert_eq!(parse_matcher_expr(" \t  ").unwrap(), None);
+    fn test_parse_test_set_expr_empty() {
+        assert!(parse_test_set_expr(" \t  ").is_err());
     }
 
     #[test]
-    fn test_parse_matcher_expr() {
-        let expr = parse_matcher_expr("  (test(=exact) - func(/ regex/)) & !val ").unwrap();
+    fn test_parse_test_set_expr() {
+        let expr = parse_test_set_expr("  (test(=exact) - func(/ regex/)) & !val ").unwrap();
         assert_eq!(
             expr,
-            Some(Expr::Binary(BinaryExpr {
+            Expr::Binary(BinaryExpr {
                 op: BinaryOp::Intersection,
                 lhs: Box::new(Expr::Binary(BinaryExpr {
                     op: BinaryOp::Difference,
@@ -420,14 +414,14 @@ mod tests {
                         }
                     }))),
                 })),
-            }))
+            })
         );
     }
 
     #[test]
     fn test_parser_rule_value() {
         pest::fails_with! {
-            parser: MatcherParser,
+            parser: TestSetParser,
             input: " val",
             rule: Rule::val,
             positives: [Rule::id],
@@ -435,7 +429,7 @@ mod tests {
             pos: 0
         };
         pest::parses_to! {
-            parser: MatcherParser,
+            parser: TestSetParser,
             input: "val",
             rule: Rule::val,
             tokens: [
@@ -445,7 +439,7 @@ mod tests {
             ]
         };
         pest::parses_to! {
-            parser: MatcherParser,
+            parser: TestSetParser,
             input: "val ",
             rule: Rule::val,
             tokens: [
@@ -459,7 +453,7 @@ mod tests {
     #[test]
     fn test_parser_rule_function() {
         pest::fails_with! {
-            parser: MatcherParser,
+            parser: TestSetParser,
             input: "val( plain)",
             rule: Rule::func,
             positives: [Rule::matcher],
@@ -467,7 +461,7 @@ mod tests {
             pos: 4
         };
         pest::fails_with! {
-            parser: MatcherParser,
+            parser: TestSetParser,
             input: "val (plain)",
             rule: Rule::func,
             positives: [Rule::args],
@@ -475,7 +469,7 @@ mod tests {
             pos: 3
         };
         pest::parses_to! {
-            parser: MatcherParser,
+            parser: TestSetParser,
             input: "val(plain)",
             rule: Rule::func,
             tokens: [
@@ -498,7 +492,7 @@ mod tests {
     #[test]
     fn test_parse_matcher() {
         pest::fails_with! {
-            parser: MatcherParser,
+            parser: TestSetParser,
             input: "= a",
             rule: Rule::matcher,
             positives: [Rule::name],
@@ -506,7 +500,7 @@ mod tests {
             pos: 1
         };
         pest::fails_with! {
-            parser: MatcherParser,
+            parser: TestSetParser,
             input: "//",
             rule: Rule::matcher,
             positives: [Rule::regex],
@@ -514,7 +508,7 @@ mod tests {
             pos: 1
         };
         pest::parses_to! {
-            parser: MatcherParser,
+            parser: TestSetParser,
             input: "=a",
             rule: Rule::matcher,
             tokens: [
@@ -526,7 +520,7 @@ mod tests {
             ]
         }
         pest::parses_to! {
-            parser: MatcherParser,
+            parser: TestSetParser,
             input: "~a",
             rule: Rule::matcher,
             tokens: [
@@ -538,7 +532,7 @@ mod tests {
             ]
         }
         pest::parses_to! {
-            parser: MatcherParser,
+            parser: TestSetParser,
             input: "~a",
             rule: Rule::matcher,
             tokens: [
@@ -550,7 +544,7 @@ mod tests {
             ]
         }
         pest::parses_to! {
-            parser: MatcherParser,
+            parser: TestSetParser,
             input: r"/\/a/",
             rule: Rule::matcher,
             tokens: [
@@ -562,7 +556,7 @@ mod tests {
             ]
         }
         pest::parses_to! {
-            parser: MatcherParser,
+            parser: TestSetParser,
             input: "/ a/",
             rule: Rule::matcher,
             tokens: [
@@ -576,7 +570,7 @@ mod tests {
 
         assert_eq!(
             parse_matcher(
-                MatcherParser::parse(Rule::matcher, r"/\/a/")
+                TestSetParser::parse(Rule::matcher, r"/\/a/")
                     .unwrap()
                     .next()
                     .unwrap()

@@ -7,7 +7,6 @@ use rayon::prelude::*;
 use tiny_skia::Pixmap;
 use typst_project::manifest::Manifest;
 use typst_test_lib::config::Config;
-use typst_test_lib::matcher::Matcher;
 use typst_test_lib::store::project::v1::ResolverV1;
 use typst_test_lib::store::project::Resolver;
 use typst_test_lib::store::test::collector::Collector;
@@ -16,6 +15,7 @@ use typst_test_lib::store::vcs::{Git, NoVcs};
 use typst_test_lib::store::Document;
 use typst_test_lib::test::id::Identifier;
 use typst_test_lib::test::ReferenceKind;
+use typst_test_lib::test_set::Matcher;
 
 use crate::util;
 
@@ -247,10 +247,10 @@ impl Project {
         Ok(())
     }
 
-    pub fn collect_tests<M: Matcher + 'static>(&mut self, matcher: M) -> Result<(), Error> {
+    pub fn collect_tests<M: Matcher + 'static>(&mut self, test_set: M) -> Result<(), Error> {
         // TODO: error handling
         let mut collector = Collector::new(&self.resolver);
-        collector.with_matcher(matcher);
+        collector.with_matcher(test_set);
         collector.collect();
         self.tests = collector.take_tests();
         self.filtered = collector.take_filtered();

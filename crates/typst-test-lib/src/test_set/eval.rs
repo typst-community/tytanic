@@ -4,7 +4,7 @@ use std::sync::Arc;
 use ecow::EcoString;
 use regex::Regex;
 
-use crate::matcher::Matcher;
+use super::Matcher;
 use crate::store::test::Test;
 use crate::test::ReferenceKind;
 
@@ -140,14 +140,14 @@ impl super::Matcher for BinaryMatcher {
     }
 }
 
-pub fn default_matcher() -> Arc<dyn Matcher> {
+pub fn default_test_set() -> Arc<dyn Matcher> {
     Arc::new(UnaryMatcher::Complement(Arc::new(IgnoredMatcher)))
 }
 
 /// A matcher for running an arbitray function on tests.
 #[derive(Clone)]
 pub struct FnMatcher {
-    pub custom: Arc<dyn Fn(&Test) -> bool>,
+    pub custom: Arc<dyn Fn(&Test) -> bool + Send + Sync>,
 }
 
 impl Debug for FnMatcher {
@@ -159,7 +159,7 @@ impl Debug for FnMatcher {
 }
 
 impl FnMatcher {
-    pub fn custom(&mut self, matcher: Arc<dyn Fn(&Test) -> bool>) -> &mut Self {
+    pub fn custom(&mut self, matcher: Arc<dyn Fn(&Test) -> bool + Send + Sync>) -> &mut Self {
         self.custom = matcher;
         self
     }
@@ -199,7 +199,7 @@ mod tests {
 
     #[test]
     fn test_default() {
-        let m = default_matcher();
+        let m = default_test_set();
         assert_matcher!(m, [true, true, true, true, true, false]);
     }
 

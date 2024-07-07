@@ -1,4 +1,4 @@
-use typst_test_lib::matcher::eval::AllMatcher;
+use typst_test_lib::test_set::eval::AllMatcher;
 
 use super::Context;
 

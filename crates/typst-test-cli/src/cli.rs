@@ -7,8 +7,9 @@ use std::sync::{Arc, Mutex};
 use clap::ColorChoice;
 use termcolor::{Color, WriteColor};
 use typst_test_lib::config::Config;
-use typst_test_lib::matcher::{self, Matcher};
 use typst_test_lib::test::id::Identifier;
+use typst_test_lib::test_set;
+use typst_test_lib::test_set::{TestSet, TestSetExpr};
 
 use crate::fonts::FontSearcher;
 use crate::project::{self, Project};
@@ -141,16 +142,18 @@ impl<'a> Context<'a> {
     ) -> anyhow::Result<Project> {
         let mut project = self.ensure_init()?;
 
-        let matcher = match op_args.matcher() {
-            Ok(matcher) => matcher,
+        let test_set = match op_args.test_set() {
+            Ok(test_set) => test_set,
             Err(err) => {
                 self.set_operation_failure();
-                self.operation_failure(|r| writeln!(r, "Couldn't parse matcher:\n{err}"))?;
+                self.operation_failure(|r| {
+                    writeln!(r, "Couldn't parse test set expression:\n{err}")
+                })?;
                 anyhow::bail!(err);
             }
         };
 
-        project.collect_tests(matcher)?;
+        project.collect_tests(test_set)?;
 
         match (project.matched().len(), op_requires_confirm_for_many.into()) {
             (0, _) => {
@@ -273,10 +276,12 @@ pub struct Global {
 
 #[derive(clap::Args, Debug, Clone)]
 pub struct OperationArgs {
-    // TODO: link to a documentation for the testset lang
-    /// A testset expression for the given operation
+    /// A test set expression for the given operation
+    ///
+    /// See https://github.com/tingerrr/typst-test for an introduction on the
+    /// test set language.
     #[arg(long, short, conflicts_with = "tests")]
-    pub expression: Option<String>,
+    pub expression: Option<TestSetExpr>,
 
     /// Allow operating on more than one test if multiple tests match
     ///
@@ -287,23 +292,19 @@ pub struct OperationArgs {
 
     /// The tests to use
     ///
-    /// This matches any tests which contain any of the given terms, but
-    /// excludes ignored tests. Use -e 'ignored & test(...)' to include ignored
-    /// tests.
+    /// This matches any tests which exactly match the given identifiers.
+    ///
+    /// Consider using `-e '...'` for more complicated test selections.
     #[arg(required = false)]
     pub tests: Vec<Identifier>,
 }
 
 impl OperationArgs {
-    pub fn matcher(&self) -> anyhow::Result<Arc<dyn Matcher>> {
-        Ok(self
-            .expression
-            .as_deref()
-            .map(matcher::parsing::parse_matcher_expr)
-            .transpose()?
-            .flatten()
-            .map(matcher::build_matcher)
-            .unwrap_or_else(matcher::eval::default_matcher))
+    pub fn test_set(&self) -> anyhow::Result<TestSet> {
+        Ok(match self.expression.clone() {
+            Some(expr) => expr.build(&*test_set::BUILTIN_TESTSETS)?,
+            None => test_set::default_test_set(),
+        })
     }
 }
 
