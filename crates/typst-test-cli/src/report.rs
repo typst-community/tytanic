@@ -124,16 +124,19 @@ impl Reporter {
         &mut self,
         annot: &str,
         color: Color,
+        annot_padding: impl Into<Option<usize>>,
         f: impl FnOnce(&mut Self) -> io::Result<()>,
     ) -> io::Result<()> {
+        let annot_padding = annot_padding.into().unwrap_or(annot.len());
+
         self.set_color(ColorSpec::new().set_bold(true).set_fg(Some(color)))?;
         if self.format.is_pretty() {
-            write!(self, "{annot:>ANNOT_PADDING$} ")?;
+            write!(self, "{annot:>annot_padding$} ")?;
         } else {
             write!(self, "{annot} ")?;
         }
         self.set_color(ColorSpec::new().set_bold(false).set_fg(None))?;
-        self.with_indent(ANNOT_PADDING + 1, |this| f(this))?;
+        self.with_indent(annot_padding + 1, |this| f(this))?;
         Ok(())
     }
 
@@ -151,6 +154,13 @@ impl Reporter {
         self.write_annotated("hint:", Color::Cyan, |this| writeln!(this, "{hint}"))
     }
 
+    pub fn operation_failure(
+        &mut self,
+        f: impl FnOnce(&mut Self) -> io::Result<()>,
+    ) -> io::Result<()> {
+        self.write_annotated("Error:", Color::Red, None, |this| f(this))
+    }
+
     pub fn test_result(
         &mut self,
         test: &Test,
@@ -158,7 +168,7 @@ impl Reporter {
         color: Color,
         f: impl FnOnce(&mut Self) -> io::Result<()>,
     ) -> io::Result<()> {
-        self.write_annotated(annot, color, |this| {
+        self.write_annotated(annot, color, ANNOT_PADDING, |this| {
             write_bold(this, |w| writeln!(w, "{}", test.id()))?;
             f(this)
         })

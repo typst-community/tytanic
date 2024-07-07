@@ -47,7 +47,7 @@ impl PackageStorage {
             package_cache_path,
             package_path,
             index: OnceLock::new(),
-            downloader: Downloader::new(args.cert.clone()),
+            downloader: Downloader::new(args.certificate.clone()),
         }
     }
 

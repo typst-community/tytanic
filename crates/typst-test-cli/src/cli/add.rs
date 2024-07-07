@@ -1,10 +1,13 @@
+use std::io::Write;
+
+use typst_test_lib::matcher::eval::AllMatcher;
 use typst_test_lib::test::id::Identifier;
 use typst_test_lib::test::ReferenceKind;
 
-use super::{CliResult, Context, Global};
-use crate::cli::{bail_if_invalid_matcher_expr, bail_if_uninit};
+use super::Context;
 
 #[derive(clap::Args, Debug, Clone)]
+#[group(id = "add-args")]
 pub struct Args {
     /// Whether this test creates it's references on the fly
     ///
@@ -25,18 +28,14 @@ pub struct Args {
     pub test: Identifier,
 }
 
-pub fn run(ctx: Context, global: &Global, args: &Args) -> anyhow::Result<CliResult> {
-    bail_if_uninit!(ctx);
+pub fn run(ctx: &mut Context, args: &Args) -> anyhow::Result<()> {
+    let mut project = ctx.ensure_init()?;
+    project.collect_tests(AllMatcher)?;
+    project.load_template()?;
 
-    bail_if_invalid_matcher_expr!(global => matcher);
-    ctx.project.collect_tests(matcher)?;
-    ctx.project.load_template()?;
-
-    if ctx.project.matched().contains_key(&args.test) {
-        return Ok(CliResult::operation_failure(format!(
-            "Test '{}' already exists",
-            args.test,
-        )));
+    if project.matched().contains_key(&args.test) {
+        ctx.operation_failure(|r| writeln!(r, "Test '{}' already exists", args.test))?;
+        anyhow::bail!("Test already exists");
     }
 
     let kind = if args.ephemeral {
@@ -47,10 +46,9 @@ pub fn run(ctx: Context, global: &Global, args: &Args) -> anyhow::Result<CliResu
         Some(ReferenceKind::Persistent)
     };
 
-    ctx.project
-        .create_test(args.test.clone(), kind, !args.no_template)?;
-    let test = &ctx.project.matched()[&args.test];
-    ctx.reporter.test_added(test)?;
+    project.create_test(args.test.clone(), kind, !args.no_template)?;
+    let test = &project.matched()[&args.test];
+    ctx.reporter.lock().unwrap().test_added(test)?;
 
-    Ok(CliResult::Ok)
+    Ok(())
 }

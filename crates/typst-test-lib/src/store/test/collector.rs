@@ -3,10 +3,11 @@ use std::fs::File;
 use std::io;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use super::{ReferenceKind, Test};
-use crate::matcher::eval::Matcher;
-use crate::matcher::Matcher as _;
+use crate::matcher;
+use crate::matcher::Matcher;
 use crate::store::project::{Resolver, TestTarget};
 use crate::test::id::{Identifier, ParseIdentifierError};
 
@@ -30,7 +31,7 @@ pub enum CollectError {
 #[derive(Debug)]
 pub struct Collector<'p, R> {
     resolver: &'p R,
-    matcher: Matcher,
+    matcher: Arc<dyn Matcher>,
     tests: BTreeMap<Identifier, Test>,
     filtered: BTreeMap<Identifier, Test>,
     errors: Vec<(Option<PathBuf>, CollectError)>,
@@ -41,7 +42,7 @@ impl<'p, R: Resolver + Sync> Collector<'p, R> {
     pub fn new(project: &'p R) -> Self {
         Self {
             resolver: project,
-            matcher: Matcher::default(),
+            matcher: matcher::eval::default_matcher(),
             tests: BTreeMap::new(),
             filtered: BTreeMap::new(),
             errors: vec![],
@@ -54,8 +55,8 @@ impl<'p, R: Resolver + Sync> Collector<'p, R> {
     }
 
     /// Returns a reference to the matcher used by this collector.
-    pub fn matcher(&self) -> &Matcher {
-        &self.matcher
+    pub fn matcher(&self) -> &dyn Matcher {
+        &*self.matcher
     }
 
     /// Returns a reference to the tests which were collected by this collector.
@@ -98,8 +99,8 @@ impl<'p, R: Resolver + Sync> Collector<'p, R> {
 
     /// Sets the matcher used for this collector, the matcher is applied to each
     /// test after it's type and annotations have been checked.
-    pub fn with_matcher(&mut self, matcher: Matcher) -> &mut Self {
-        self.matcher = matcher;
+    pub fn with_matcher<M: Matcher + 'static>(&mut self, matcher: M) -> &mut Self {
+        self.matcher = Arc::new(matcher);
         self
     }
 

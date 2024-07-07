@@ -1,12 +1,17 @@
-use std::fmt::Display;
+use std::io;
+use std::io::Write;
 use std::path::PathBuf;
+use std::process::ExitCode;
+use std::sync::{Arc, Mutex};
 
 use clap::ColorChoice;
-use typst_test_lib::matcher;
-use typst_test_lib::matcher::eval::Matcher;
+use termcolor::{Color, WriteColor};
+use typst_test_lib::config::Config;
+use typst_test_lib::matcher::{self, Matcher};
+use typst_test_lib::test::id::Identifier;
 
 use crate::fonts::FontSearcher;
-use crate::project::Project;
+use crate::project::{self, Project};
 use crate::report::Reporter;
 
 pub mod add;
@@ -25,50 +30,7 @@ pub mod util;
 /// The separator used for multiple paths.
 const ENV_PATH_SEP: char = if cfg!(windows) { ';' } else { ':' };
 
-pub struct Context<'a> {
-    pub project: &'a mut Project,
-    pub reporter: &'a mut Reporter,
-}
-
-#[repr(u8)]
-pub enum CliResult {
-    /// Typst-test ran succesfully.
-    Ok = EXIT_OK,
-
-    /// At least one test failed.
-    TestFailure = EXIT_TEST_FAILURE,
-
-    /// The requested operation failed gracefully.
-    OperationFailure {
-        message: Box<dyn Display + Send + 'static>,
-        hint: Option<Box<dyn Display + Send + 'static>>,
-    } = EXIT_OPERATION_FAILURE,
-}
-
-impl CliResult {
-    pub fn operation_failure<M>(message: M) -> Self
-    where
-        M: Display + Send + 'static,
-    {
-        Self::OperationFailure {
-            message: Box::new(message) as _,
-            hint: None,
-        }
-    }
-
-    pub fn hinted_operation_failure<M, H>(message: M, hint: H) -> Self
-    where
-        M: Display + Send + 'static,
-        H: Display + Send + 'static,
-    {
-        Self::OperationFailure {
-            message: Box::new(message) as _,
-            hint: Some(Box::new(hint) as _),
-        }
-    }
-}
-
-/// Typst-test ran succesfully.
+/// Typst-test exited successfully.
 pub const EXIT_OK: u8 = 0;
 
 /// At least one test failed.
@@ -79,6 +41,193 @@ pub const EXIT_OPERATION_FAILURE: u8 = 2;
 
 /// An unexpected error occured.
 pub const EXIT_ERROR: u8 = 3;
+
+pub struct Context<'a> {
+    pub args: &'a Args,
+    pub reporter: Arc<Mutex<Reporter>>,
+    exit_code: u8,
+}
+
+impl<'a> Context<'a> {
+    pub fn new(args: &'a Args, reporter: Reporter) -> Self {
+        Self {
+            args,
+            reporter: Arc::new(Mutex::new(reporter)),
+            exit_code: EXIT_OK,
+        }
+    }
+
+    pub fn ensure_project(&mut self) -> anyhow::Result<Project> {
+        let root = match &self.args.global.root {
+            Some(root) => root.to_path_buf(),
+            None => {
+                let pwd = std::env::current_dir()?;
+                match project::try_find_project_root(&pwd)? {
+                    Some(root) => root.to_path_buf(),
+                    None => {
+                        self.operation_failure(|r| {
+                            writeln!(r, "Must be inside a typst project")?;
+                            r.hint("You can pass the project root using '--root <path>'")?;
+                            Ok(())
+                        })?;
+                        anyhow::bail!("No project");
+                    }
+                }
+            }
+        };
+
+        if !root.try_exists()? {
+            self.operation_failure(|r| {
+                writeln!(r, "Root '{}' directory not found", root.display())
+            })?;
+            anyhow::bail!("Root not found");
+        }
+
+        let manifest = match project::try_open_manifest(&root) {
+            Ok(manifest) => manifest,
+            Err(project::Error::InvalidManifest(err)) => {
+                self.reporter.lock().unwrap().write_annotated(
+                    "warning:",
+                    Color::Yellow,
+                    None,
+                    |this| {
+                        tracing::error!(?err, "Couldn't parse manifest");
+                        writeln!(this, "Error while parsing manifest, skipping")?;
+                        writeln!(this, "{}", err.message())
+                    },
+                )?;
+
+                None
+            }
+            Err(err) => anyhow::bail!(err),
+        };
+
+        let manifest_config = manifest
+            .as_ref()
+            .and_then(|m| {
+                m.tool
+                    .as_ref()
+                    .map(|t| t.get_section::<Config>("typst-test"))
+            })
+            .transpose()?
+            .flatten();
+
+        Ok(Project::new(
+            root,
+            manifest_config.unwrap_or_default(),
+            manifest,
+        ))
+    }
+
+    pub fn ensure_init(&mut self) -> anyhow::Result<Project> {
+        let project = self.ensure_project()?;
+
+        if !project.is_init()? {
+            self.set_operation_failure();
+            let mut reporter = self.reporter.lock().unwrap();
+            reporter.operation_failure(|r| {
+                write!(r, "Project '{}' was not initialized", project.name())
+            })?;
+            anyhow::bail!("Project was not initalized");
+        }
+
+        Ok(project)
+    }
+
+    pub fn collect_tests(
+        &mut self,
+        op_args: &OperationArgs,
+        op_requires_confirm_for_many: impl Into<Option<&'static str>>,
+    ) -> anyhow::Result<Project> {
+        let mut project = self.ensure_init()?;
+
+        let matcher = match op_args.matcher() {
+            Ok(matcher) => matcher,
+            Err(err) => {
+                self.set_operation_failure();
+                self.operation_failure(|r| writeln!(r, "Couldn't parse matcher:\n{err}"))?;
+                anyhow::bail!(err);
+            }
+        };
+
+        project.collect_tests(matcher)?;
+
+        match (project.matched().len(), op_requires_confirm_for_many.into()) {
+            (0, _) => {
+                self.set_operation_failure();
+                self.operation_failure(|r| writeln!(r, "Matched no tests"))?;
+                anyhow::bail!("Matched no tests");
+            }
+            (1, _) => {}
+            (_, None) => {}
+            (_, Some(_)) if op_args.all => {}
+            (_, Some(op)) => {
+                self.operation_failure(|r| {
+                    writeln!(r, "Matched more than one test")?;
+                    r.hint(format!("Pass `--all` to {op} more than one test at a time"))
+                })?;
+
+                anyhow::bail!(
+                    "Matched more than one test without a confirmation for operation {op}"
+                );
+            }
+        }
+
+        Ok(project)
+    }
+
+    fn set_operation_failure(&mut self) {
+        self.exit_code = EXIT_OPERATION_FAILURE;
+    }
+
+    pub fn operation_failure(
+        &mut self,
+        f: impl FnOnce(&mut Reporter) -> io::Result<()>,
+    ) -> io::Result<()> {
+        self.set_operation_failure();
+        self.reporter.lock().unwrap().operation_failure(f)?;
+        Ok(())
+    }
+
+    fn set_test_failure(&mut self) {
+        self.exit_code = EXIT_TEST_FAILURE;
+    }
+
+    pub fn test_failure(
+        &mut self,
+        f: impl FnOnce(&mut Reporter) -> io::Result<()>,
+    ) -> io::Result<()> {
+        self.set_test_failure();
+        f(&mut *self.reporter.lock().unwrap())
+    }
+
+    pub fn run(&mut self) -> anyhow::Result<()> {
+        self.args.cmd.run(self)
+    }
+
+    fn set_unexpected_error(&mut self) {
+        self.exit_code = EXIT_ERROR;
+    }
+
+    pub fn unexpected_error(
+        &mut self,
+        f: impl FnOnce(&mut Reporter) -> io::Result<()>,
+    ) -> io::Result<()> {
+        self.set_unexpected_error();
+        f(&mut *self.reporter.lock().unwrap())
+    }
+
+    pub fn is_operation_failure(&self) -> bool {
+        self.exit_code == EXIT_OPERATION_FAILURE
+    }
+
+    pub fn exit(self) -> ExitCode {
+        let mut reporter = self.reporter.lock().unwrap();
+        reporter.reset().unwrap();
+        write!(reporter, "").unwrap();
+        ExitCode::from(self.exit_code)
+    }
+}
 
 macro_rules! ansi {
     ($s:expr; b) => {
@@ -106,15 +255,11 @@ static AFTER_LONG_ABOUT: &str = concat!(
     "  ", ansi!("3"; b), "  An unexpected error occured",
 );
 
-#[derive(clap::Parser, Debug, Clone)]
+#[derive(clap::Args, Debug, Clone)]
 pub struct Global {
     /// The project root directory
     #[arg(long, short, global = true)]
     pub root: Option<PathBuf>,
-
-    /// A matcher expression for which tests to include in the given operation
-    #[arg(long, short, global = true)]
-    pub expression: Option<String>,
 
     #[command(flatten, next_help_heading = "Font Options")]
     pub fonts: FontArgs,
@@ -126,8 +271,31 @@ pub struct Global {
     pub output: OutputArgs,
 }
 
-impl Global {
-    pub fn matcher(&self) -> anyhow::Result<Matcher> {
+#[derive(clap::Args, Debug, Clone)]
+pub struct OperationArgs {
+    // TODO: link to a documentation for the testset lang
+    /// A testset expression for the given operation
+    #[arg(long, short, conflicts_with = "tests")]
+    pub expression: Option<String>,
+
+    /// Allow operating on more than one test if multiple tests match
+    ///
+    /// This is not requried for comparing or compiling, but for editing,
+    /// updating or removing tests.
+    #[arg(long, short)]
+    pub all: bool,
+
+    /// The tests to use
+    ///
+    /// This matches any tests which contain any of the given terms, but
+    /// excludes ignored tests. Use -e 'ignored & test(...)' to include ignored
+    /// tests.
+    #[arg(required = false)]
+    pub tests: Vec<Identifier>,
+}
+
+impl OperationArgs {
+    pub fn matcher(&self) -> anyhow::Result<Arc<dyn Matcher>> {
         Ok(self
             .expression
             .as_deref()
@@ -135,7 +303,7 @@ impl Global {
             .transpose()?
             .flatten()
             .map(matcher::build_matcher)
-            .unwrap_or_default())
+            .unwrap_or_else(matcher::eval::default_matcher))
     }
 }
 
@@ -171,16 +339,16 @@ impl FontArgs {
 #[derive(clap::Args, Debug, Clone)]
 pub struct PackageArgs {
     /// Custom path to local packages, defaults to system-dependent location
-    #[clap(env = "TYPST_PACKAGE_PATH", value_name = "DIR")]
+    #[clap(long, env = "TYPST_PACKAGE_PATH", value_name = "DIR")]
     pub package_path: Option<PathBuf>,
 
     /// Custom path to package cache, defaults to system-dependent location
-    #[clap(env = "TYPST_PACKAGE_CACHE_PATH", value_name = "DIR")]
+    #[clap(long, env = "TYPST_PACKAGE_CACHE_PATH", value_name = "DIR")]
     pub package_cache_path: Option<PathBuf>,
 
     /// Path to a custom CA certificate to use when making network requests
-    #[clap(long = "cert", env = "TYPST_CERT")]
-    pub cert: Option<PathBuf>,
+    #[clap(long, visible_alias = "cert", env = "TYPST_CERT")]
+    pub certificate: Option<PathBuf>,
 }
 
 #[derive(clap::Args, Debug, Clone)]
@@ -188,13 +356,7 @@ pub struct OutputArgs {
     /// The output format to use
     ///
     /// Using anything but pretty implies --color=never
-    #[arg(
-        long,
-        short,
-        visible_alias = "fmt",
-        default_value = "pretty",
-        global = true
-    )]
+    #[arg(long, visible_alias = "fmt", default_value = "pretty", global = true)]
     pub format: OutputFormat,
 
     /// When to use colorful output
@@ -203,7 +365,6 @@ pub struct OutputArgs {
     /// detected.
     #[clap(
         long,
-        short,
         value_name = "WHEN",
         require_equals = true,
         num_args = 0..=1,
@@ -237,20 +398,14 @@ impl OutputFormat {
     }
 }
 
-#[derive(clap::Args, Debug, Clone)]
-pub struct MutationArgs {
-    /// Allow operating on more than one test if multiple tests match
-    #[arg(long, short)]
-    pub all: bool,
-}
-
-/// Execute, compare and update visual regression tests for typst
+/// Run and manage tests for typst projects
 #[derive(clap::Parser, Debug, Clone)]
 #[clap(after_long_help = AFTER_LONG_ABOUT)]
 pub struct Args {
     #[command(flatten)]
     pub global: Global,
 
+    /// The command to run
     #[command(subcommand)]
     pub cmd: Command,
 }
@@ -258,9 +413,11 @@ pub struct Args {
 #[derive(clap::Subcommand, Debug, Clone)]
 pub enum Command {
     /// Initialize the current project with a test directory
+    #[command()]
     Init(init::Args),
 
     /// Remove the test directory from the current project
+    #[command()]
     Uninit,
 
     /// Show information about the current project
@@ -269,15 +426,15 @@ pub enum Command {
 
     /// List the tests in the current project
     #[command(visible_alias = "ls")]
-    List,
-
-    /// Compile and compare tests
-    #[command(name = "run", visible_alias = "r")]
-    Compare(compare::Args),
+    List(list::Args),
 
     /// Compile tests
     #[command(visible_alias = "c")]
     Compile(compile::Args),
+
+    /// Compile and compare tests
+    #[command(name = "run", visible_alias = "r")]
+    Compare(compare::Args),
 
     /// Compile and update tests
     #[command(visible_alias = "u")]
@@ -303,46 +460,20 @@ pub enum Command {
     Util(util::Args),
 }
 
-macro_rules! bail_if_uninit {
-    ($ctx:expr) => {
-        if !$ctx.project.is_init()? {
-            return Ok(CliResult::operation_failure(format!(
-                "Project '{}' was not initialized",
-                $ctx.project.name(),
-            )));
-        }
-    };
-}
-
-macro_rules! bail_if_invalid_matcher_expr {
-    ($global:expr => $ident:ident) => {
-        let $ident = match $global.matcher() {
-            Ok(matcher) => matcher,
-            Err(err) => {
-                return Ok(CliResult::operation_failure(format!(
-                    "Could not parse matcher expression: {err}",
-                )));
-            }
-        };
-    };
-}
-
-pub(crate) use {bail_if_invalid_matcher_expr, bail_if_uninit};
-
 impl Command {
-    pub fn run(&self, ctx: Context, global: &Global) -> anyhow::Result<CliResult> {
+    pub fn run(&self, ctx: &mut Context) -> anyhow::Result<()> {
         match self {
-            Command::Init(args) => init::run(ctx, global, args),
-            Command::Uninit => uninit::run(ctx, global),
-            Command::Add(args) => add::run(ctx, global, args),
-            Command::Edit(args) => edit::run(ctx, global, args),
-            Command::Remove(args) => remove::run(ctx, global, args),
-            Command::Status => status::run(ctx, global),
-            Command::List => list::run(ctx, global),
-            Command::Update(args) => update::run(ctx, global, args),
-            Command::Compare(args) => compare::run(ctx, global, args),
-            Command::Compile(args) => compile::run(ctx, global, args),
-            Command::Util(args) => args.cmd.run(ctx, global),
+            Command::Init(args) => init::run(ctx, args),
+            Command::Uninit => uninit::run(ctx),
+            Command::Add(args) => add::run(ctx, args),
+            Command::Edit(args) => edit::run(ctx, args),
+            Command::Remove(args) => remove::run(ctx, args),
+            Command::Status => status::run(ctx),
+            Command::List(args) => list::run(ctx, args),
+            Command::Update(args) => update::run(ctx, args),
+            Command::Compare(args) => compare::run(ctx, args),
+            Command::Compile(args) => compile::run(ctx, args),
+            Command::Util(args) => args.cmd.run(ctx),
         }
     }
 }

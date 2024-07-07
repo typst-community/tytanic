@@ -1,21 +1,24 @@
-use std::fmt::Write;
+use std::io::Write;
 
-use super::{CliResult, Context, Global};
-use crate::cli::bail_if_invalid_matcher_expr;
+use typst_test_lib::matcher::eval::AllMatcher;
+
+use super::Context;
 use crate::util;
 
-pub fn run(ctx: Context, global: &Global) -> anyhow::Result<CliResult> {
-    bail_if_invalid_matcher_expr!(global => matcher);
-    ctx.project.collect_tests(matcher)?;
-    let count = ctx.project.matched().len();
+pub fn run(ctx: &mut Context) -> anyhow::Result<()> {
+    let mut project = ctx.ensure_project()?;
+    project.collect_tests(AllMatcher)?;
+    let count = project.matched().len();
 
-    ctx.project.uninit()?;
+    // TODO: confirmation?
+
+    project.uninit()?;
     writeln!(
-        ctx.reporter,
+        ctx.reporter.lock().unwrap(),
         "Removed {} {}",
         count,
         util::fmt::plural(count, "test"),
     )?;
 
-    Ok(CliResult::Ok)
+    Ok(())
 }

@@ -1,17 +1,17 @@
 use std::collections::BTreeMap;
 use std::io::Write;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{mpsc, Mutex};
+use std::sync::{mpsc, Arc};
 use std::time::Instant;
 
 use chrono::{DateTime, Utc};
 use rayon::prelude::*;
 use termcolor::Color;
 
-use super::{Context, Global};
-use crate::cli::{bail_if_invalid_matcher_expr, bail_if_uninit, CliResult};
+use super::{Context, OperationArgs};
 use crate::package::PackageStorage;
-use crate::report::Summary;
+use crate::project::Project;
+use crate::report::{Summary, ANNOT_PADDING};
 use crate::test::runner::{Event, EventPayload, RunnerConfig};
 use crate::test::Stage;
 use crate::world::SystemWorld;
@@ -23,7 +23,8 @@ fn parse_source_date_epoch(raw: &str) -> Result<DateTime<Utc>, String> {
     DateTime::from_timestamp(timestamp, 0).ok_or_else(|| "timestamp out of range".to_string())
 }
 
-#[derive(clap::Parser, Debug, Clone)]
+#[derive(clap::Args, Debug, Clone)]
+#[group(id = "run-args")]
 pub struct Args {
     /// The timestamp used for compilation.
     ///
@@ -48,28 +49,19 @@ pub struct Args {
     /// Show a summary of the test run instead of the individual test results
     #[arg(long)]
     pub summary: bool,
+
+    #[command(flatten)]
+    pub op_args: OperationArgs,
 }
 
-pub fn run<F>(ctx: Context, global: &Global, args: &Args, f: F) -> anyhow::Result<CliResult>
+pub fn run<F>(ctx: &mut Context, project: Project, args: &Args, f: F) -> anyhow::Result<()>
 where
     F: FnOnce(&mut RunnerConfig) -> &mut RunnerConfig,
 {
-    bail_if_uninit!(ctx);
-
-    bail_if_invalid_matcher_expr!(global => matcher);
-    ctx.project.collect_tests(matcher)?;
-
-    if ctx.project.matched().is_empty() {
-        return Ok(CliResult::operation_failure(format!(
-            "Project '{}' did not contain any tests",
-            ctx.project.name(),
-        )));
-    }
-
     let world = SystemWorld::new(
-        ctx.project.root().to_path_buf(),
-        global.fonts.searcher(),
-        PackageStorage::from_args(&global.package),
+        project.root().to_path_buf(),
+        ctx.args.global.fonts.searcher(),
+        PackageStorage::from_args(&ctx.args.global.package),
         args.now,
     )?;
 
@@ -77,7 +69,7 @@ where
     config.with_fail_fast(args.fail_fast);
     f(&mut config);
     tracing::trace!(?config, "prepared project config");
-    let runner = config.build(ctx.project, &world);
+    let runner = config.build(&project, &world);
 
     let done_annot = if runner.config().compare() {
         "ok"
@@ -87,24 +79,26 @@ where
         "compiled"
     };
 
-    ctx.reporter.test_start(runner.config().update())?;
+    ctx.reporter
+        .lock()
+        .unwrap()
+        .test_start(runner.config().update())?;
 
     let start = Instant::now();
     runner.prepare()?;
 
-    let len = ctx.project.matched().len();
+    let len = project.matched().len();
 
     let failed_compilation = AtomicUsize::new(0);
     let failed_comparison = AtomicUsize::new(0);
     let failed_otherwise = AtomicUsize::new(0);
     let passed = AtomicUsize::new(0);
 
-    let reporter = Mutex::new(ctx.reporter);
     rayon::scope(|scope| {
         let (tx, rx) = mpsc::channel();
-        if global.output.format.is_pretty() {
+        if ctx.args.global.output.format.is_pretty() {
             scope.spawn({
-                let reporter = &reporter;
+                let reporter = Arc::clone(&ctx.reporter);
                 let failed_compilation = &failed_compilation;
                 let failed_comparison = &failed_comparison;
                 let failed_otherwise = &failed_otherwise;
@@ -172,7 +166,7 @@ where
                             }
 
                             reporter
-                                .write_annotated("tested", Color::Cyan, |reporter| {
+                                .write_annotated("tested", Color::Cyan, ANNOT_PADDING, |reporter| {
                                     writeln!(
                                         reporter,
                                         "{} / {} ({} tests running)",
@@ -191,7 +185,7 @@ where
             });
         }
 
-        let res = ctx.project.matched().par_iter().try_for_each(
+        let res = project.matched().par_iter().try_for_each(
             |(_, test)| -> Result<(), Option<anyhow::Error>> {
                 match runner.test(test).run(tx.clone()) {
                     Ok(Ok(_)) => Ok(()),
@@ -220,12 +214,12 @@ where
         runner.cleanup()?;
 
         if !args.summary {
-            writeln!(reporter.lock().unwrap())?;
+            writeln!(ctx.reporter.lock().unwrap())?;
         }
 
         let summary = Summary {
-            total: ctx.project.matched().len() + ctx.project.filtered().len(),
-            filtered: ctx.project.filtered().len(),
+            total: project.matched().len() + project.filtered().len(),
+            filtered: project.filtered().len(),
             failed_compilation: failed_compilation.load(Ordering::SeqCst),
             failed_comparison: failed_comparison.load(Ordering::SeqCst),
             failed_otherwise: failed_otherwise.load(Ordering::SeqCst),
@@ -234,15 +228,16 @@ where
         };
 
         let is_ok = summary.is_ok();
-        reporter
-            .lock()
-            .unwrap()
-            .test_summary(summary, runner.config().update(), args.summary)?;
+        ctx.reporter.lock().unwrap().test_summary(
+            summary,
+            runner.config().update(),
+            args.summary,
+        )?;
 
-        Ok(if is_ok {
-            CliResult::Ok
-        } else {
-            CliResult::TestFailure
-        })
+        if !is_ok {
+            ctx.test_failure(|_| Ok(()))?;
+        }
+
+        Ok(())
     })
 }

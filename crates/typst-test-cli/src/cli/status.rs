@@ -1,14 +1,13 @@
-use super::{CliResult, Context, Global};
-use crate::cli::{bail_if_invalid_matcher_expr, bail_if_uninit};
+use typst_test_lib::matcher::eval::AllMatcher;
 
-pub fn run(ctx: Context, global: &Global) -> anyhow::Result<CliResult> {
-    bail_if_uninit!(ctx);
+use super::Context;
 
-    bail_if_invalid_matcher_expr!(global => matcher);
-    ctx.project.collect_tests(matcher)?;
-    ctx.project.load_template()?;
+pub fn run(ctx: &mut Context) -> anyhow::Result<()> {
+    let mut project = ctx.ensure_init()?;
+    project.collect_tests(AllMatcher)?;
+    project.load_template()?;
 
-    ctx.reporter.project(ctx.project)?;
+    ctx.reporter.lock().unwrap().project(&project)?;
 
-    Ok(CliResult::Ok)
+    Ok(())
 }

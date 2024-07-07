@@ -1,20 +1,17 @@
 #![feature(once_cell_try)]
 
-use std::io::{ErrorKind, Write};
+use std::io::Write;
 use std::process::ExitCode;
 
 use clap::{ColorChoice, Parser};
-use cli::OutputFormat;
-use termcolor::{Color, WriteColor};
+use termcolor::Color;
 use tracing::Level;
 use tracing_subscriber::filter::Targets;
 use tracing_subscriber::prelude::*;
 use tracing_tree::HierarchicalLayer;
-use typst_test_lib::config::Config;
 
-use self::cli::CliResult;
-use self::project::Project;
-use self::report::Reporter;
+use crate::cli::{Context, OutputFormat};
+use crate::report::Reporter;
 
 mod cli;
 mod download;
@@ -63,121 +60,47 @@ fn main() -> ExitCode {
     }
 
     // TODO: simpler output when using plain
-    let mut reporter = Reporter::new(
+    let reporter = Reporter::new(
         util::term::color_stream(args.global.output.color, IS_OUTPUT_STDERR),
         args.global.output.format,
     );
 
-    let res = reporter.with_indent(2, |r| main_impl(args, r));
+    let mut ctx = Context::new(&args, reporter);
 
-    let exit_code = match res {
-        Ok(cli_res) => match cli_res {
-            CliResult::Ok => cli::EXIT_OK,
-            CliResult::TestFailure => cli::EXIT_TEST_FAILURE,
-            CliResult::OperationFailure { message, hint } => {
-                writeln!(reporter, "{message}").unwrap();
-                if let Some(hint) = hint {
-                    reporter.hint(&hint.to_string()).unwrap();
-                }
-                cli::EXIT_OPERATION_FAILURE
-            }
-        },
+    match ctx.run() {
+        Ok(()) => {}
+        Err(_) if ctx.is_operation_failure() => {}
         Err(err) => {
-            writeln!(
-                reporter,
-                "typst-test ran into an unexpected error, this is most likely a bug\n\
-                Please consider reporting this at {}/issues/new",
-                std::env!("CARGO_PKG_REPOSITORY")
-            )
-            .unwrap();
-
-            reporter
-                .with_indent(2, |r| {
-                    r.write_annotated("Error:", Color::Red, |r| writeln!(r, "{err:?}"))
-                })
+            ctx.unexpected_error(|r| {
+                writeln!(
+                    r,
+                    "typst-test ran into an unexpected error, this is most likely a bug"
+                )
+                .unwrap();
+                writeln!(
+                    r,
+                    "Please consider reporting this at {}/issues/new",
+                    std::env!("CARGO_PKG_REPOSITORY")
+                )
                 .unwrap();
 
-            cli::EXIT_ERROR
-        }
-    };
-
-    // NOTE: ensure we completely reset the terminal to standard
-    reporter.reset().unwrap();
-    write!(reporter, "").unwrap();
-    ExitCode::from(exit_code)
-}
-
-fn main_impl(args: cli::Args, reporter: &mut Reporter) -> anyhow::Result<CliResult> {
-    let root = match &args.global.root {
-        Some(root) => root.to_path_buf(),
-        None => {
-            let pwd = std::env::current_dir()?;
-            match project::try_find_project_root(&pwd)? {
-                Some(root) => root.to_path_buf(),
-                None => {
-                    return Ok(CliResult::hinted_operation_failure(
-                        "Must be inside a typst project",
-                        "You can pass the project root using '--root <path>'",
-                    ));
+                if !std::env::var("RUST_BACKTRACE").is_ok_and(|var| var == "full") {
+                    r.hint(
+                        "consider running with the environment variable RUST_BACKTRACE set to 'full' when reporting issues",
+                    )
+                    .unwrap();
                 }
-            }
+
+                writeln!(r).unwrap();
+
+                r.write_annotated("Error:", Color::Red, None, |r| writeln!(r, "{err:?}"))
+                    .unwrap();
+
+                Ok(())
+            })
+            .unwrap();
         }
     };
 
-    if !root.try_exists()? {
-        return Ok(CliResult::operation_failure(format!(
-            "Root '{}' directory not found",
-            root.display(),
-        )));
-    }
-
-    let manifest = match project::try_open_manifest(&root) {
-        Ok(manifest) => manifest,
-        Err(project::Error::InvalidManifest(err)) => {
-            tracing::error!(?err, "Couldn't parse manifest");
-
-            reporter.warning(format!(
-                "Error while parsing manifest, skipping\n{}",
-                err.message()
-            ))?;
-
-            None
-        }
-        Err(err) => anyhow::bail!(err),
-    };
-
-    let manifest_config = manifest
-        .as_ref()
-        .and_then(|m| {
-            m.tool
-                .as_ref()
-                .map(|t| t.get_section::<Config>("typst-test"))
-        })
-        .transpose()?
-        .flatten();
-
-    let config = util::result::ignore(
-        std::fs::read_to_string(root.join("typst-test.toml")).map(Some),
-        |err| err.kind() == ErrorKind::NotFound,
-    )?;
-
-    let config = config.map(|c| toml::from_str(&c)).transpose()?;
-
-    if manifest_config.is_some() && config.is_some() {
-        reporter.warning("Ignoring manifest config in favor of 'typst-test.toml'")?;
-    }
-
-    // TODO: util commands don't need project
-    let mut project = Project::new(
-        root,
-        config.or(manifest_config).unwrap_or_default(),
-        manifest,
-    );
-
-    let ctx = cli::Context {
-        project: &mut project,
-        reporter,
-    };
-
-    args.cmd.run(ctx, &args.global)
+    ctx.exit()
 }

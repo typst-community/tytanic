@@ -1,10 +1,13 @@
+use std::io::Write;
+
 use typst::visualize::Color;
 use typst_test_lib::{compare, render};
 
 use super::util::export;
-use super::{run, CliResult, Context, Global};
+use super::{run, Context};
 
 #[derive(clap::Args, Debug, Clone)]
+#[group(id = "compare-args")]
 pub struct Args {
     #[command(flatten)]
     pub export_args: export::Args,
@@ -25,7 +28,9 @@ pub struct Args {
     pub max_deviation: usize,
 }
 
-pub fn run(ctx: Context, global: &Global, args: &Args) -> anyhow::Result<CliResult> {
+pub fn run(ctx: &mut Context, args: &Args) -> anyhow::Result<()> {
+    let project = ctx.collect_tests(&args.export_args.run_args.op_args, None)?;
+
     let render_strategy = render::Strategy {
         pixel_per_pt: render::ppi_to_ppp(args.export_args.pixel_per_inch),
         fill: Color::WHITE,
@@ -38,12 +43,11 @@ pub fn run(ctx: Context, global: &Global, args: &Args) -> anyhow::Result<CliResu
 
     // TODO: see super::export
     if args.export_args.pdf || args.export_args.svg {
-        return Ok(CliResult::operation_failure(
-            "PDF and SVGF export are not yet supported",
-        ));
+        ctx.operation_failure(|r| writeln!(r, "PDF and SVGF export are not yet supported"))?;
+        anyhow::bail!("Unsupported export mode used");
     }
 
-    run::run(ctx, global, &args.export_args.run_args, |ctx| {
+    run::run(ctx, project, &args.export_args.run_args, |ctx| {
         ctx.with_compare_strategy(Some(compare_strategy))
             .with_render_strategy(Some(render_strategy))
             .with_no_save_temporary(args.export_args.no_save_temporary)

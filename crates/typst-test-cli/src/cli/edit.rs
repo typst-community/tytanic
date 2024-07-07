@@ -1,32 +1,22 @@
-use super::{CliResult, Context, Global, MutationArgs};
-use crate::cli::{bail_if_invalid_matcher_expr, bail_if_uninit};
+use super::{Context, OperationArgs};
 
 #[derive(clap::Args, Debug, Clone)]
+#[group(id = "edit-args")]
 pub struct Args {
+    /// The sub command to run
+    #[command(subcommand)]
+    pub cmd: Command,
+
     #[command(flatten)]
-    pub mutation: MutationArgs,
+    pub op_args: OperationArgs,
 }
 
-pub fn run(ctx: Context, global: &Global, args: &Args) -> anyhow::Result<CliResult> {
-    bail_if_uninit!(ctx);
+#[derive(clap::Subcommand, Debug, Clone)]
+pub enum Command {}
 
-    bail_if_invalid_matcher_expr!(global => matcher);
-    ctx.project.collect_tests(matcher)?;
-
-    match ctx.project.matched().len() {
-        0 => return Ok(CliResult::operation_failure("Matched no tests")),
-        1 => {}
-        _ if args.mutation.all => {}
-        _ => {
-            return Ok(CliResult::hinted_operation_failure(
-                "Matched more than one test",
-                "Pass `--all` to edit more than one test at a time",
-            ))
-        }
-    }
+pub fn run(ctx: &mut Context, args: &Args) -> anyhow::Result<()> {
+    ctx.collect_tests(&args.op_args, "edit")?;
 
     // TODO: changing test kind
     todo!();
-
-    Ok(CliResult::Ok)
 }

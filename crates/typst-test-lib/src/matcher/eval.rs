@@ -4,6 +4,7 @@ use std::sync::Arc;
 use ecow::EcoString;
 use regex::Regex;
 
+use crate::matcher::Matcher;
 use crate::store::test::Test;
 use crate::test::ReferenceKind;
 
@@ -97,7 +98,7 @@ impl super::Matcher for IdentifierMatcher {
 #[derive(Debug, Clone)]
 pub enum UnaryMatcher {
     /// Matches all tests which don't match the inner matcher.
-    Complement(Matcher),
+    Complement(Arc<dyn Matcher>),
 }
 
 impl super::Matcher for UnaryMatcher {
@@ -113,19 +114,19 @@ impl super::Matcher for UnaryMatcher {
 pub enum BinaryMatcher {
     /// Matches the union of the inner matchers, those tests that match either
     /// matcher.
-    Union(Matcher, Matcher),
+    Union(Arc<dyn Matcher>, Arc<dyn Matcher>),
 
     /// Matches the set difference of the inner matchers, those tests that match
     /// the left but not the right matcher.
-    Difference(Matcher, Matcher),
+    Difference(Arc<dyn Matcher>, Arc<dyn Matcher>),
 
     /// Matches the symmetric difference of the inner matchers, those tests that
     /// match only one matcher, but not both.
-    SymmetricDifference(Matcher, Matcher),
+    SymmetricDifference(Arc<dyn Matcher>, Arc<dyn Matcher>),
 
     /// Matches the intersection of the inner matchers, those tests
     /// that match both.
-    Intersect(Matcher, Matcher),
+    Intersect(Arc<dyn Matcher>, Arc<dyn Matcher>),
 }
 
 impl super::Matcher for BinaryMatcher {
@@ -139,64 +140,17 @@ impl super::Matcher for BinaryMatcher {
     }
 }
 
-/// A matcher, built up of simpler matchers.
-#[derive(Debug, Clone)]
-pub enum Matcher {
-    /// A matcher matching a single inner matcher.
-    Unary(Box<UnaryMatcher>),
-
-    /// A matcher matching with two inner matches.
-    Binary(Box<BinaryMatcher>),
-
-    /// An matcher matching on test identifiers.
-    Identifier(IdentifierMatcher),
-
-    /// A matcher matching on test kinds.
-    Kind(KindMatcher),
-
-    /// A custom matcher.
-    Custom(CustomMatcher),
-
-    /// The all matcher.
-    All(AllMatcher),
-
-    /// The none matcher.
-    None(NoneMatcher),
-
-    /// A matcher matching ignored tests.
-    Ignored(IgnoredMatcher),
+pub fn default_matcher() -> Arc<dyn Matcher> {
+    Arc::new(UnaryMatcher::Complement(Arc::new(IgnoredMatcher)))
 }
 
-impl super::Matcher for Matcher {
-    fn is_match(&self, test: &Test) -> bool {
-        match self {
-            Matcher::Unary(inner) => inner.is_match(test),
-            Matcher::Binary(inner) => inner.is_match(test),
-            Matcher::Identifier(inner) => inner.is_match(test),
-            Matcher::Kind(inner) => inner.is_match(test),
-            Matcher::Custom(inner) => inner.is_match(test),
-            Matcher::All(inner) => inner.is_match(test),
-            Matcher::None(inner) => inner.is_match(test),
-            Matcher::Ignored(inner) => inner.is_match(test),
-        }
-    }
-}
-
-impl Default for Matcher {
-    fn default() -> Self {
-        Self::Unary(Box::new(UnaryMatcher::Complement(Matcher::Ignored(
-            IgnoredMatcher,
-        ))))
-    }
-}
-
-/// A custom user supplied matcher.
+/// A matcher for running an arbitray function on tests.
 #[derive(Clone)]
-pub struct CustomMatcher {
+pub struct FnMatcher {
     pub custom: Arc<dyn Fn(&Test) -> bool>,
 }
 
-impl Debug for CustomMatcher {
+impl Debug for FnMatcher {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("CustomMatcher")
             .field("custom", &..)
@@ -204,14 +158,14 @@ impl Debug for CustomMatcher {
     }
 }
 
-impl CustomMatcher {
+impl FnMatcher {
     pub fn custom(&mut self, matcher: Arc<dyn Fn(&Test) -> bool>) -> &mut Self {
         self.custom = matcher;
         self
     }
 }
 
-impl super::Matcher for CustomMatcher {
+impl super::Matcher for FnMatcher {
     fn is_match(&self, test: &Test) -> bool {
         (self.custom)(test)
     }
@@ -220,7 +174,6 @@ impl super::Matcher for CustomMatcher {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::matcher::Matcher as _;
     use crate::test::id::Identifier;
     use crate::test::ReferenceKind;
 
@@ -246,7 +199,7 @@ mod tests {
 
     #[test]
     fn test_default() {
-        let m = Matcher::default();
+        let m = default_matcher();
         assert_matcher!(m, [true, true, true, true, true, false]);
     }
 
@@ -300,33 +253,33 @@ mod tests {
 
     #[test]
     fn test_complement() {
-        let m = UnaryMatcher::Complement(Matcher::Ignored(IgnoredMatcher));
+        let m = UnaryMatcher::Complement(Arc::new(IgnoredMatcher));
         assert_matcher!(m, [true, true, true, true, true, false]);
     }
 
     #[test]
     fn test_binary() {
         let m = BinaryMatcher::Union(
-            Matcher::Identifier(IdentifierMatcher::Regex(Regex::new(r#"test-\d"#).unwrap())),
-            Matcher::Kind(KindMatcher::compile_only()),
+            Arc::new(IdentifierMatcher::Regex(Regex::new(r#"test-\d"#).unwrap())),
+            Arc::new(KindMatcher::compile_only()),
         );
         assert_matcher!(m, [true, true, true, true, true, false]);
 
         let m = BinaryMatcher::Intersect(
-            Matcher::Identifier(IdentifierMatcher::Regex(Regex::new(r#"test-\d"#).unwrap())),
-            Matcher::Kind(KindMatcher::compile_only()),
+            Arc::new(IdentifierMatcher::Regex(Regex::new(r#"test-\d"#).unwrap())),
+            Arc::new(KindMatcher::compile_only()),
         );
         assert_matcher!(m, [false, false, true, false, false, false]);
 
         let m = BinaryMatcher::Difference(
-            Matcher::Identifier(IdentifierMatcher::Regex(Regex::new(r#"test-\d"#).unwrap())),
-            Matcher::Kind(KindMatcher::compile_only()),
+            Arc::new(IdentifierMatcher::Regex(Regex::new(r#"test-\d"#).unwrap())),
+            Arc::new(KindMatcher::compile_only()),
         );
         assert_matcher!(m, [true, true, false, true, false, false]);
 
         let m = BinaryMatcher::SymmetricDifference(
-            Matcher::Identifier(IdentifierMatcher::Regex(Regex::new(r#"test-\d"#).unwrap())),
-            Matcher::Kind(KindMatcher::compile_only()),
+            Arc::new(IdentifierMatcher::Regex(Regex::new(r#"test-\d"#).unwrap())),
+            Arc::new(KindMatcher::compile_only()),
         );
         assert_matcher!(m, [true, true, false, true, true, false]);
     }

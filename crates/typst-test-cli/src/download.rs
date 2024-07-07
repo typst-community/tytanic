@@ -8,7 +8,7 @@
 use std::collections::VecDeque;
 use std::fmt::Debug;
 use std::io;
-use std::io::{ErrorKind, Read, Write};
+use std::io::{ErrorKind, Read};
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant};

@@ -1,16 +1,15 @@
-use std::fmt::Write;
+use std::io::Write;
 
-use super::{Context, Global};
-use crate::cli::{bail_if_invalid_matcher_expr, bail_if_uninit, CliResult};
+use typst_test_lib::matcher::eval::AllMatcher;
 
-pub fn run(ctx: Context, global: &Global) -> anyhow::Result<CliResult> {
-    bail_if_uninit!(ctx);
+use super::Context;
 
-    bail_if_invalid_matcher_expr!(global => matcher);
-    ctx.project.collect_tests(matcher)?;
+pub fn run(ctx: &mut Context) -> anyhow::Result<()> {
+    let mut project = ctx.ensure_project()?;
+    project.collect_tests(AllMatcher)?;
 
-    ctx.project.clean_artifacts()?;
-    writeln!(ctx.reporter, "Removed test artifacts")?;
+    project.clean_artifacts()?;
+    writeln!(ctx.reporter.lock().unwrap(), "Removed test artifacts")?;
 
-    Ok(CliResult::Ok)
+    Ok(())
 }

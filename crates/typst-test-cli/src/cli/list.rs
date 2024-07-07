@@ -1,12 +1,15 @@
-use super::{CliResult, Context, Global};
-use crate::cli::{bail_if_invalid_matcher_expr, bail_if_uninit};
+use super::{Context, OperationArgs};
 
-pub fn run(ctx: Context, global: &Global) -> anyhow::Result<CliResult> {
-    bail_if_uninit!(ctx);
+#[derive(clap::Args, Debug, Clone)]
+#[group(id = "list-args")]
+pub struct Args {
+    #[command(flatten)]
+    pub op_args: OperationArgs,
+}
 
-    bail_if_invalid_matcher_expr!(global => matcher);
-    ctx.project.collect_tests(matcher)?;
-    ctx.reporter.tests(ctx.project)?;
+pub fn run(ctx: &mut Context, args: &Args) -> anyhow::Result<()> {
+    let project = ctx.collect_tests(&args.op_args, None)?;
+    ctx.reporter.lock().unwrap().tests(&project)?;
 
-    Ok(CliResult::Ok)
+    Ok(())
 }

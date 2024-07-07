@@ -7,7 +7,7 @@ use rayon::prelude::*;
 use tiny_skia::Pixmap;
 use typst_project::manifest::Manifest;
 use typst_test_lib::config::Config;
-use typst_test_lib::matcher::eval::Matcher;
+use typst_test_lib::matcher::Matcher;
 use typst_test_lib::store::project::v1::ResolverV1;
 use typst_test_lib::store::project::Resolver;
 use typst_test_lib::store::test::collector::Collector;
@@ -220,7 +220,7 @@ impl Project {
                 ])))
             }
             Some(ReferenceKind::Persistent) => {
-                todo!("compile ")
+                todo!("compile")
             }
             None => None,
         };
@@ -247,7 +247,7 @@ impl Project {
         Ok(())
     }
 
-    pub fn collect_tests(&mut self, matcher: Matcher) -> Result<(), Error> {
+    pub fn collect_tests<M: Matcher + 'static>(&mut self, matcher: M) -> Result<(), Error> {
         // TODO: error handling
         let mut collector = Collector::new(&self.resolver);
         collector.with_matcher(matcher);

@@ -1,32 +1,20 @@
-use super::{Context, Global, MutationArgs};
-use crate::cli::{bail_if_invalid_matcher_expr, bail_if_uninit, CliResult};
+use super::{Context, OperationArgs};
 
 #[derive(clap::Args, Debug, Clone)]
+#[group(id = "remove-args")]
 pub struct Args {
     #[command(flatten)]
-    pub mutation: MutationArgs,
+    pub op_args: OperationArgs,
 }
 
-pub fn run(ctx: Context, global: &Global, args: &Args) -> anyhow::Result<CliResult> {
-    bail_if_uninit!(ctx);
+pub fn run(ctx: &mut Context, args: &Args) -> anyhow::Result<()> {
+    let mut project = ctx.collect_tests(&args.op_args, "remove")?;
 
-    bail_if_invalid_matcher_expr!(global => matcher);
-    ctx.project.collect_tests(matcher)?;
+    project.delete_tests()?;
+    ctx.reporter
+        .lock()
+        .unwrap()
+        .tests_success(&project, "removed")?;
 
-    match ctx.project.matched().len() {
-        0 => return Ok(CliResult::operation_failure("Matched no tests")),
-        1 => {}
-        _ if args.mutation.all => {}
-        _ => {
-            return Ok(CliResult::hinted_operation_failure(
-                "Matched more than one test",
-                "Pass `--all` to remove more than one test at a time",
-            ))
-        }
-    }
-
-    ctx.project.delete_tests()?;
-    ctx.reporter.tests_success(&ctx.project, "removed")?;
-
-    Ok(CliResult::Ok)
+    Ok(())
 }

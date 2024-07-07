@@ -1,28 +1,35 @@
-use std::fmt::Write;
+use std::io::Write;
 
-use super::{CliResult, Context, Global};
+use super::Context;
 use crate::project::ScaffoldOptions;
 
 #[derive(clap::Parser, Debug, Clone)]
+#[group(id = "init-args")]
 pub struct Args {
     /// Do not create a default example test
     #[arg(long)]
     no_example: bool,
 }
 
-pub fn run(ctx: Context, _global: &Global, args: &Args) -> anyhow::Result<CliResult> {
-    if ctx.project.is_init()? {
-        return Ok(CliResult::operation_failure(format!(
-            "Project '{}' was already initialized",
-            ctx.project.name(),
-        )));
+pub fn run(ctx: &mut Context, args: &Args) -> anyhow::Result<()> {
+    let mut project = ctx.ensure_project()?;
+
+    if project.is_init()? {
+        ctx.operation_failure(|r| {
+            writeln!(r, "Project '{}' was already initialized", project.name(),)
+        })?;
+        anyhow::bail!("");
     }
 
     let mut options = ScaffoldOptions::empty();
     options.set(ScaffoldOptions::EXAMPLE, !args.no_example);
 
-    ctx.project.init(options)?;
-    writeln!(ctx.reporter, "Initialized project '{}'", ctx.project.name())?;
+    project.init(options)?;
+    writeln!(
+        ctx.reporter.lock().unwrap(),
+        "Initialized project '{}'",
+        project.name()
+    )?;
 
-    Ok(CliResult::Ok)
+    Ok(())
 }

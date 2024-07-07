@@ -1,3 +1,6 @@
+use std::fmt::Debug;
+use std::sync::Arc;
+
 use eval::{
     AllMatcher, BinaryMatcher, IdentifierMatcher, IgnoredMatcher, KindMatcher, NoneMatcher,
     UnaryMatcher,
@@ -14,44 +17,61 @@ pub mod eval;
 pub mod parsing;
 
 /// A type which matches tests, returning true for all tests which match.
-pub trait Matcher {
+pub trait Matcher: Debug {
     /// Returns whether this test's identifier matches.
     fn is_match(&self, test: &Test) -> bool;
 }
 
-pub fn build_matcher(expr: Expr) -> eval::Matcher {
+impl Matcher for Arc<dyn Matcher> {
+    fn is_match(&self, test: &Test) -> bool {
+        Matcher::is_match(&**self, test)
+    }
+}
+
+impl Matcher for Box<dyn Matcher> {
+    fn is_match(&self, test: &Test) -> bool {
+        Matcher::is_match(&**self, test)
+    }
+}
+
+impl<M: Matcher> Matcher for &M {
+    fn is_match(&self, test: &Test) -> bool {
+        Matcher::is_match(*self, test)
+    }
+}
+
+pub fn build_matcher(expr: Expr) -> Arc<dyn Matcher> {
     match expr {
         Expr::Unary(UnaryExpr { op, expr }) => match op {
-            UnaryOp::Complement => {
-                eval::Matcher::Unary(Box::new(UnaryMatcher::Complement(build_matcher(*expr))))
-            }
+            UnaryOp::Complement => Arc::new(UnaryMatcher::Complement(build_matcher(*expr))),
         },
         Expr::Binary(BinaryExpr { op, lhs, rhs }) => match op {
-            BinaryOp::SymmetricDifference => eval::Matcher::Binary(Box::new(
-                BinaryMatcher::SymmetricDifference(build_matcher(*lhs), build_matcher(*rhs)),
+            BinaryOp::SymmetricDifference => Arc::new(BinaryMatcher::SymmetricDifference(
+                build_matcher(*lhs),
+                build_matcher(*rhs),
             )),
-            BinaryOp::Difference => eval::Matcher::Binary(Box::new(BinaryMatcher::Difference(
+            BinaryOp::Difference => Arc::new(BinaryMatcher::Difference(
                 build_matcher(*lhs),
                 build_matcher(*rhs),
-            ))),
-            BinaryOp::Intersection => eval::Matcher::Binary(Box::new(BinaryMatcher::Intersect(
+            )),
+            BinaryOp::Intersection => Arc::new(BinaryMatcher::Intersect(
                 build_matcher(*lhs),
                 build_matcher(*rhs),
-            ))),
-            BinaryOp::Union => eval::Matcher::Binary(Box::new(BinaryMatcher::Union(
+            )),
+            BinaryOp::Union => Arc::new(BinaryMatcher::Union(
                 build_matcher(*lhs),
                 build_matcher(*rhs),
-            ))),
+            )),
         },
         Expr::Atom(Atom::Value(Value {
             id: Identifier { value },
         })) => match value.as_str() {
-            "all" => eval::Matcher::All(AllMatcher),
-            "none" => eval::Matcher::None(NoneMatcher),
-            "ignored" => eval::Matcher::Ignored(IgnoredMatcher),
-            "compile-only" => eval::Matcher::Kind(KindMatcher::compile_only()),
-            "ephemeral" => eval::Matcher::Kind(KindMatcher::ephemeral()),
-            "persistent" => eval::Matcher::Kind(KindMatcher::persistent()),
+            "all" => Arc::new(AllMatcher),
+            "none" => Arc::new(NoneMatcher),
+            "ignored" => Arc::new(IgnoredMatcher),
+            "compile-only" => Arc::new(KindMatcher::compile_only()),
+            "ephemeral" => Arc::new(KindMatcher::ephemeral()),
+            "persistent" => Arc::new(KindMatcher::persistent()),
             _ => panic!("unknown matcher: '{value}'"),
         },
         Expr::Atom(Atom::Function(Function {
@@ -61,19 +81,13 @@ pub fn build_matcher(expr: Expr) -> eval::Matcher {
             },
         })) => match value.as_str() {
             "test" => match matcher {
-                NameMatcher::Exact(name) => {
-                    eval::Matcher::Identifier(IdentifierMatcher::Exact(name.into()))
-                }
-                NameMatcher::Contains(name) => {
-                    eval::Matcher::Identifier(IdentifierMatcher::Contains(name.into()))
-                }
+                NameMatcher::Exact(name) => Arc::new(IdentifierMatcher::Exact(name.into())),
+                NameMatcher::Contains(name) => Arc::new(IdentifierMatcher::Contains(name.into())),
                 NameMatcher::Regex(name) => {
-                    eval::Matcher::Identifier(IdentifierMatcher::Regex(Regex::new(&name).unwrap()))
+                    Arc::new(IdentifierMatcher::Regex(Regex::new(&name).unwrap()))
                 }
                 // default to contains for test
-                NameMatcher::Plain(name) => {
-                    eval::Matcher::Identifier(IdentifierMatcher::Contains(name.into()))
-                }
+                NameMatcher::Plain(name) => Arc::new(IdentifierMatcher::Contains(name.into())),
             },
             _ => panic!("unknown matcher: '{value}(...)'"),
         },
