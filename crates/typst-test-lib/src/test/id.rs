@@ -159,6 +159,11 @@ impl Identifier {
         self.id.as_str()
     }
 
+    /// Returns a clone of the inner [`EcoString`].
+    pub fn to_inner(&self) -> EcoString {
+        self.id.clone()
+    }
+
     /// Returns the name of this test, the last component of this identifier.
     /// Is never empty.
     ///

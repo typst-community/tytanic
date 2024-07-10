@@ -163,7 +163,8 @@ impl<'a> Context<'a> {
             }
             (1, _) => {}
             (_, None) => {}
-            (_, Some(_)) if op_args.all => {}
+            // Explicitly passing more than one test implies `--all`
+            (_, Some(_)) if op_args.all || !op_args.tests.is_empty() => {}
             (_, Some(op)) => {
                 self.operation_failure(|r| {
                     writeln!(r, "Matched more than one test")?;
@@ -303,7 +304,24 @@ impl OperationArgs {
     pub fn test_set(&self) -> anyhow::Result<TestSet> {
         Ok(match self.expression.clone() {
             Some(expr) => expr.build(&*test_set::BUILTIN_TESTSETS)?,
-            None => test_set::default_test_set(),
+            None => {
+                if self.tests.is_empty() {
+                    test_set::default_test_set()
+                } else {
+                    self.tests
+                        .iter()
+                        .map(|id| {
+                            Arc::new(test_set::eval::IdentifierMatcher::Exact(id.to_inner()))
+                                as TestSet
+                        })
+                        .fold(
+                            Arc::new(test_set::eval::NoneMatcher) as TestSet,
+                            |acc, it| {
+                                Arc::new(test_set::eval::BinaryMatcher::Union(acc, it)) as TestSet
+                            },
+                        )
+                }
+            }
         })
     }
 }
