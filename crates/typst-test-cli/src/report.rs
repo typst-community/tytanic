@@ -7,6 +7,7 @@ use semver::Version;
 use termcolor::{Color, ColorSpec, HyperlinkSpec, WriteColor};
 use typst_test_lib::compare;
 use typst_test_lib::store::test::Test;
+use typst_test_lib::test::ReferenceKind;
 
 use crate::cli::OutputFormat;
 use crate::project::Project;
@@ -328,21 +329,35 @@ impl Reporter {
         }
 
         let tests = project.matched();
-        write!(self, "{:>align$}{}", "Tests", delims.middle)?;
         if tests.is_empty() {
+            write!(self, "{:>align$}{}", "Tests", delims.middle)?;
             write_bold_colored(self, "none", Color::Cyan)?;
-            write!(self, " (searched at '{}')", project.tests_root().display())?;
+            writeln!(self, " (searched at '{}')", project.tests_root().display())?;
         } else {
-            write_bold_colored(self, tests.len(), Color::Cyan)?;
-            write!(self, " (")?;
-            write_bold_colored(
-                self,
-                tests.iter().filter(|(_, t)| t.is_ephemeral()).count(),
-                Color::Yellow,
-            )?;
-            write!(self, " ephemeral)")?;
+            let mut persistent = 0;
+            let mut ephemeral = 0;
+            let mut compile_only = 0;
+
+            for test in tests.values() {
+                match test.ref_kind() {
+                    Some(ReferenceKind::Persistent) => persistent += 1,
+                    Some(ReferenceKind::Ephemeral) => ephemeral += 1,
+                    None => compile_only += 1,
+                }
+            }
+
+            write!(self, "{:>align$}{}", "Tests", delims.middle)?;
+            write_bold_colored(self, persistent, Color::Green)?;
+            writeln!(self, " persistent")?;
+
+            write!(self, "{:>align$}{}", "", delims.middle)?;
+            write_bold_colored(self, ephemeral, Color::Yellow)?;
+            writeln!(self, " ephemeral")?;
+
+            write!(self, "{:>align$}{}", "", delims.middle)?;
+            write_bold_colored(self, compile_only, Color::Yellow)?;
+            writeln!(self, " compile-only")?;
         }
-        writeln!(self)?;
 
         write!(self, "{:>align$}{}", "Template", delims.close)?;
         match (project.template_path(), project.template()) {
@@ -455,10 +470,14 @@ impl Reporter {
         self.with_indent(2, |this| {
             for (name, test) in project.matched() {
                 write!(this, "{name} ")?;
-                if test.is_ephemeral() {
-                    write_bold_colored(this, "ephemeral", Color::Yellow)?;
-                } else {
-                    write_bold_colored(this, "persistent", Color::Green)?;
+                match test.ref_kind() {
+                    Some(ReferenceKind::Ephemeral) => {
+                        write_bold_colored(this, "ephemeral", Color::Yellow)?
+                    }
+                    Some(ReferenceKind::Persistent) => {
+                        write_bold_colored(this, "persistent", Color::Green)?
+                    }
+                    None => write_bold_colored(this, "compile-only", Color::Yellow)?,
                 }
                 writeln!(this)?;
             }
