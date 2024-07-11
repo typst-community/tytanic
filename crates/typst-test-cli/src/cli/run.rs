@@ -103,6 +103,7 @@ where
                 let failed_comparison = &failed_comparison;
                 let failed_otherwise = &failed_otherwise;
                 let passed = &passed;
+                let world = &world;
 
                 move |_| {
                     reporter.lock().unwrap().with_indent(2, |reporter| {
@@ -156,7 +157,7 @@ where
                                 }
                                 EventPayload::FailedTest(failure) => {
                                     tests.remove(id);
-                                    reporter.test_failure(&test, failure).unwrap();
+                                    reporter.test_failure(&test, failure, world).unwrap();
                                     count += 1;
                                 }
                             }

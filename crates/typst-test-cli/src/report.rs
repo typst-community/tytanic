@@ -3,8 +3,14 @@ use std::io::Write;
 use std::time::Duration;
 use std::{fmt, io};
 
+use codespan_reporting::diagnostic::{Diagnostic, Label};
+use codespan_reporting::term;
+use ecow::eco_format;
 use semver::Version;
 use termcolor::{Color, ColorSpec, HyperlinkSpec, WriteColor};
+use typst::diag::{Severity, SourceDiagnostic};
+use typst::syntax::{FileId, Source, Span};
+use typst::WorldExt;
 use typst_test_lib::compare;
 use typst_test_lib::store::test::Test;
 use typst_test_lib::test::ReferenceKind;
@@ -13,6 +19,7 @@ use crate::cli::OutputFormat;
 use crate::project::Project;
 use crate::test::{CompareFailure, TestFailure};
 use crate::util;
+use crate::world::SystemWorld;
 
 pub const ANNOT_PADDING: usize = 8;
 
@@ -203,7 +210,12 @@ impl Reporter {
         Ok(())
     }
 
-    pub fn test_failure(&mut self, test: &Test, error: TestFailure) -> io::Result<()> {
+    pub fn test_failure(
+        &mut self,
+        test: &Test,
+        error: TestFailure,
+        world: &SystemWorld,
+    ) -> io::Result<()> {
         self.test_result(test, "failed", Color::Red, |this| {
             if !this.format.is_pretty() {
                 return Ok(());
@@ -217,8 +229,8 @@ impl Reporter {
                         if e.is_ref { "references" } else { "test" },
                     )?;
 
-                    // TODO: proper span reporting reporting
-                    writeln!(this, "{:#?}", e.error)?;
+                    // TODO: pass warnings + report warnings on success too
+                    print_diagnostics(this, world, e.error.0.as_slice(), &[]).unwrap();
                 }
                 TestFailure::Comparison(CompareFailure::Visual {
                     error:
@@ -573,5 +585,113 @@ impl WriteColor for Reporter {
 
     fn supports_hyperlinks(&self) -> bool {
         self.writer.supports_hyperlinks()
+    }
+}
+
+type CodespanResult<T> = Result<T, CodespanError>;
+type CodespanError = codespan_reporting::files::Error;
+
+fn print_diagnostics<W: WriteColor>(
+    writer: &mut W,
+    world: &SystemWorld,
+    errors: &[SourceDiagnostic],
+    warnings: &[SourceDiagnostic],
+) -> Result<(), codespan_reporting::files::Error> {
+    let config = term::Config {
+        display_style: term::DisplayStyle::Rich,
+        tab_width: 2,
+        ..Default::default()
+    };
+
+    for diagnostic in warnings.iter().chain(errors) {
+        let diag = match diagnostic.severity {
+            Severity::Error => Diagnostic::error(),
+            Severity::Warning => Diagnostic::warning(),
+        }
+        .with_message(diagnostic.message.clone())
+        .with_notes(
+            diagnostic
+                .hints
+                .iter()
+                .map(|e| (eco_format!("hint: {e}")).into())
+                .collect(),
+        )
+        .with_labels(label(world, diagnostic.span).into_iter().collect());
+
+        term::emit(writer, &config, world, &diag)?;
+
+        // Stacktrace-like helper diagnostics.
+        for point in &diagnostic.trace {
+            let message = point.v.to_string();
+            let help = Diagnostic::help()
+                .with_message(message)
+                .with_labels(label(world, point.span).into_iter().collect());
+
+            term::emit(writer, &config, world, &help)?;
+        }
+    }
+
+    Ok(())
+}
+
+fn label(world: &SystemWorld, span: Span) -> Option<Label<FileId>> {
+    Some(Label::primary(span.id()?, world.range(span)?))
+}
+
+impl<'a> codespan_reporting::files::Files<'a> for SystemWorld {
+    type FileId = FileId;
+    type Name = String;
+    type Source = Source;
+
+    fn name(&'a self, id: FileId) -> CodespanResult<Self::Name> {
+        let vpath = id.vpath();
+        Ok(if let Some(package) = id.package() {
+            format!("{package}{}", vpath.as_rooted_path().display())
+        } else {
+            // Try to express the path relative to the working directory.
+            vpath
+                .resolve(self.root())
+                // .and_then(|abs| pathdiff::diff_paths(abs, self.workdir()))
+                // .as_deref()
+                .unwrap_or_else(|| vpath.as_rootless_path().to_path_buf())
+                .to_string_lossy()
+                .into()
+        })
+    }
+
+    fn source(&'a self, id: FileId) -> CodespanResult<Self::Source> {
+        Ok(self.lookup(id))
+    }
+
+    fn line_index(&'a self, id: FileId, given: usize) -> CodespanResult<usize> {
+        let source = self.lookup(id);
+        source
+            .byte_to_line(given)
+            .ok_or_else(|| CodespanError::IndexTooLarge {
+                given,
+                max: source.len_bytes(),
+            })
+    }
+
+    fn line_range(&'a self, id: FileId, given: usize) -> CodespanResult<std::ops::Range<usize>> {
+        let source = self.lookup(id);
+        source
+            .line_to_range(given)
+            .ok_or_else(|| CodespanError::LineTooLarge {
+                given,
+                max: source.len_lines(),
+            })
+    }
+
+    fn column_number(&'a self, id: FileId, _: usize, given: usize) -> CodespanResult<usize> {
+        let source = self.lookup(id);
+        source.byte_to_column(given).ok_or_else(|| {
+            let max = source.len_bytes();
+            if given <= max {
+                CodespanError::InvalidCharBoundary { given }
+            } else {
+                CodespanError::IndexTooLarge { given, max }
+            }
+        })
     }
 }
