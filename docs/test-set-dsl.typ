@@ -24,7 +24,7 @@ The following built in constants are given and can be used as regular test sets 
 )
 
 = Matcher test sets
-The following matchers are given and are used within `id(...)` to match on the identifiers of tests:
+The following matchers are given and are used within `id(...)`, `mod(...)` and `name(...)` to match on the identifiers of tests:
 #let ft = footnote[
   This may change in the future to allow different defaults for different matchers.
 ]
@@ -32,9 +32,6 @@ The following matchers are given and are used within `id(...)` to match on the i
   columns: 3,
   table.header[Name][Example][Explanation],
   table.hline(stroke: 0.5pt),
-  [`plain`],     [`id(plain)`],
-  [Defaults to contains matcher#ft],
-
   [`=exact`],    [`=mod/name`],
   [Matches exactly one test who's identifier is exactly the contained term.],
 
@@ -52,19 +49,19 @@ The following binary operators exist and can operatate on any other test set exp
   columns: 6,
   table.header[Type][Prec.][Name][Symbols][Literal][Explanation],
   table.hline(stroke: 0.5pt),
-  [infix],  [1], [union],            [`∪`, `|` or `+`], [`or`],
+  [infix],  [1], [union],                [`∪`, `|` or `+`], [`or`],
   [Includes all tests which are in either the left OR right test set expression.],
 
-  [infix],  [1], [difference],       [`\` or `-`],      [#text(red)[---]#ft],
+  [infix],  [1], [difference],           [`\` or `-`],      [#text(red)[---]#ft],
   [Includes all tests which are in the left but NOT in the right test set expression.],
 
-  [infix],  [2], [intersection],     [`∩` or `&`],      [`and`],
+  [infix],  [2], [intersection],         [`∩` or `&`],      [`and`],
   [Includes all tests which are in both the left AND right test set expression.],
 
   [infix],  [3], [symmetric difference], [`Δ` or `^`],      [`xor`],
   [Includes all tests which are in either the left OR right test set expression, but NOT in both.],
 
-  [prefix], [4], [complement],       [`¬` or `!`],      [`not`],
+  [prefix], [4], [complement],           [`¬` or `!`],      [`not`],
   [Includes all tests which are NOT in the test set expression.],
 )
 
@@ -89,7 +86,9 @@ And you wanted to make your ephemeral tests in `mod/sub` persistent, you could c
   - `default`
 + We only want ephemeral tests so we add annother intersection with the ephemeral test set.
   - `default & ephemeral`
-+ Now we finally restrict it to be only test which are in `mod` by adding an identifier matcher test set.
++ Now we finally restrict it to be only test which are in `mod/sub` by adding an identifier matcher test set. Each of the following would work:
+  - `default & ephemeral & mod(~sub)`
+  - `default & ephemeral & mod(=mod/sub)`
   - `default & ephemeral & id(/^mod\/sub/)`
 
 You can iteratively test your results with `typst-test list -e '...'` until you're satisfied and then do `typst-test update --all -e '...'` with the given expression, the `--all` option is required if you're operating destructively (editing, updating, removing) on more than one test.

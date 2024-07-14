@@ -162,9 +162,6 @@ pub enum NameMatcher {
 
     /// An regex identifier matcher.
     Regex(String),
-
-    /// An plain or default identifier matcher.
-    Plain(String),
 }
 
 /// Parses an [`Atom`].
@@ -318,7 +315,6 @@ pub fn parse_matcher(pair: Pair<Rule>) -> NameMatcher {
         Rule::exact_matcher => NameMatcher::Exact(extract_name(inner)),
         Rule::contains_matcher => NameMatcher::Contains(extract_name(inner)),
         Rule::regex_matcher => NameMatcher::Regex(extract_name(inner).replace("\\/", "/")),
-        Rule::plain_matcher => NameMatcher::Plain(extract_name(inner)),
         _ => unreachable!("inner matcher can only be exact, contains, regex or plain"),
     }
 }
@@ -453,7 +449,7 @@ mod tests {
     fn test_parser_rule_function() {
         pest::fails_with! {
             parser: TestSetParser,
-            input: "val( plain)",
+            input: "val( =plain)",
             rule: Rule::func,
             positives: [Rule::matcher],
             negatives: [],
@@ -461,7 +457,7 @@ mod tests {
         };
         pest::fails_with! {
             parser: TestSetParser,
-            input: "val (plain)",
+            input: "val (=plain)",
             rule: Rule::func,
             positives: [Rule::args],
             negatives: [],
@@ -469,16 +465,16 @@ mod tests {
         };
         pest::parses_to! {
             parser: TestSetParser,
-            input: "val(plain)",
+            input: "val(=plain)",
             rule: Rule::func,
             tokens: [
-                func(0, 10, [
+                func(0, 11, [
                     id(0, 3),
-                    args(3, 10, [
-                        arg(4, 9, [
-                            matcher(4, 9, [
-                                plain_matcher(4, 9, [
-                                    name(4, 9)
+                    args(3, 11, [
+                        arg(4, 10, [
+                            matcher(4, 10, [
+                                exact_matcher(4, 10, [
+                                    name(5, 10)
                                 ])
                             ])
                         ])

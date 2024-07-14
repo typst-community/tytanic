@@ -9,7 +9,7 @@ use super::{ReferenceKind, Test};
 use crate::store::project::{Resolver, TestTarget};
 use crate::test::id::{Identifier, ParseIdentifierError};
 use crate::test_set;
-use crate::test_set::Matcher;
+use crate::test_set::TestSet;
 
 /// An error that can occur during [`Test`] collection using a [`Collector`].
 #[derive(Debug, thiserror::Error)]
@@ -31,7 +31,7 @@ pub enum CollectError {
 #[derive(Debug)]
 pub struct Collector<'p, R> {
     resolver: &'p R,
-    matcher: Arc<dyn Matcher>,
+    matcher: Arc<dyn TestSet>,
     tests: BTreeMap<Identifier, Test>,
     filtered: BTreeMap<Identifier, Test>,
     errors: Vec<(Option<PathBuf>, CollectError)>,
@@ -42,7 +42,7 @@ impl<'p, R: Resolver + Sync> Collector<'p, R> {
     pub fn new(project: &'p R) -> Self {
         Self {
             resolver: project,
-            matcher: test_set::default_test_set(),
+            matcher: test_set::builtin::default(),
             tests: BTreeMap::new(),
             filtered: BTreeMap::new(),
             errors: vec![],
@@ -55,7 +55,7 @@ impl<'p, R: Resolver + Sync> Collector<'p, R> {
     }
 
     /// Returns a reference to the matcher used by this collector.
-    pub fn matcher(&self) -> &dyn Matcher {
+    pub fn matcher(&self) -> &dyn TestSet {
         &*self.matcher
     }
 
@@ -99,7 +99,7 @@ impl<'p, R: Resolver + Sync> Collector<'p, R> {
 
     /// Sets the matcher used for this collector, the matcher is applied to each
     /// test after it's type and annotations have been checked.
-    pub fn with_matcher<M: Matcher + 'static>(&mut self, matcher: M) -> &mut Self {
+    pub fn with_matcher<M: TestSet + 'static>(&mut self, matcher: M) -> &mut Self {
         self.matcher = Arc::new(matcher);
         self
     }

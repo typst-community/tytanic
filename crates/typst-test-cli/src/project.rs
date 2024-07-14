@@ -15,7 +15,7 @@ use typst_test_lib::store::vcs::{Git, NoVcs};
 use typst_test_lib::store::Document;
 use typst_test_lib::test::id::Identifier;
 use typst_test_lib::test::ReferenceKind;
-use typst_test_lib::test_set::Matcher;
+use typst_test_lib::test_set::TestSet;
 
 use crate::util;
 
@@ -247,7 +247,7 @@ impl Project {
         Ok(())
     }
 
-    pub fn collect_tests<M: Matcher + 'static>(&mut self, test_set: M) -> Result<(), Error> {
+    pub fn collect_tests<T: TestSet + 'static>(&mut self, test_set: T) -> Result<(), Error> {
         // TODO: error handling
         let mut collector = Collector::new(&self.resolver);
         collector.with_matcher(test_set);

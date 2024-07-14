@@ -5,8 +5,8 @@ use std::sync::Arc;
 
 use ecow::EcoString;
 use eval::{
-    AllMatcher, BinaryMatcher, IdentifierMatcher, IgnoredMatcher, KindMatcher, NoneMatcher,
-    UnaryMatcher,
+    AllMatcher, BinaryMatcher, IdentiferMatcherTarget, IdentifierMatcher, IdentifierMatcherPattern,
+    IgnoredMatcher, KindMatcher, NoneMatcher, UnaryMatcher,
 };
 use id::Identifier;
 use once_cell::sync::Lazy;
@@ -25,28 +25,32 @@ pub mod id;
 pub mod parsing;
 
 /// A dynamic test set.
-pub type TestSet = Arc<dyn Matcher + Send + Sync>;
+pub type DynTestSet = Arc<dyn TestSet + Send + Sync>;
 
 /// A function which can construct a matcher for the given arguments.
-pub type MatcherFactory =
-    Box<dyn Fn(Arguments) -> Result<TestSet, BuildTestSetError> + Send + Sync>;
+pub type TestSetFactory =
+    Box<dyn Fn(Arguments) -> Result<DynTestSet, BuildTestSetError> + Send + Sync>;
 
 /// An error that occurs when a test set could not be constructed.
 #[derive(Debug, Error)]
 pub enum BuildTestSetError {
     /// The requested test set could not be found.
     UnknownTestSet { id: EcoString, func: bool },
+
+    /// A regex matcher argument could not be parsed.
+    RegexError(#[from] regex::Error),
 }
 
 impl Display for BuildTestSetError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             BuildTestSetError::UnknownTestSet { id, func } => {
-                write!(f, "unknown test set: {id}")?;
+                write!(f, "Unknown test set: {id}")?;
                 if *func {
                     write!(f, "(...)")?;
                 }
             }
+            BuildTestSetError::RegexError(err) => write!(f, "{err}")?,
         }
 
         Ok(())
@@ -55,26 +59,26 @@ impl Display for BuildTestSetError {
 
 /// A test set which matches tests, returning true for all tests contained in
 /// this set.
-pub trait Matcher: Debug + Send + Sync {
+pub trait TestSet: Debug + Send + Sync {
     /// Returns whether this test's identifier matches.
     fn is_match(&self, test: &Test) -> bool;
 }
 
-impl Matcher for Arc<dyn Matcher + Send + Sync> {
+impl TestSet for Arc<dyn TestSet + Send + Sync> {
     fn is_match(&self, test: &Test) -> bool {
-        Matcher::is_match(&**self, test)
+        TestSet::is_match(&**self, test)
     }
 }
 
-impl Matcher for Box<dyn Matcher + Send + Sync> {
+impl TestSet for Box<dyn TestSet + Send + Sync> {
     fn is_match(&self, test: &Test) -> bool {
-        Matcher::is_match(&**self, test)
+        TestSet::is_match(&**self, test)
     }
 }
 
-impl<M: Matcher + Send + Sync> Matcher for &M {
+impl<M: TestSet + Send + Sync> TestSet for &M {
     fn is_match(&self, test: &Test) -> bool {
-        Matcher::is_match(*self, test)
+        TestSet::is_match(*self, test)
     }
 }
 
@@ -94,20 +98,20 @@ impl FromStr for TestSetExpr {
 
 impl TestSetExpr {
     /// Build the test set exression into a matcher.
-    pub fn build(self, test_sets: &TestSets) -> Result<TestSet, BuildTestSetError> {
+    pub fn build(self, test_sets: &TestSets) -> Result<DynTestSet, BuildTestSetError> {
         build_matcher(self.root, test_sets)
     }
 }
 
 /// A map of test set values and functions used when building a test set expression into a [`TestSet`].
 pub struct TestSets {
-    values: BTreeMap<Identifier, TestSet>,
-    funcs: BTreeMap<Identifier, MatcherFactory>,
+    values: BTreeMap<Identifier, DynTestSet>,
+    funcs: BTreeMap<Identifier, TestSetFactory>,
 }
 
 impl TestSets {
     /// Try to get a test set value.
-    pub fn get_value(&self, id: &str) -> Result<TestSet, BuildTestSetError> {
+    pub fn get_value(&self, id: &str) -> Result<DynTestSet, BuildTestSetError> {
         self.values
             .get(id)
             .cloned()
@@ -118,7 +122,7 @@ impl TestSets {
     }
 
     /// Try to construct a test set function.
-    pub fn get_func(&self, id: &str, args: Arguments) -> Result<TestSet, BuildTestSetError> {
+    pub fn get_func(&self, id: &str, args: Arguments) -> Result<DynTestSet, BuildTestSetError> {
         (self
             .funcs
             .get(id)
@@ -131,43 +135,66 @@ impl TestSets {
 
 impl Default for TestSets {
     fn default() -> Self {
+        use IdentiferMatcherTarget::{Full, Module, Name};
+
         Self {
             values: [
-                ("all", Arc::new(AllMatcher) as TestSet),
-                ("none", Arc::new(NoneMatcher)),
-                ("ignored", Arc::new(IgnoredMatcher)),
-                ("compile-only", Arc::new(KindMatcher::compile_only())),
-                ("ephemeral", Arc::new(KindMatcher::ephemeral())),
-                ("persistent", Arc::new(KindMatcher::persistent())),
-                ("default", default_test_set()),
+                ("all", builtin::all()),
+                ("none", builtin::none()),
+                ("ignored", builtin::ignored()),
+                ("compile-only", builtin::compile_only()),
+                ("ephemeral", builtin::ephemeral()),
+                ("persistent", builtin::persistent()),
+                ("default", builtin::default()),
             ]
             .into_iter()
             .map(|(id, m)| (Identifier { id: id.into() }, m))
             .collect(),
-            funcs: [(
-                "id",
-                Box::new(
-                    |Arguments {
-                         arg: Argument { matcher },
-                     }| {
+            funcs: [
+                (
+                    "id",
+                    Box::new(|args| {
+                        let Arguments {
+                            arg: Argument { matcher },
+                        } = args;
                         Ok(match matcher {
-                            NameMatcher::Exact(name) => {
-                                Arc::new(IdentifierMatcher::Exact(name.into())) as TestSet
-                            }
-                            NameMatcher::Contains(name) => {
-                                Arc::new(IdentifierMatcher::Contains(name.into()))
-                            }
+                            NameMatcher::Exact(name) => builtin::id_string(Full, name, true),
+                            NameMatcher::Contains(name) => builtin::id_string(Full, name, false),
+                            NameMatcher::Regex(name) => builtin::id_regex(Full, Regex::new(&name)?),
+                        })
+                    }) as TestSetFactory,
+                ),
+                (
+                    "mod",
+                    Box::new(|args| {
+                        let Arguments {
+                            arg: Argument { matcher },
+                        } = args;
+
+                        Ok(match matcher {
+                            NameMatcher::Exact(name) => builtin::id_string(Module, name, true),
+                            NameMatcher::Contains(name) => builtin::id_string(Module, name, false),
                             NameMatcher::Regex(name) => {
-                                Arc::new(IdentifierMatcher::Regex(Regex::new(&name).unwrap()))
-                            }
-                            // default to contains for id
-                            NameMatcher::Plain(name) => {
-                                Arc::new(IdentifierMatcher::Contains(name.into()))
+                                builtin::id_regex(Module, Regex::new(&name)?)
                             }
                         })
-                    },
-                ) as MatcherFactory,
-            )]
+                    }),
+                ),
+                (
+                    "name",
+                    Box::new(|args| {
+                        let Arguments {
+                            arg: Argument { matcher },
+                        } = args;
+
+                        Ok(match matcher {
+                            NameMatcher::Exact(name) => builtin::id_string(Name, name, true),
+                            NameMatcher::Contains(name) => builtin::id_string(Name, name, false),
+                            NameMatcher::Regex(name) => builtin::id_regex(Name, Regex::new(&name)?),
+                        })
+                    }),
+                ),
+            ]
             .into_iter()
             .map(|(id, m)| (Identifier { id: id.into() }, m))
             .collect(),
@@ -175,23 +202,76 @@ impl Default for TestSets {
     }
 }
 
-/// A map of builtin test sets.
-///
-/// Includes the following values:
-/// - `none`
-/// - `all`
-/// - `ignored`
-/// - `compile-only`
-/// - `ephemeral`
-/// - `persistent`
-/// - `default`
-///
-/// Includes the following function factories:
-/// - `id`
+/// A map of builtin test sets, i.e. all that are contained in [`builtin`].
 pub static BUILTIN_TESTSETS: Lazy<TestSets> = Lazy::new(TestSets::default);
 
+/// Builtin test sets.
+pub mod builtin {
+    use super::*;
+
+    /// Returns the `none` test set.
+    pub fn none() -> DynTestSet {
+        Arc::new(NoneMatcher)
+    }
+
+    /// Returns the `all` test set.
+    pub fn all() -> DynTestSet {
+        Arc::new(AllMatcher)
+    }
+
+    /// Returns the `ignored` test set.
+    pub fn ignored() -> DynTestSet {
+        Arc::new(IgnoredMatcher)
+    }
+
+    /// Returns the `compile-only` test set.
+    pub fn compile_only() -> DynTestSet {
+        Arc::new(KindMatcher::compile_only())
+    }
+
+    /// Returns the `ephemeral` test set.
+    pub fn ephemeral() -> DynTestSet {
+        Arc::new(KindMatcher::ephemeral())
+    }
+
+    /// Returns the `persistent` test set.
+    pub fn persistent() -> DynTestSet {
+        Arc::new(KindMatcher::persistent())
+    }
+
+    /// Returns the `default` test set.
+    pub fn default() -> DynTestSet {
+        eval::default()
+    }
+
+    /// Returns an id test set using a contains or exact matcher for the given
+    /// target.
+    pub fn id_string<S: Into<EcoString>>(
+        target: IdentiferMatcherTarget,
+        term: S,
+        exact: bool,
+    ) -> DynTestSet {
+        Arc::new(IdentifierMatcher {
+            pattern: if exact {
+                IdentifierMatcherPattern::Exact(term.into())
+            } else {
+                IdentifierMatcherPattern::Contains(term.into())
+            },
+            target,
+        })
+    }
+
+    /// Returns an id test set using a regex matcher for the given target.
+    pub fn id_regex(target: IdentiferMatcherTarget, pattern: Regex) -> DynTestSet {
+        Arc::new(IdentifierMatcher {
+            pattern: IdentifierMatcherPattern::Regex(pattern),
+            target,
+        })
+    }
+}
+
 /// Build a matcher from the given [`Expr`] using the given test sets.
-pub fn build_matcher(expr: Expr, test_sets: &TestSets) -> Result<TestSet, BuildTestSetError> {
+pub fn build_matcher(expr: Expr, test_sets: &TestSets) -> Result<DynTestSet, BuildTestSetError> {
     Ok(match expr {
         Expr::Unary(UnaryExpr { op, expr }) => match op {
             UnaryOp::Complement => {
@@ -219,9 +299,4 @@ pub fn build_matcher(expr: Expr, test_sets: &TestSets) -> Result<TestSet, BuildT
         Expr::Atom(Atom::Value(Value { id })) => test_sets.get_value(&id.value)?,
         Expr::Atom(Atom::Function(Function { id, args })) => test_sets.get_func(&id.value, args)?,
     })
-}
-
-/// Create the default test set.
-pub fn default_test_set() -> TestSet {
-    eval::default_test_set()
 }

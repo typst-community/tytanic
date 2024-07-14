@@ -9,7 +9,8 @@ use termcolor::{Color, WriteColor};
 use typst_test_lib::config::Config;
 use typst_test_lib::test::id::Identifier;
 use typst_test_lib::test_set;
-use typst_test_lib::test_set::{TestSet, TestSetExpr};
+use typst_test_lib::test_set::eval::IdentiferMatcherTarget;
+use typst_test_lib::test_set::{DynTestSet, TestSetExpr};
 
 use crate::fonts::FontSearcher;
 use crate::project;
@@ -302,23 +303,27 @@ pub struct OperationArgs {
 }
 
 impl OperationArgs {
-    pub fn test_set(&self) -> anyhow::Result<TestSet> {
+    pub fn test_set(&self) -> anyhow::Result<DynTestSet> {
         Ok(match self.expression.clone() {
             Some(expr) => expr.build(&*test_set::BUILTIN_TESTSETS)?,
             None => {
                 if self.tests.is_empty() {
-                    test_set::default_test_set()
+                    test_set::builtin::default()
                 } else {
                     self.tests
                         .iter()
                         .map(|id| {
-                            Arc::new(test_set::eval::IdentifierMatcher::Exact(id.to_inner()))
-                                as TestSet
+                            test_set::builtin::id_string(
+                                IdentiferMatcherTarget::Name,
+                                id.to_inner(),
+                                true,
+                            )
                         })
                         .fold(
-                            Arc::new(test_set::eval::NoneMatcher) as TestSet,
+                            Arc::new(test_set::eval::NoneMatcher) as DynTestSet,
                             |acc, it| {
-                                Arc::new(test_set::eval::BinaryMatcher::Union(acc, it)) as TestSet
+                                Arc::new(test_set::eval::BinaryMatcher::Union(acc, it))
+                                    as DynTestSet
                             },
                         )
                 }
