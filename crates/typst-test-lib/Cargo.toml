@@ -12,6 +12,7 @@ bytemuck.workspace = true
 comemo.workspace = true
 ecow.workspace = true
 ignore.workspace = true
+once_cell.workspace = true
 pest_derive.workspace = true
 pest.workspace = true
 png.workspace = true

@@ -3,9 +3,9 @@
 
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
 
 use ecow::eco_format;
+use once_cell::sync::OnceCell;
 use typst::diag::{bail, PackageError, PackageResult, StrResult};
 use typst::syntax::package::{PackageInfo, PackageSpec, PackageVersion, VersionlessPackageSpec};
 
@@ -27,7 +27,7 @@ pub struct PackageStorage {
     package_path: Option<PathBuf>,
 
     /// The cached index.
-    index: OnceLock<Vec<PackageInfo>>,
+    index: OnceCell<Vec<PackageInfo>>,
 
     /// The downlaoder to use for package downloads.
     downloader: Downloader,
@@ -46,7 +46,7 @@ impl PackageStorage {
         Self {
             package_cache_path,
             package_path,
-            index: OnceLock::new(),
+            index: OnceCell::new(),
             downloader: Downloader::new(args.certificate.clone()),
         }
     }

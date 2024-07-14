@@ -1,11 +1,10 @@
-use std::sync::LazyLock;
-
+use once_cell::sync::Lazy;
 use pest::error::Error;
 use pest::iterators::{Pair, Pairs};
 use pest::pratt_parser::PrattParser;
 use pest_derive::Parser;
 
-static PRATT_PARSER: LazyLock<PrattParser<Rule>> = LazyLock::new(|| {
+static PRATT_PARSER: Lazy<PrattParser<Rule>> = Lazy::new(|| {
     use pest::pratt_parser::Assoc::*;
     use pest::pratt_parser::Op;
     use Rule::*;

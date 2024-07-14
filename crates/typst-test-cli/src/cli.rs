@@ -12,7 +12,8 @@ use typst_test_lib::test_set;
 use typst_test_lib::test_set::{TestSet, TestSetExpr};
 
 use crate::fonts::FontSearcher;
-use crate::project::{self, Project};
+use crate::project;
+use crate::project::Project;
 use crate::report::Reporter;
 
 pub mod add;

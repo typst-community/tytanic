@@ -21,6 +21,7 @@ env_proxy.workspace = true
 flate2.workspace = true
 fontdb.workspace = true
 native-tls.workspace = true
+once_cell.workspace = true
 rayon.workspace = true
 semver.workspace = true
 serde.workspace = true

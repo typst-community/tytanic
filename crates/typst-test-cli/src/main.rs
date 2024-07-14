@@ -1,5 +1,3 @@
-#![feature(once_cell_try)]
-
 use std::io::Write;
 use std::process::ExitCode;
 

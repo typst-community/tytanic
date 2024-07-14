@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::fmt::{Debug, Display};
 use std::str::FromStr;
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 
 use ecow::EcoString;
 use eval::{
@@ -9,6 +9,7 @@ use eval::{
     UnaryMatcher,
 };
 use id::Identifier;
+use once_cell::sync::Lazy;
 use parsing::{
     Argument, Arguments, Atom, BinaryExpr, BinaryOp, Expr, Function, NameMatcher, Rule, UnaryExpr,
     UnaryOp, Value,
@@ -187,7 +188,7 @@ impl Default for TestSets {
 ///
 /// Includes the following function factories:
 /// - `id`
-pub static BUILTIN_TESTSETS: LazyLock<TestSets> = LazyLock::new(TestSets::default);
+pub static BUILTIN_TESTSETS: Lazy<TestSets> = Lazy::new(TestSets::default);
 
 /// Build a matcher from the given [`Expr`] using the given test sets.
 pub fn build_matcher(expr: Expr, test_sets: &TestSets) -> Result<TestSet, BuildTestSetError> {
