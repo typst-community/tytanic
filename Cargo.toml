@@ -41,4 +41,5 @@ typst-assets = "0.11.0"
 typst-dev-assets = { git = "https://github.com/typst/typst-dev-assets", rev = "ee8ae61cca138dc92f9d818fc7f2fc046d0148c5" }
 typst-render = "0.11.1"
 unscanny = "0.1.0"
-ureq = "2.9.7"
+ureq = { version = "2.9.7", default-features = false }
+
