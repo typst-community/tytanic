@@ -9,7 +9,7 @@ pub mod test;
 pub mod test_set;
 pub mod util;
 
-// #[cfg(test)]
+#[cfg(test)]
 pub mod _dev;
 
 #[cfg(test)]

@@ -27,8 +27,8 @@ typst.workspace = true
 typst-render.workspace = true
 unscanny.workspace = true
 
-# [dev-dependencies]
-dirs = { workspace = true }
-tempdir = { workspace = true }
+[dev-dependencies]
+dirs.workspace = true
+tempdir.workspace = true
 typst-assets = { workspace = true, features = ["fonts"] }
-typst-dev-assets = { workspace = true }
+typst-dev-assets.workspace = true
