@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use std::fmt::{Debug, Display};
+use std::path::{Path, PathBuf};
 use std::sync::{mpsc, Arc};
 use std::time::Instant;
 
@@ -15,7 +16,7 @@ use typst_test_lib::store::project::{Resolver, TestTarget};
 use typst_test_lib::store::test::Test;
 use typst_test_lib::store::Document;
 use typst_test_lib::test::ReferenceKind;
-use typst_test_lib::{compare, compile, render};
+use typst_test_lib::{compare, compile, hook, render};
 
 use super::{CompareFailure, CompileFailure, Stage, TestFailure};
 use crate::project::Project;
@@ -45,6 +46,18 @@ pub struct RunnerConfig {
 
     /// The strategy to use when comparing docuemnts.
     compare_strategy: Option<compare::Strategy>,
+
+    /// The hook to run once before all tests.
+    prepare_hook: Option<PathBuf>,
+
+    /// The hook to run once before all tests.
+    cleanup_hook: Option<PathBuf>,
+
+    /// The hook to run once before each tests.
+    prepare_each_hook: Option<PathBuf>,
+
+    /// The hook to run once before each tests.
+    cleanup_each_hook: Option<PathBuf>,
 }
 
 impl RunnerConfig {
@@ -78,6 +91,22 @@ impl RunnerConfig {
 
     pub fn compare_strategy(&self) -> Option<compare::Strategy> {
         self.compare_strategy
+    }
+
+    pub fn prepare_hook(&self) -> Option<&Path> {
+        self.prepare_hook.as_deref()
+    }
+
+    pub fn cleanup_hook(&self) -> Option<&Path> {
+        self.cleanup_hook.as_deref()
+    }
+
+    pub fn prepare_each_hook(&self) -> Option<&Path> {
+        self.prepare_each_hook.as_deref()
+    }
+
+    pub fn cleanup_each_hook(&self) -> Option<&Path> {
+        self.cleanup_each_hook.as_deref()
     }
 
     pub fn with_fail_fast(&mut self, yes: bool) -> &mut Self {
@@ -118,6 +147,26 @@ impl RunnerConfig {
     pub fn with_compare_strategy(&mut self, strategy: Option<compare::Strategy>) -> &mut Self {
         self.compare_strategy = strategy;
         self.with_compare(true)
+    }
+
+    pub fn with_prepare_hook(&mut self, value: Option<PathBuf>) -> &mut Self {
+        self.prepare_hook = value;
+        self
+    }
+
+    pub fn with_cleanup_hook(&mut self, value: Option<PathBuf>) -> &mut Self {
+        self.cleanup_hook = value;
+        self
+    }
+
+    pub fn with_prepare_each_hook(&mut self, value: Option<PathBuf>) -> &mut Self {
+        self.prepare_each_hook = value;
+        self
+    }
+
+    pub fn with_cleanup_each_hook(&mut self, value: Option<PathBuf>) -> &mut Self {
+        self.cleanup_each_hook = value;
+        self
     }
 
     pub fn build<'p>(self, project: &'p Project, world: &'p (dyn World + Sync)) -> Runner<'p> {
@@ -201,11 +250,19 @@ impl<'p> Runner<'p> {
         }
     }
 
-    pub fn prepare(&self) -> anyhow::Result<()> {
+    pub fn run_prepare_hook(&self) -> anyhow::Result<()> {
+        if let Some(hook) = &self.config.prepare_hook {
+            hook::run(hook, None, self.project.resolver())?;
+        }
+
         Ok(())
     }
 
-    pub fn cleanup(&self) -> anyhow::Result<()> {
+    pub fn run_cleanup_hook(&self) -> anyhow::Result<()> {
+        if let Some(hook) = &self.config.cleanup_hook {
+            hook::run(hook, None, self.project.resolver())?;
+        }
+
         Ok(())
     }
 }
@@ -294,6 +351,8 @@ impl<'t> TestRunner<'_, '_, 't> {
         // TODO: parallelize test and ref steps
         let mut inner = || -> anyhow::Result<Result<(), TestFailure>> {
             self.run_stage(&progress, Stage::Preparation, |this| this.prepare())?;
+
+            self.run_stage(&progress, Stage::Hooks, |this| this.run_prepare_each_hook())?;
 
             if test_src_needs_load {
                 self.run_stage(&progress, Stage::Loading, |this| {
@@ -385,6 +444,8 @@ impl<'t> TestRunner<'_, '_, 't> {
                 })?;
             }
 
+            self.run_stage(&progress, Stage::Hooks, |this| this.run_cleanup_each_hook())?;
+
             self.run_stage(&progress, Stage::Cleanup, |this| this.cleanup())?;
 
             Ok(Ok(()))
@@ -439,6 +500,26 @@ impl<'t> TestRunner<'_, '_, 't> {
     }
 
     pub fn cleanup(&mut self) -> anyhow::Result<()> {
+        Ok(())
+    }
+
+    pub fn run_prepare_each_hook(&mut self) -> anyhow::Result<()> {
+        tracing::trace!(test = ?self.test.id(), "running prepare-each hook");
+
+        if let Some(hook) = &self.config.prepare_each_hook {
+            hook::run(hook, None, self.project_runner.project.resolver())?;
+        }
+
+        Ok(())
+    }
+
+    pub fn run_cleanup_each_hook(&mut self) -> anyhow::Result<()> {
+        tracing::trace!(test = ?self.test.id(), "running cleanup-each hook");
+
+        if let Some(hook) = &self.config.cleanup_each_hook {
+            hook::run(hook, None, self.project_runner.project.resolver())?;
+        }
+
         Ok(())
     }
 

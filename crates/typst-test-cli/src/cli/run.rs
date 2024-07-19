@@ -46,6 +46,10 @@ pub struct Args {
     #[arg(long)]
     pub fail_fast: bool,
 
+    /// Do not run hooks
+    #[arg(long)]
+    pub no_hooks: bool,
+
     /// Show a summary of the test run instead of the individual test results
     #[arg(long)]
     pub summary: bool,
@@ -65,8 +69,40 @@ where
         args.now,
     )?;
 
+    let root = project.root();
+
     let mut config = RunnerConfig::default();
-    config.with_fail_fast(args.fail_fast);
+    config.with_no_fail_fast(args.no_fail_fast);
+    if !args.no_hooks {
+        config.with_prepare_hook(
+            project
+                .config()
+                .prepare
+                .as_deref()
+                .map(|rel| root.join(rel)),
+        );
+        config.with_prepare_each_hook(
+            project
+                .config()
+                .prepare_each
+                .as_deref()
+                .map(|rel| root.join(rel)),
+        );
+        config.with_cleanup_hook(
+            project
+                .config()
+                .cleanup
+                .as_deref()
+                .map(|rel| root.join(rel)),
+        );
+        config.with_cleanup_each_hook(
+            project
+                .config()
+                .cleanup_each
+                .as_deref()
+                .map(|rel| root.join(rel)),
+        );
+    }
     f(&mut config);
     tracing::trace!(?config, "prepared project config");
     let runner = config.build(&project, &world);
@@ -85,7 +121,7 @@ where
         .test_start(runner.config().update())?;
 
     let start = Instant::now();
-    runner.prepare()?;
+    runner.run_prepare_hook()?;
 
     let len = project.matched().len();
 
@@ -126,6 +162,7 @@ where
                                 EventPayload::StartedStage(stage) => {
                                     tests.get_mut(id).unwrap().1 = match stage {
                                         Stage::Preparation => "prepare",
+                                        Stage::Hooks => "hook",
                                         Stage::Loading => "load",
                                         Stage::Compilation => "compile",
                                         Stage::Saving => "save",
@@ -212,7 +249,7 @@ where
             return Err(err);
         }
 
-        runner.cleanup()?;
+        runner.run_cleanup_hook()?;
 
         if !args.summary {
             writeln!(ctx.reporter.lock().unwrap())?;

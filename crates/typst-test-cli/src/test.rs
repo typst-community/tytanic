@@ -8,6 +8,7 @@ pub mod runner;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Stage {
     Preparation,
+    Hooks,
     Loading,
     Compilation,
     Saving,
@@ -24,6 +25,7 @@ impl Display for Stage {
             "{}",
             match self {
                 Stage::Preparation => "preparation",
+                Stage::Hooks => "hooks",
                 Stage::Loading => "loading",
                 Stage::Compilation => "compilation",
                 Stage::Rendering => "rendering",

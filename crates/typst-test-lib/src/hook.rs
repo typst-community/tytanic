@@ -15,26 +15,49 @@ use std::io;
 use std::path::Path;
 use std::process::{Command, Output};
 
+use thiserror::Error;
+
 use crate::store::project::{Resolver, TestTarget};
 use crate::test::id::Identifier;
 
-/// Creates a [`Command`] to a hook, if a test is passed it's directory path is resolved
-/// and passed as an argument. The test root is set as the working directory.
-pub fn prepare<P: Resolver>(path: &Path, test: Option<&Identifier>, project: &P) -> Command {
-    let mut cmd = Command::new(path);
+#[derive(Debug, Error)]
+pub enum Error {
+    /// The hook returned a failure exit code.
+    #[error("the hook did not run successfully (exit code: {:?})", .0.status)]
+    Hook(Output),
 
-    cmd.current_dir(project.test_root());
-
-    if let Some(id) = test {
-        cmd.arg(project.resolve(id, TestTarget::TestDir));
-    }
-
-    cmd
+    /// An io error occured.
+    #[error("an io error occured")]
+    Io(#[from] io::Error),
 }
 
-/// Runs a hook to completion, collecting it's output.
-pub fn run<P: Resolver>(path: &Path, test: Option<&Identifier>, project: &P) -> io::Result<Output> {
-    prepare(path, test, project).output()
+/// Creates a [`Command`] to a hook, if a test is passed it's directory path is resolved
+/// and passed as an argument. The test root is set as the working directory.
+pub fn prepare<R: Resolver>(
+    path: &Path,
+    test: Option<&Identifier>,
+    resolver: &R,
+) -> io::Result<Command> {
+    let mut cmd = Command::new(path.canonicalize()?);
+
+    cmd.current_dir(resolver.test_root().canonicalize()?);
+
+    if let Some(id) = test {
+        cmd.arg(resolver.resolve(id, TestTarget::TestDir).canonicalize()?);
+    }
+
+    Ok(cmd)
+}
+
+/// Runs a hook to completion, collecting it's output if there was an error.
+pub fn run<R: Resolver>(path: &Path, test: Option<&Identifier>, resolver: &R) -> Result<(), Error> {
+    let output = prepare(path, test, resolver)?.output()?;
+
+    if !output.status.success() {
+        return Err(Error::Hook(output));
+    }
+
+    Ok(())
 }
 
 // TODO: tests
