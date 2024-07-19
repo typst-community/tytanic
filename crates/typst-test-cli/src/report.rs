@@ -149,7 +149,7 @@ impl Reporter {
     }
 
     pub fn warning(&mut self, warning: impl Display) -> io::Result<()> {
-        self.write_annotated("warning:", Color::Yellow, |this| {
+        self.write_annotated("warning:", Color::Yellow, None, |this| {
             writeln!(this, "{warning}")
         })
     }
@@ -159,7 +159,7 @@ impl Reporter {
             return Ok(());
         }
 
-        self.write_annotated("hint:", Color::Cyan, |this| writeln!(this, "{hint}"))
+        self.write_annotated("hint:", Color::Cyan, None, |this| writeln!(this, "{hint}"))
     }
 
     pub fn operation_failure(
