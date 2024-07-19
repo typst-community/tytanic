@@ -44,7 +44,7 @@ pub struct Args {
     /// immediately. But it will not schedule any new tests to run after one
     /// failure has been detected.
     #[arg(long)]
-    pub fail_fast: bool,
+    pub no_fail_fast: bool,
 
     /// Do not run hooks
     #[arg(long)]
@@ -228,10 +228,10 @@ where
                 match runner.test(test).run(tx.clone()) {
                     Ok(Ok(_)) => Ok(()),
                     Ok(Err(_)) => {
-                        if runner.config().fail_fast() {
-                            Err(None)
-                        } else {
+                        if runner.config().no_fail_fast() {
                             Ok(())
+                        } else {
+                            Err(None)
                         }
                     }
                     Err(err) => Err(Some(

@@ -24,7 +24,7 @@ use crate::project::Project;
 #[derive(Debug, Clone, Default)]
 pub struct RunnerConfig {
     /// Whether to stop after the first failure.
-    fail_fast: bool,
+    no_fail_fast: bool,
 
     /// Whether to save the temporary documents to disk.
     no_save_temporary: bool,
@@ -61,8 +61,8 @@ pub struct RunnerConfig {
 }
 
 impl RunnerConfig {
-    pub fn fail_fast(&self) -> bool {
-        self.fail_fast
+    pub fn no_fail_fast(&self) -> bool {
+        self.no_fail_fast
     }
 
     pub fn no_save_temporary(&self) -> bool {
@@ -109,8 +109,8 @@ impl RunnerConfig {
         self.cleanup_each_hook.as_deref()
     }
 
-    pub fn with_fail_fast(&mut self, yes: bool) -> &mut Self {
-        self.fail_fast = yes;
+    pub fn with_no_fail_fast(&mut self, yes: bool) -> &mut Self {
+        self.no_fail_fast = yes;
         self
     }
 
@@ -761,7 +761,7 @@ impl<'t> TestRunner<'_, '_, 't> {
             output.pages(),
             reference.pages(),
             strategy,
-            self.project_runner.config.fail_fast,
+            !self.project_runner.config.no_fail_fast,
         ) {
             Ok(_) => Ok(Ok(())),
             Err(error) => Ok(Err(CompareFailure::Visual {
