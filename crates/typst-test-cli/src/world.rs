@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // Credits: The Typst Authors
 
+// TODO: upstream this to typst-kit
+#![allow(dead_code)]
+
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
@@ -8,7 +11,6 @@ use std::{fs, io, mem};
 
 use chrono::{DateTime, Datelike, FixedOffset, Local, Utc};
 use comemo::Prehashed;
-use thiserror::Error;
 use typst::diag::{FileError, FileResult};
 use typst::foundations::{Bytes, Datetime};
 use typst::syntax::{FileId, Source};
@@ -48,15 +50,7 @@ impl SystemWorld {
         searcher: FontSearcher,
         package_storage: PackageStorage,
         now: Option<DateTime<Utc>>,
-    ) -> Result<Self, WorldCreationError> {
-        // // Set up the thread pool.
-        // if let Some(jobs) = command.jobs {
-        //     rayon::ThreadPoolBuilder::new()
-        //         .num_threads(jobs)
-        //         .build_global()
-        //         .ok();
-        // }
-
+    ) -> io::Result<Self> {
         let now = match now {
             Some(time) => Now::Fixed(time),
             None => Now::System(OnceLock::new()),
@@ -341,24 +335,4 @@ enum Now {
     Fixed(DateTime<Utc>),
     /// The current date and time if the time is not externally fixed.
     System(OnceLock<DateTime<Utc>>),
-}
-
-/// An error that occurs during world construction.
-#[derive(Debug, Error)]
-pub enum WorldCreationError {
-    /// The input file does not appear to exist.
-    #[error("input file not found (searched at {})", .0.display())]
-    InputNotFound(PathBuf),
-
-    /// The input file is not contained within the root folder.
-    #[error("source file must be contained in project root")]
-    InputOutsideRoot,
-
-    /// The root directory does not appear to exist.
-    #[error("root directory not found (searched at {})", .0.display())]
-    RootNotFound(PathBuf),
-
-    /// Another type of I/O error.
-    #[error("an io error occured")]
-    Io(#[from] io::Error),
 }

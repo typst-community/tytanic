@@ -1,8 +1,11 @@
+use std::io;
+use std::io::IsTerminal;
 use std::io::Write;
 use std::process::ExitCode;
 
 use clap::{ColorChoice, Parser};
 use termcolor::Color;
+use termcolor::StandardStream;
 use tracing::Level;
 use tracing_subscriber::filter::Targets;
 use tracing_subscriber::prelude::*;
@@ -18,8 +21,47 @@ mod package;
 mod project;
 mod report;
 mod test;
-mod util;
 mod world;
+
+fn color_stream(color: ColorChoice, is_stderr: bool) -> StandardStream {
+    let choice = match color {
+        clap::ColorChoice::Auto => {
+            let stream_is_term = if is_stderr {
+                io::stderr().is_terminal()
+            } else {
+                io::stdout().is_terminal()
+            };
+
+            if stream_is_term {
+                termcolor::ColorChoice::Auto
+            } else {
+                termcolor::ColorChoice::Never
+            }
+        }
+        ColorChoice::Always => termcolor::ColorChoice::Always,
+        ColorChoice::Never => termcolor::ColorChoice::Never,
+    };
+
+    if is_stderr {
+        StandardStream::stderr(choice)
+    } else {
+        StandardStream::stdout(choice)
+    }
+}
+
+fn is_color(color: clap::ColorChoice, is_stderr: bool) -> bool {
+    match color {
+        clap::ColorChoice::Auto => {
+            if is_stderr {
+                io::stderr().is_terminal()
+            } else {
+                io::stdout().is_terminal()
+            }
+        }
+        clap::ColorChoice::Always => true,
+        clap::ColorChoice::Never => false,
+    }
+}
 
 const IS_OUTPUT_STDERR: bool = false;
 
@@ -32,10 +74,7 @@ fn main() -> ExitCode {
             .with(
                 HierarchicalLayer::new(4)
                     .with_targets(true)
-                    .with_ansi(util::term::color(
-                        args.global.output.color,
-                        IS_OUTPUT_STDERR,
-                    )),
+                    .with_ansi(is_color(args.global.output.color, IS_OUTPUT_STDERR)),
             )
             .with(Targets::new().with_target(
                 std::env!("CARGO_CRATE_NAME"),
@@ -59,9 +98,16 @@ fn main() -> ExitCode {
 
     // TODO: simpler output when using plain
     let reporter = Reporter::new(
-        util::term::color_stream(args.global.output.color, IS_OUTPUT_STDERR),
+        color_stream(args.global.output.color, IS_OUTPUT_STDERR),
         args.global.output.format,
     );
+
+    if let Some(jobs) = args.global.jobs {
+        rayon::ThreadPoolBuilder::new()
+            .num_threads(jobs)
+            .build_global()
+            .ok();
+    }
 
     let mut ctx = Context::new(&args, reporter);
 

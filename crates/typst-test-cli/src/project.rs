@@ -16,28 +16,19 @@ use typst_test_lib::store::Document;
 use typst_test_lib::test::id::Identifier;
 use typst_test_lib::test::ReferenceKind;
 use typst_test_lib::test_set::TestSet;
-
-use crate::util;
+use typst_test_lib::util;
 
 const DEFAULT_TEST_INPUT: &str = include_str!("../../../assets/default-test/test.typ");
 const DEFAULT_TEST_OUTPUT: &[u8] = include_bytes!("../../../assets/default-test/test.png");
 
 pub fn try_open_manifest(root: &Path) -> Result<Option<Manifest>, Error> {
-    if is_project_root(root)? {
+    if typst_project::is_project_root(root)? {
         let content = std::fs::read_to_string(root.join(typst_project::heuristics::MANIFEST_FILE))?;
         let manifest = Manifest::from_str(&content)?;
         Ok(Some(manifest))
     } else {
         Ok(None)
     }
-}
-
-pub fn is_project_root(path: &Path) -> io::Result<bool> {
-    typst_project::is_project_root(path)
-}
-
-pub fn try_find_project_root(path: &Path) -> io::Result<Option<&Path>> {
-    typst_project::try_find_project_root(path)
 }
 
 bitflags::bitflags! {

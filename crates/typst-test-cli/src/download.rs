@@ -5,6 +5,9 @@
 // Closely modelled after rustup's `DownloadTracker`.
 // https://github.com/rust-lang/rustup/blob/master/src/cli/download_tracker.rs
 
+// TODO: use typst-kit
+#![allow(dead_code)]
+
 use std::collections::VecDeque;
 use std::fmt::Debug;
 use std::io;

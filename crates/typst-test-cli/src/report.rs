@@ -14,11 +14,11 @@ use typst::WorldExt;
 use typst_test_lib::compare;
 use typst_test_lib::store::test::Test;
 use typst_test_lib::test::ReferenceKind;
+use typst_test_lib::util;
 
 use crate::cli::OutputFormat;
 use crate::project::Project;
 use crate::test::{CompareFailure, TestFailure};
-use crate::util;
 use crate::world::SystemWorld;
 
 pub const ANNOT_PADDING: usize = 8;

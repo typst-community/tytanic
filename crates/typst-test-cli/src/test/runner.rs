@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::fmt::{Debug, Display};
 use std::sync::{mpsc, Arc};
 use std::time::Instant;

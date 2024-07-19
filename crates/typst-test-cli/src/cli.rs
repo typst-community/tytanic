@@ -65,7 +65,7 @@ impl<'a> Context<'a> {
             Some(root) => root.to_path_buf(),
             None => {
                 let pwd = std::env::current_dir()?;
-                match project::try_find_project_root(&pwd)? {
+                match typst_project::try_find_project_root(&pwd)? {
                     Some(root) => root.to_path_buf(),
                     None => {
                         self.operation_failure(|r| {
@@ -266,6 +266,10 @@ pub struct Global {
     /// The project root directory
     #[arg(long, short, global = true)]
     pub root: Option<PathBuf>,
+
+    /// The amount of threads to use.
+    #[arg(long, short, global = true)]
+    pub jobs: Option<usize>,
 
     #[command(flatten, next_help_heading = "Font Options")]
     pub fonts: FontArgs,
@@ -472,7 +476,7 @@ pub enum Command {
     #[command(visible_alias = "a")]
     Add(add::Args),
 
-    /// Edit existing tests
+    /// Edit existing tests [disabled]
     #[command()]
     Edit(edit::Args),
 
