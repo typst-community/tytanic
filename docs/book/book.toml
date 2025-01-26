@@ -1,6 +1,6 @@
 [book]
-title = "typst-test"
-description = "A guide and reference document for typst-test."
+title = "tytanic"
+description = "A guide and reference document for tytanic."
 authors = ["tingerrr <tinger@tinger.dev>"]
 language = "en"
 multilingual = false
@@ -10,4 +10,4 @@ src = "src"
 build-dir = "build"
 
 [output.html]
-git-repository-url = "https://github.com/tingerrr/typst-test"
+git-repository-url = "https://github.com/tingerrr/tytanic"

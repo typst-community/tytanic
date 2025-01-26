@@ -29,7 +29,7 @@
       let
         cargoToml = lib.importTOML ./Cargo.toml;
 
-        pname = "typst-test";
+        pname = "tytanic";
         version = cargoToml.workspace.package.version;
 
         rust-toolchain = (fenix.packages.${system}.fromManifestFile rust-manifest).defaultToolchain;
@@ -38,7 +38,7 @@
         # Based on https://github.com/ipetkov/crane/blob/master/examples/trunk-workspace/flake.nix
         craneLib = (crane.mkLib pkgs).overrideToolchain rust-toolchain;
 
-        # Typst-test files to include in the derivation.
+        # Tytanic files to include in the derivation.
         # Here we include Rust files.
         src = lib.fileset.toSource {
           root = ./.;
@@ -51,7 +51,7 @@
           ];
         };
 
-        # Typst-test derivation's args, used within crane's derivation
+        # Tytanic derivation's args, used within crane's derivation
         # generation functions.
         commonCraneArgs = {
           inherit src pname version;
@@ -73,7 +73,7 @@
         # re-building them.
         cargoArtifacts = craneLib.buildDepsOnly commonCraneArgs;
 
-        typst-test = craneLib.buildPackage (commonCraneArgs // {
+        tytanic = craneLib.buildPackage (commonCraneArgs // {
           inherit cargoArtifacts;
 
           nativeBuildInputs = commonCraneArgs.nativeBuildInputs ++ [
@@ -88,31 +88,31 @@
             in
             "${version} (${rev})";
 
-          meta.mainProgram = "typst-test";
+          meta.mainProgram = "tytanic";
         });
       in
       {
         formatter = pkgs.nixpkgs-fmt;
 
         packages = {
-          default = typst-test;
-          typst-test-dev = self'.packages.default;
+          default = tytanic;
+          tytanic-dev = self'.packages.default;
         };
 
         overlayAttrs = builtins.removeAttrs self'.packages [ "default" ];
 
         apps.default = {
           type = "app";
-          program = lib.getExe typst-test;
+          program = lib.getExe tytanic;
         };
 
         checks = {
-          typst-test-fmt = craneLib.cargoFmt commonCraneArgs;
-          typst-test-clippy = craneLib.cargoClippy (commonCraneArgs // {
+          tytanic-fmt = craneLib.cargoFmt commonCraneArgs;
+          tytanic-clippy = craneLib.cargoClippy (commonCraneArgs // {
             inherit cargoArtifacts;
             cargoClippyExtraArgs = "--workspace -- --deny warnings";
           });
-          typst-test-test = craneLib.cargoTest (commonCraneArgs // {
+          tytanic-test = craneLib.cargoTest (commonCraneArgs // {
             inherit cargoArtifacts;
             cargoTestExtraArgs = "--workspace";
           });
@@ -120,7 +120,7 @@
 
         devShells.default = craneLib.devShell {
           checks = self'.checks;
-          inputsFrom = [ typst-test ];
+          inputsFrom = [ tytanic ];
 
           # see justfile, this allows using cargo with `+1.80` outside the dev
           # shell, but without it inside the dev shell

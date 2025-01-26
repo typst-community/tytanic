@@ -1,7 +1,0 @@
----
-source: crates/typst-test-cli/src/ui.rs
-expression: str
----
-Hello
-
-World
