@@ -3062,7 +3062,32 @@ dependencies = [
 ]
 
 [[package]]
-name = "typst-test"
+name = "typst-timing"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "175e7755eca10fe7d5a37a54cff50fbdf1a1becd55f35330ab783f5317c9eb96"
+dependencies = [
+ "parking_lot",
+ "serde",
+ "serde_json",
+ "typst-syntax",
+]
+
+[[package]]
+name = "typst-utils"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8f0305443ed97f0b658471487228f86bf835705e7525fbdcc671cebd864f7a40"
+dependencies = [
+ "once_cell",
+ "portable-atomic",
+ "rayon",
+ "siphasher",
+ "thin-vec",
+]
+
+[[package]]
+name = "tytanic"
 version = "0.1.0"
 dependencies = [
  "chrono",
@@ -3089,12 +3114,12 @@ dependencies = [
  "typst",
  "typst-kit",
  "typst-syntax",
- "typst-test-lib",
+ "tytanic-core",
  "uuid",
 ]
 
 [[package]]
-name = "typst-test-lib"
+name = "tytanic-core"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
@@ -3121,31 +3146,6 @@ dependencies = [
  "typst-dev-assets",
  "typst-render",
  "uuid",
-]
-
-[[package]]
-name = "typst-timing"
-version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "175e7755eca10fe7d5a37a54cff50fbdf1a1becd55f35330ab783f5317c9eb96"
-dependencies = [
- "parking_lot",
- "serde",
- "serde_json",
- "typst-syntax",
-]
-
-[[package]]
-name = "typst-utils"
-version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8f0305443ed97f0b658471487228f86bf835705e7525fbdcc671cebd864f7a40"
-dependencies = [
- "once_cell",
- "portable-atomic",
- "rayon",
- "siphasher",
- "thin-vec",
 ]
 
 [[package]]

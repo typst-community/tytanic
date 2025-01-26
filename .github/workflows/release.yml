@@ -1,0 +1,93 @@
+# SPDX-License-Identifier: Apache-2.0
+# Credits: The Typst Authors
+
+# Based on ripgrep's release action:
+# https://github.com/BurntSushi/ripgrep/blob/master/.github/workflows/release.yml
+
+name: Build Release Binaries
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+jobs:
+  build-release:
+    name: release ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - target: x86_64-unknown-linux-musl
+          os: ubuntu-latest
+          cross: true
+        - target: aarch64-unknown-linux-musl
+          os: ubuntu-latest
+          cross: true
+        - target: armv7-unknown-linux-musleabi
+          os: ubuntu-latest
+          cross: true
+        - target: riscv64gc-unknown-linux-gnu
+          os: ubuntu-latest
+          cross: true
+        - target: x86_64-apple-darwin
+          os: macos-latest
+          cross: false
+        - target: aarch64-apple-darwin
+          os: macos-latest
+          cross: false
+        - target: x86_64-pc-windows-msvc
+          os: windows-latest
+          cross: false
+        - target: aarch64-pc-windows-msvc
+          os: windows-latest
+          cross: false
+
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@1.83.0
+      with:
+        target: ${{ matrix.target }}
+
+    - name: Run Cross
+      if: ${{ matrix.cross }}
+      run: |
+        cargo install cross --git https://github.com/cross-rs/cross.git --locked --rev 085092ca
+        cross build -p tytanic --release --target ${{ matrix.target }} --features vendor-openssl
+
+    - name: Run Cargo
+      if: ${{ !matrix.cross }}
+      run: cargo build -p tytanic --release --target ${{ matrix.target }}
+
+    - name: Create artifact directory
+      shell: bash
+      run: |
+        directory=tytanic-${{ matrix.target }}
+        mkdir $directory
+        cp README.md LICENSE NOTICE $directory
+        if [ -f target/${{ matrix.target }}/release/tt.exe ]; then
+          cp target/${{ matrix.target }}/release/tt.exe $directory
+          7z a -r $directory.zip $directory
+        else
+          cp target/${{ matrix.target }}/release/tt $directory
+          tar cJf $directory.tar.xz $directory
+        fi
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      if: github.event_name == 'workflow_dispatch'
+      with:
+        name: tytanic-${{ matrix.target }}
+        path: "tytanic-${{ matrix.target }}.*"
+        retention-days: 3
+
+    - name: Add artifacts to release
+      uses: ncipollo/release-action@v1.14.0
+      if: github.event_name == 'release'
+      with:
+        artifacts: "tytanic-${{ matrix.target }}.*"
+        allowUpdates: true
+        omitNameDuringUpdate: true
+        omitBodyDuringUpdate: true

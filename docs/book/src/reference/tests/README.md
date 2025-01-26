@@ -7,7 +7,7 @@ There are three types of tests:
 
 <div class="warning">
 
-`typst-test` can currently only collect and operate on regression tests.
+`tytanic` can currently only collect and operate on regression tests.
 
 In the future, template tests and doc tests will be added, see [#34] and [#49] respectively.
 
@@ -23,5 +23,5 @@ Read the [guide], if you want to see some examples on how to write and run vario
 - [Annotations](./annotations.md) lists the syntax for annotations and which are available.
 
 [guide]: ../../guides/tests.md
-[#34]: https://github.com/tingerrr/typst-test/issues/34
-[#49]: https://github.com/tingerrr/typst-test/issues/49
+[#34]: https://github.com/tingerrr/tytanic/issues/34
+[#49]: https://github.com/tingerrr/tytanic/issues/49

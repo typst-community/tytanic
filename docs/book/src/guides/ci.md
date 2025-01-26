@@ -1,6 +1,6 @@
 # Setting Up CI
 Continuous integration can take a lot of manual work off of your shoulders.
-In this chapter we'll look at how to run `typst-test` in your GitHub CI to continuously to test your code and catch bugs before they get merged into your project.
+In this chapter we'll look at how to run `tytanic` in your GitHub CI to continuously to test your code and catch bugs before they get merged into your project.
 
 <div class="warning">
 
@@ -44,8 +44,8 @@ jobs:
 
 This adds a single step to our job (called `tests`), which checks out the repository, making it available for the following steps.
 
-For now, we'll need `cargo` to download and install `typst-test`, so we install it and cache the installation with a package cache action.
-After this, we install `typst-test` straight from GitHub using the `backport` branch, this branch does not yet have features like test set expressions, but it is somewhat stable and receives critical fixes.
+For now, we'll need `cargo` to download and install `tytanic`, so we install it and cache the installation with a package cache action.
+After this, we install `tytanic` version `0.1.0` straight from crates.io, this version targets typst `0.12.x`.
 
 ```yml
 steps:
@@ -56,24 +56,12 @@ steps:
       packages: cargo
       version: 1.0
 
-  - name: Install typst-test from github
+  - name: Install tytanic from crates.io
     uses: baptiste0928/cargo-install@v3.0.0
     with:
-      crate: typst-test
-      git: https://github.com/tingerrr/typst-test.git
-      branch: backport
+      crate: tytanic
+      version: '0.1.0'
 
-```
-
-Because the `typst-test` version at `backport` does not yet come with its own Typst compiler, it needs a Typst installation in the CI runner too. Add the following with your preferred Typst version:
-
-```yml
-steps:
-  # ...
-  - name: Setup typst
-    uses: yusancky/setup-typst@v2
-    with:
-      version: 'v0.11.1'
 ```
 
 Then we're ready to run our tests, that's as simple as adding a step like so:
@@ -82,7 +70,7 @@ Then we're ready to run our tests, that's as simple as adding a step like so:
 steps:
   # ...
   - name: Run test suite
-    run: typst-test run
+    run: tt run
 ```
 
 CI may fail for various reasons, such as
@@ -91,7 +79,7 @@ CI may fail for various reasons, such as
 - or otherwise hard-to-debug differences between the CI runner and your local machine.
 
 To make it easier for you to actually get a grasp at the problem you should make the results of the test run available.
-You can do this by using an upload action, however, if `typst-test` fails the step will cancel all regular steps after itself, so you need to ensure it runs regardless of test failure or success by using `if: always()`.
+You can do this by using an upload action, however, if `tytanic` fails the step will cancel all regular steps after itself, so you need to ensure it runs regardless of test failure or success by using `if: always()`.
 The action then uploads all artifacts since some tests may produce both references and output on-the-fly and retains them for 5 days:
 
 ```yml
@@ -134,20 +122,14 @@ And that's it, you can add this file to your repo, push it to a branch and open 
 >           packages: cargo
 >           version: 1.0
 >
->       - name: Install typst-test from github
+>       - name: Install tytanic from crates.io
 >         uses: baptiste0928/cargo-install@v3.0.0
 >         with:
->           crate: typst-test
->           git: https://github.com/tingerrr/typst-test.git
->           branch: backport
->
->       - name: Setup typst
->         uses: yusancky/setup-typst@v2
->         with:
->           version: 'v0.11.1'
+>           crate: tytanic
+>           version: '0.1.0'
 >
 >       - name: Run test suite
->         run: typst-test run
+>         run: tt run
 >
 >       - name: Archive artifacts
 >         uses: actions/upload-artifact@v4

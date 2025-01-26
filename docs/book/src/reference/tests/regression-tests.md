@@ -37,7 +37,7 @@ The kind of a test is determined as follows:
 
 Temporary directories are ignored within the VCS if one is detected, this is currently done by simply adding an ignore file within the directory which ignores all entries inside it.
 
-A test cannot contain other her tests, if a test script is found `typst-test` will not search for any sub tests.
+A test cannot contain other her tests, if a test script is found `tytanic` will not search for any sub tests.
 
 Regression test are compiled with the project root as their typst root, such that they can easily access package internals with absolute paths.
 
@@ -45,10 +45,10 @@ Regression test are compiled with the project root as their typst root, such tha
 Ephemeral and persistent tests are curently compared using a simple deviation threshold which determines if two images should be considered the same or different.
 If the images have differnet dimensions consider them different.
 Given two images of equal dimensions, pair up each pixel and compare them, if any of the 3 channels (red, green, blue) differ by at least `min-delta` count it as a deviation.
-If there are more than `max-deviation` of such deviating pixels, consider the images different.
+If there are more than `max-deviations` of such deviating pixels, consider the images different.
 
-These values can be tweaked on the command line using the `--max-deviation` and `--min-delta` options respectively:
-- `--max-deviation` takes a non-negative integer, i.e. any value from `0` onwards.
+These values can be tweaked on the command line using the `--max-deviations` and `--min-delta` options respectively:
+- `--max-deviations` takes a non-negative integer, i.e. any value from `0` onwards.
 - `--min-delta` takes a byte, i.e. any value from `0` to `255`.
 
 Both values default to `0` such that any difference will trigger a failure by default.

@@ -53,7 +53,7 @@ Write something else in there and see what happens:
 +Typst is Great!
 ```
 
-Once we run `typst-test` again we'll see that the test no longer passes:
+Once we run `tytanic` again we'll see that the test no longer passes:
 
 ```txt
   Starting 1 tests (run ID: 7cae75f3-3cc3-4770-8e3a-cb87dd6971cf)
@@ -64,7 +64,7 @@ Once we run `typst-test` again we'll see that the test no longer passes:
    Summary [ 0s  44ms 762µs] 1/1 tests run: all 1 failed
 ```
 
-`typst-test` has compared the reference output from the original `Hello World` document to the new document and determined that they don't match.
+`tytanic` has compared the reference output from the original `Hello World` document to the new document and determined that they don't match.
 It also told you where you can inspect the difference, the `<project>/tests/my-test` contains a `diff` directory.
 You can take a look to see what changed, you can also take a look at the `out` and `ref` directories, these contain the output of the current test and the expected reference output respectively.
 
@@ -107,7 +107,7 @@ Let's say you have this function inside your `src/lib.typ` file:
 }
 ```
 
-Because `typst-test` comes with a custom standard library you can catch panics and extract their messages to ensure your code also works in the failure path.
+Because `tytanic` comes with a custom standard library you can catch panics and extract their messages to ensure your code also works in the failure path.
 
 Let's add another test where we check that this function behaves correctly and let's not return any output but instead just check how it behaves with various inputs:
 
@@ -188,8 +188,8 @@ See [#34].
 
 This should equip you with all the knowledge of how to reliably test your projects, but if you're still curious about all the details check out the [reference for tests][tests].
 
-[#73]: https://github.com/tingerrr/typst-test/issues/73
-[#49]: https://github.com/tingerrr/typst-test/issues/49
-[#34]: https://github.com/tingerrr/typst-test/issues/34
+[#73]: https://github.com/tingerrr/tytanic/issues/73
+[#49]: https://github.com/tingerrr/tytanic/issues/49
+[#34]: https://github.com/tingerrr/tytanic/issues/34
 [tests]: ../reference/tests/index.html
 [oxipng]: https://github.com/shssoichiro/oxipng

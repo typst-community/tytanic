@@ -1,7 +1,7 @@
 # Using Test Sets
 ## Why Tests Sets
 Many operations such as running, comparing, removing or updating tests all need to somehow select which tests to operate on.
-`typst-test` offers a functional set-based language which is used to select tests, it visually resembles writing a predicate which is applied to each test.
+`tytanic` offers a functional set-based language which is used to select tests, it visually resembles writing a predicate which is applied to each test.
 
 Test set expresisons are passed using the `--expression` or `-e` flag, they support the following features:
 - binary and unary operators like `&`/`and` or `!`/`not`

@@ -9,7 +9,7 @@ CI-SET-ENV := 'export RUSTFLAGS="-Dwarnings" RUSTDOCFLAGS="-Dwarnings"'
 default:
 	@just --unsorted --list --list-submodules
 
-# compile and run typst-test
+# compile and run tytanic
 run *args='--release':
 	cargo run {{ args }}
 
@@ -49,6 +49,6 @@ clean:
 	rm -r target
 	rm -r {{ book-src / 'build' }}
 
-# install typst-test using cargo
+# install tytanic using cargo
 install *args='--force':
-	cargo install --path crates/typst-test-cli {{ args }}
+	cargo install --path crates/tytanic-cli {{ args }}

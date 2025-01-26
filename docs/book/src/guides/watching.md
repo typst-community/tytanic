@@ -1,6 +1,6 @@
 # Watching for Changes
-`typst-test` does not currently support a `watch` sub command the same way `typst` does.
-However, you can work around this by using [`watchexec`] or an equivalent tool which re-runs `typst-test` whenever a file in your project changes.
+`tytanic` does not currently support a `watch` sub command the same way `typst` does.
+However, you can work around this by using [`watchexec`] or an equivalent tool which re-runs `tytanic` whenever a file in your project changes.
 
 Let's look at a concrete example with `watchexec`.
 Navigate to your project root directory, i.e. that whhich contains your `typst.toml` manifest and run:
