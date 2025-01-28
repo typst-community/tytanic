@@ -1,12 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use color_eyre::eyre::{self, WrapErr};
 use termcolor::Color;
 use tytanic_core::project::Paths;
-use tytanic_core::stdx;
 use tytanic_core::test::Id;
 
 use crate::cli::Context;
@@ -60,7 +59,9 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
     let mut has_colission = false;
     for (old, (new, collision)) in &mappings {
         if !*collision {
-            migrate_test(paths, old, new)?;
+            let old = paths.test_dir(old);
+            let new = paths.test_dir(new);
+            std::fs::rename(old, new)?;
         } else {
             has_colission = true;
         }
@@ -87,11 +88,20 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
             ui::write_colored(w, Color::Cyan, |w| write!(w, "--confirm"))?;
             writeln!(w, " to move the tests automatically")
         })?;
+
         ctx.ui.hint_with(|w| {
             write!(w, "Use ")?;
             ui::write_colored(w, Color::Cyan, |w| write!(w, "--name"))?;
             writeln!(w, " to configure the sub directory name")
         })?;
+
+        if project.vcs().is_some() {
+            ctx.ui.hint_with(|w| {
+                write!(w, "VCS detected, consider also running ")?;
+                ui::write_colored(w, Color::Cyan, |w| write!(w, "tt util vcs ignore"))?;
+                writeln!(w, " after you've migrated")
+            })?;
+        }
     }
 
     Ok(())
@@ -152,34 +162,5 @@ fn collect_old_structure_inner(
         }
     }
 
-    Ok(())
-}
-
-fn migrate_test_part(
-    paths: &Paths,
-    old: &Id,
-    new: &Id,
-    f: fn(&Paths, &Id) -> PathBuf,
-) -> eyre::Result<()> {
-    let old = f(paths, old);
-    let new = f(paths, new);
-
-    if old.try_exists()? {
-        fs::rename(&old, &new).wrap_err(format!("moving {old:?} to {new:?}"))?;
-    }
-
-    Ok(())
-}
-
-fn migrate_test(paths: &Paths, old: &Id, new: &Id) -> eyre::Result<()> {
-    let test_dir = paths.test_dir(new);
-    stdx::fs::create_dir(&test_dir, true).wrap_err(format!("creating to {test_dir:?}"))?;
-    migrate_test_part(paths, old, new, Paths::test_script)?;
-    migrate_test_part(paths, old, new, Paths::test_ref_script)?;
-    migrate_test_part(paths, old, new, Paths::test_ref_dir)?;
-    let out_dir = paths.test_out_dir(old);
-    stdx::fs::remove_dir(&out_dir, true).wrap_err(format!("removing to {out_dir:?}"))?;
-    let diff_dir = paths.test_diff_dir(old);
-    stdx::fs::remove_dir(&diff_dir, true).wrap_err(format!("removing to {diff_dir:?}"))?;
     Ok(())
 }

@@ -6,6 +6,7 @@ pub mod about;
 pub mod clean;
 pub mod fonts;
 pub mod migrate;
+pub mod vcs;
 
 #[derive(clap::Args, Debug, Clone)]
 #[group(id = "util-args")]
@@ -32,6 +33,10 @@ pub enum Command {
     /// Migrate the test structure to the new version
     #[command()]
     Migrate(migrate::Args),
+
+    /// Vcs related commands
+    #[command()]
+    Vcs(vcs::Args),
 }
 
 impl Command {
@@ -41,6 +46,7 @@ impl Command {
             Command::Clean => clean::run(ctx),
             Command::Fonts(args) => fonts::run(ctx, args),
             Command::Migrate(args) => migrate::run(ctx, args),
+            Command::Vcs(args) => args.cmd.run(ctx),
         }
     }
 }
