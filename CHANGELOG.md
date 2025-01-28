@@ -1,11 +1,15 @@
 # [unreleased](https://github.com/tingerrr/tytanic/releases/tags/)
 ## Added
+- `util vcs ignore` command to regenerate ignore files
 
 ## Removed
 
 ## Changed
+- **BREAKING CHANGE** `Vcs::ignore` and `Vcs::unignore` API
+- Changed location of ignore files to be in the test directory itself.
 
 ## Fixed
+- Removed a dead asset path from the `flake.nix`.
 
 ---
 
