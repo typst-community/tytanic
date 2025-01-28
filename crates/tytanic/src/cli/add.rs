@@ -51,22 +51,24 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
     }
 
     let paths = project.paths();
+    let vcs = project.vcs();
     let id = args.test.clone();
 
     if let Some(template) = suite.template().filter(|_| !args.no_template) {
         if args.ephemeral {
             Test::create(
                 paths,
+                vcs,
                 id,
                 template,
                 Some(Reference::Ephemeral(template.into())),
             )?;
         } else if args.compile_only {
-            Test::create(paths, id, template, None)?;
+            Test::create(paths, vcs, id, template, None)?;
         } else {
             let world = ctx.world(&args.compile)?;
 
-            // TODO(tinger): read properly report diagnostics
+            // TODO(tinger): properly report diagnostics
             let Warned {
                 output,
                 warnings: _,
@@ -79,6 +81,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
 
             Test::create(
                 paths,
+                vcs,
                 id,
                 template,
                 Some(Reference::Persistent(
@@ -91,7 +94,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
             )?;
         };
     } else {
-        Test::create_default(paths, id)?;
+        Test::create_default(paths, vcs, id)?;
     }
 
     let mut w = ctx.ui.stderr();

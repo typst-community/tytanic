@@ -23,6 +23,12 @@ pub use self::id::{Id, ParseIdError};
 pub use self::result::{Kind as TestResultKind, SuiteResult, TestResult};
 pub use self::suite::{CollectError as CollectSuiteError, Suite};
 
+// NOTE(tinger): the order of ignoring and deleting/creating documents is not
+// random, this is specifically for VCS like jj with active watchman triggers
+// and auto snapshotting.
+//
+// This is currently untested though.
+
 /// The default test input as source code.
 pub const DEFAULT_TEST_INPUT: &str = include_str!("default-test.typ");
 
@@ -100,9 +106,9 @@ impl Reference {
 /// This type is cheap to clone.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Test {
-    id: Id,
-    kind: Kind,
-    annotations: EcoVec<Annotation>,
+    pub(crate) id: Id,
+    pub(crate) kind: Kind,
+    pub(crate) annotations: EcoVec<Annotation>,
 }
 
 impl Test {
@@ -179,9 +185,10 @@ impl Test {
 
 impl Test {
     /// Creates a new default test on disk.
-    pub fn create_default(paths: &Paths, id: Id) -> Result<Test, CreateError> {
+    pub fn create_default(paths: &Paths, vcs: Option<&Vcs>, id: Id) -> Result<Test, CreateError> {
         Self::create(
             paths,
+            vcs,
             id,
             DEFAULT_TEST_INPUT,
             // NOTE(tinger): this image is already optimized
@@ -197,6 +204,7 @@ impl Test {
     /// Creates a new test on disk.
     pub fn create(
         paths: &Paths,
+        vcs: Option<&Vcs>,
         id: Id,
         source: &str,
         reference: Option<Reference>,
@@ -232,12 +240,17 @@ impl Test {
             annotations,
         };
 
+        // ingore temporaries before creating any
+        if let Some(vcs) = vcs {
+            vcs.ignore(paths, &this)?;
+        }
+
         match reference {
             Some(Reference::Ephemeral(reference)) => {
                 this.create_reference_script(paths, reference.as_str())?;
             }
             Some(Reference::Persistent(reference, options)) => {
-                this.create_reference_documents(paths, None, &reference, options.as_deref())?;
+                this.create_reference_documents(paths, &reference, options.as_deref())?;
             }
             None => {}
         }
@@ -246,7 +259,7 @@ impl Test {
     }
 
     /// Creates this test's temporary directories, if they don't exist yet.
-    pub fn create_temporary_directories(&self, paths: &Paths, vcs: Option<&Vcs>) -> io::Result<()> {
+    pub fn create_temporary_directories(&self, paths: &Paths) -> io::Result<()> {
         self.delete_temporary_directories(paths)?;
 
         if self.kind.is_ephemeral() {
@@ -255,10 +268,6 @@ impl Test {
 
         stdx::fs::create_dir(paths.test_out_dir(&self.id), true)?;
         stdx::fs::create_dir(paths.test_diff_dir(&self.id), true)?;
-
-        if let Some(vcs) = vcs {
-            self.ignore_temporary_directories(paths, vcs)?;
-        }
 
         Ok(())
     }
@@ -281,7 +290,6 @@ impl Test {
     pub fn create_reference_documents(
         &self,
         paths: &Paths,
-        vcs: Option<&Vcs>,
         reference: &Document,
         optimize_options: Option<&oxipng::Options>,
     ) -> Result<(), SaveError> {
@@ -293,12 +301,6 @@ impl Test {
         let ref_dir = paths.test_ref_dir(&self.id);
         stdx::fs::create_dir(&ref_dir, true)?;
         reference.save(&ref_dir, optimize_options)?;
-
-        if self.kind().is_ephemeral() {
-            if let Some(vcs) = vcs {
-                self.ignore_reference_documents(paths, vcs)?;
-            }
-        }
 
         Ok(())
     }
@@ -344,42 +346,22 @@ impl Test {
         Ok(())
     }
 
-    /// Ignores this test's temporary directories in the vcs.
-    pub fn ignore_temporary_directories(&self, paths: &Paths, vcs: &Vcs) -> io::Result<()> {
-        if self.kind.is_ephemeral() {
-            vcs.ignore_dir(&paths.test_ref_dir(&self.id))?;
-        }
-
-        vcs.ignore_dir(&paths.test_out_dir(&self.id))?;
-        vcs.ignore_dir(&paths.test_diff_dir(&self.id))?;
-
-        Ok(())
-    }
-
-    /// Ignores this test's persistent reference documents in the vcs.
-    pub fn ignore_reference_documents(&self, paths: &Paths, vcs: &Vcs) -> io::Result<()> {
-        vcs.ignore_dir(&paths.test_ref_dir(&self.id))?;
-        Ok(())
-    }
-
-    /// Ignores this test's persistent reference documents in the vcs.
-    pub fn unignore_reference_documents(&self, paths: &Paths, vcs: &Vcs) -> io::Result<()> {
-        vcs.unignore_dir(&paths.test_ref_dir(&self.id))?;
-        Ok(())
-    }
-
     /// Removes any previous references, if they exist and creates a reference
     /// script by copying the test script.
     pub fn make_ephemeral(&mut self, paths: &Paths, vcs: Option<&Vcs>) -> io::Result<()> {
+        self.kind = Kind::Ephemeral;
+
+        // ensure deletion is recorded before ignore file is updated
         self.delete_reference_script(paths)?;
         self.delete_reference_documents(paths)?;
+
         if let Some(vcs) = vcs {
-            self.ignore_reference_documents(paths, vcs)?;
+            vcs.ignore(paths, self)?;
         }
 
+        // copy refernces after ignore file is updated
         std::fs::copy(paths.test_script(&self.id), paths.test_ref_script(&self.id))?;
 
-        self.kind = Kind::Ephemeral;
         Ok(())
     }
 
@@ -392,25 +374,31 @@ impl Test {
         reference: &Document,
         optimize_options: Option<&oxipng::Options>,
     ) -> Result<(), SaveError> {
+        self.kind = Kind::Persistent;
+
+        // ensure deletion/creation is recorded before ignore file is updated
         self.delete_reference_script(paths)?;
-        self.create_reference_documents(paths, vcs, reference, optimize_options)?;
+        self.create_reference_documents(paths, reference, optimize_options)?;
+
         if let Some(vcs) = vcs {
-            self.unignore_reference_documents(paths, vcs)?;
+            vcs.ignore(paths, self)?;
         }
 
-        self.kind = Kind::Persistent;
         Ok(())
     }
 
     /// Removes any previous references, if they exist.
     pub fn make_compile_only(&mut self, paths: &Paths, vcs: Option<&Vcs>) -> io::Result<()> {
+        self.kind = Kind::CompileOnly;
+
+        // ensure deletion is recorded before ignore file is updated
         self.delete_reference_documents(paths)?;
         self.delete_reference_script(paths)?;
+
         if let Some(vcs) = vcs {
-            self.ignore_reference_documents(paths, vcs)?;
+            vcs.ignore(paths, self)?;
         }
 
-        self.kind = Kind::CompileOnly;
         Ok(())
     }
 
@@ -517,10 +505,11 @@ mod tests {
             |root| root.setup_dir("tests"),
             |root| {
                 let paths = Paths::new(root, None);
-                Test::create(&paths, id("compile-only"), "Hello World", None).unwrap();
+                Test::create(&paths, None, id("compile-only"), "Hello World", None).unwrap();
 
                 Test::create(
                     &paths,
+                    None,
                     id("ephemeral"),
                     "Hello World",
                     Some(Reference::Ephemeral("Hello\nWorld".into())),
@@ -529,13 +518,14 @@ mod tests {
 
                 Test::create(
                     &paths,
+                    None,
                     id("persistent"),
                     "Hello World",
                     Some(Reference::Persistent(Document::new(vec![]), None)),
                 )
                 .unwrap();
 
-                Test::create_default(&paths, id("default")).unwrap();
+                Test::create_default(&paths, None, id("default")).unwrap();
             },
             |root| {
                 root.expect_file_content("tests/compile-only/test.typ", "Hello World")
