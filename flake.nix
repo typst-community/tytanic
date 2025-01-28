@@ -47,7 +47,6 @@
             ./Cargo.lock
             ./rustfmt.toml
             ./crates
-            ./assets/default-test
           ];
         };
 
@@ -88,7 +87,7 @@
             in
             "${version} (${rev})";
 
-          meta.mainProgram = "tytanic";
+          meta.mainProgram = "tt";
         });
       in
       {
