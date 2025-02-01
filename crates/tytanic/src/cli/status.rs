@@ -18,6 +18,7 @@ pub struct Args {
 
 pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
     let project = ctx.project()?;
+    let paths = project.paths();
     let suite = ctx.collect_all_tests(&project)?;
 
     let delim_open = " ┌ ";
@@ -56,6 +57,19 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
     }
     writeln!(w)?;
 
+    write!(w, "{:>align$}{}", "Template", delim_middle)?;
+    if suite.template().is_some() {
+        let path = paths.template();
+        let path = path
+            .strip_prefix(paths.project_root())
+            .expect("template is in project root");
+
+        cwrite!(bold_colored(w, Color::Cyan), "{}", path.display())?;
+    } else {
+        cwrite!(bold_colored(w, Color::Green), "none")?;
+    }
+    writeln!(w)?;
+
     if suite.matched().is_empty() {
         write!(w, "{:>align$}{}", "Tests", delim_close)?;
         cwrite!(bold_colored(w, Color::Cyan), "none")?;
@@ -85,15 +99,6 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
         cwrite!(bold_colored(w, Color::Yellow), "{compile_only}")?;
         writeln!(w, " compile-only")?;
     }
-
-    // TODO(tinger): this may be misunderstood as the package being a template
-    // write!(w, "{:>align$}{}", "Template", delims.close)?;
-    // if let Some(path) = suite.template() {
-    //     ui::write_bold_colored(&mut w, Color::Cyan, |w| write!(w, "{path}"))?;
-    // } else {
-    //     ui::write_bold_colored(&mut w, Color::Green, |w| write!(w, "none"))?;
-    // }
-    // writeln!(w)?;
 
     Ok(())
 }
