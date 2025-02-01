@@ -1,6 +1,7 @@
 # [unreleased](https://github.com/tingerrr/tytanic/releases/tags/)
 ## Added
 - `util vcs ignore` command to regenerate ignore files
+- Show if template is detected in `tt status`
 
 ## Removed
 
