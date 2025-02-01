@@ -168,7 +168,9 @@ impl Document {
                 .with_extension(PAGE_EXTENSION);
 
             if let Some(options) = optimize_options {
-                oxipng::optimize_from_memory(page.data(), options)?;
+                let buffer = page.encode_png()?;
+                let optimized = oxipng::optimize_from_memory(&buffer, options)?;
+                fs::write(path, optimized)?;
             } else {
                 page.save_png(path)?;
             }
