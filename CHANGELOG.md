@@ -10,6 +10,7 @@
 
 ## Fixed
 - Removed a dead asset path from the `flake.nix`.
+- Panic when optimizing reference documents
 
 ---
 
