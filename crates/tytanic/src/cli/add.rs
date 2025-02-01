@@ -11,6 +11,7 @@ use tytanic_core::test::{Id, Reference, Test};
 
 use super::{CompileArgs, Context, ExportArgs};
 use crate::cli::OperationFailure;
+use crate::ui;
 use crate::{cwriteln, DEFAULT_OPTIMIZE_OPTIONS};
 
 #[derive(clap::Args, Debug, Clone)]
@@ -64,18 +65,46 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
             Test::create(paths, vcs, id, template, None)?;
         } else {
             let world = ctx.world(&args.compile)?;
+            let path = project.paths().template();
 
-            // TODO(tinger): properly report diagnostics
-            let Warned {
-                output,
-                warnings: _,
-            } = Document::compile(
-                Source::new(FileId::new_fake(VirtualPath::new("")), template.to_owned()),
+            let path = path
+                .strip_prefix(project.paths().project_root())
+                .expect("template is in project root");
+
+            let Warned { output, warnings } = Document::compile(
+                Source::new(
+                    FileId::new(None, VirtualPath::new(path)),
+                    template.to_owned(),
+                ),
                 &world,
                 ppi_to_ppp(args.export.render.pixel_per_inch),
                 args.compile.promote_warnings,
             );
-            let doc = output?;
+
+            let doc = match output {
+                Ok(doc) => {
+                    if !warnings.is_empty() {
+                        ui::write_diagnostics(
+                            &mut ctx.ui.stderr(),
+                            ctx.ui.diagnostic_config(),
+                            &world,
+                            &warnings,
+                            &[],
+                        )?;
+                    }
+                    doc
+                }
+                Err(err) => {
+                    ui::write_diagnostics(
+                        &mut ctx.ui.stderr(),
+                        ctx.ui.diagnostic_config(),
+                        &world,
+                        &warnings,
+                        &err.0,
+                    )?;
+                    eyre::bail!(OperationFailure);
+                }
+            };
 
             Test::create(
                 paths,
