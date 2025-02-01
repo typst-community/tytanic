@@ -16,14 +16,11 @@ use crate::{cwriteln, DEFAULT_OPTIMIZE_OPTIONS};
 #[derive(clap::Args, Debug, Clone)]
 #[group(id = "add-args")]
 pub struct Args {
-    /// Whether this test creates it's references on the fly
-    ///
-    /// An ephemeral test consists of two scripts which are compared
-    /// against each other. The reference script must be called `ref.typ`.
+    /// Whether to create an ephemeral test
     #[arg(long, short)]
     pub ephemeral: bool,
 
-    /// Whether this test has no references at all
+    /// Whether to create a compile only test
     #[arg(long, short, conflicts_with = "ephemeral")]
     pub compile_only: bool,
 
