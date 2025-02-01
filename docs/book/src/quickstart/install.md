@@ -13,6 +13,14 @@ Nightly versions are not pre-built.
 
 After you downloaded the correct archive for your operating system and architecture you have to extract them and place the `tt` binary somewhere in your `$PATH`.
 
+### Using cargo-binstall
+The most straight forward way to install `tytanic` is to use `cargo-binstall`, this saves you the hassle of compiling from source:
+```shell
+cargo binstall tytanic@v0.1.0
+```
+
+This methods requires `cargo-binstall` to be installed.
+
 ### Installation From Source
 To install `tytanic` from source, you must have a Rust toolchain (Rust **v1.80.0+**) and `cargo` installed, you can get these using [`rustup`][rustup].
 
