@@ -5,8 +5,8 @@ use termcolor::Color;
 use tytanic_core::test::Kind as TestKind;
 
 use super::{Context, FilterArgs};
+use crate::cwriteln;
 use crate::json::TestJson;
-use crate::ui;
 use crate::ui::Indented;
 
 #[derive(clap::Args, Debug, Clone)]
@@ -40,9 +40,9 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
 
     let mut w = ctx.ui.stderr();
 
-    ui::write_bold(&mut w, |w| writeln!(w, "Tests"))?;
+    cwriteln!(bold(w), "Tests")?;
 
-    let w = &mut Indented::new(w, 2);
+    let mut w = Indented::new(w, 2);
 
     // NOTE(tinger): max padding of 50 should be enough for most cases
     let pad = Ord::min(
@@ -62,7 +62,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
             TestKind::Persistent => Color::Green,
             TestKind::CompileOnly => Color::Yellow,
         };
-        ui::write_bold_colored(w, color, |w| writeln!(w, "{}", test.kind().as_str()))?;
+        cwriteln!(bold_colored(w, color), "{}", test.kind().as_str())?;
     }
 
     Ok(())

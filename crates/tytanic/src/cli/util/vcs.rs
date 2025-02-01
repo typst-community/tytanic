@@ -5,7 +5,7 @@ use termcolor::Color;
 use tytanic_core::stdx::fmt::Term;
 
 use crate::cli::OperationFailure;
-use crate::ui;
+use crate::cwrite;
 
 use super::Context;
 
@@ -31,7 +31,7 @@ impl Command {
                 let project = ctx.project()?;
                 let paths = project.paths();
                 let Some(vcs) = project.vcs() else {
-                    ctx.ui.warning("no VCS detected")?;
+                    writeln!(ctx.ui.warn()?, "no VCS detected")?;
                     eyre::bail!(OperationFailure);
                 };
 
@@ -45,7 +45,7 @@ impl Command {
 
                 let mut w = ctx.ui.stderr();
                 write!(w, "Rewritten ignore files for ")?;
-                ui::write_colored(&mut w, Color::Green, |w| write!(w, "{len}"))?;
+                cwrite!(colored(w, Color::Green), "{len}")?;
                 writeln!(w, " {}", Term::simple("test").with(len))?;
 
                 Ok(())

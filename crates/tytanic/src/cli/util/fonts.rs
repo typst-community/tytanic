@@ -1,12 +1,13 @@
 use std::io::Write;
 
 use color_eyre::eyre;
+use termcolor::Color;
 use typst::text::FontStyle;
 
 use crate::cli::Context;
 use crate::json::{FontJson, FontVariantJson};
 use crate::ui::Indented;
-use crate::{kit, ui};
+use crate::{cwrite, cwriteln, kit};
 
 #[derive(clap::Args, Debug, Clone)]
 #[group(id = "util-font-args")]
@@ -52,11 +53,11 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
 
     let mut w = ctx.ui.stderr();
 
-    ui::write_bold(&mut w, |w| writeln!(w, "Fonts"))?;
+    cwriteln!(bold(w), "Fonts")?;
 
     let mut w = Indented::new(w, 2);
     for font in fonts {
-        ui::write_ident(&mut w, |w| writeln!(w, "{}", font.name))?;
+        cwrite!(bold_colored(w, Color::Cyan), "{}", font.name)?;
 
         let mut w = Indented::new(&mut w, 2);
         for variant in &font.variants {

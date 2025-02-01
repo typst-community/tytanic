@@ -6,6 +6,7 @@ use std::sync::atomic::Ordering;
 
 use clap::Parser;
 use cli::Context;
+use codespan_reporting::term;
 use color_eyre::eyre;
 use once_cell::sync::Lazy;
 use termcolor::{StandardStream, WriteColor};
@@ -52,7 +53,15 @@ fn main_impl() -> eyre::Result<ExitCode> {
         clap::ColorChoice::Never => termcolor::ColorChoice::Never,
     };
 
-    let ui = Ui::new(cc, cc);
+    let ui = Ui::new(
+        cc,
+        cc,
+        term::Config {
+            display_style: term::DisplayStyle::Rich,
+            tab_width: 2,
+            ..Default::default()
+        },
+    );
 
     // this is a hack, termcolor does not expose any way for us to easily reuse
     // their internal mechanism of checking whether the given stream is color
@@ -83,15 +92,16 @@ fn main_impl() -> eyre::Result<ExitCode> {
     if let Err(err) = ctrlc::set_handler(|| {
         cli::CANCELLED.store(true, Ordering::SeqCst);
     }) {
-        ui.error_hinted_with(
-            |w| writeln!(w, "couldn't register ctrl-c handler:\n{err}"),
-            |w| writeln!(w, "pressing ctrl-c will discard output of failed tests"),
+        writeln!(ui.error()?, "couldn't register ctrl-c handler:\n{err}")?;
+        writeln!(
+            ui.hint()?,
+            "pressing ctrl-c will discard output of failed tests"
         )?;
     }
 
     if let Some(jobs) = args.global.jobs {
         let jobs = if jobs < 2 {
-            ui.warning("at least 2 threads are needed, using 2")?;
+            writeln!(ui.warn()?, "at least 2 threads are needed, using 2")?;
             2
         } else {
             jobs
@@ -133,26 +143,23 @@ fn main_impl() -> eyre::Result<ExitCode> {
                 break 'err cli::EXIT_OK;
             }
 
-            ctx.ui.error_with(|w| {
-                writeln!(
-                    w,
-                    "tytanic ran into an unexpected error, this is most likely a bug"
-                )?;
-                writeln!(
-                    w,
-                    "Please consider reporting this at {}/issues/new",
-                    std::env!("CARGO_PKG_REPOSITORY")
-                )
-            })?;
+            writeln!(
+                ctx.ui.error()?,
+                "tytanic ran into an unexpected error, this is most likely a bug"
+            )?;
+            writeln!(
+                ctx.ui.hint()?,
+                "Please consider reporting this at {}/issues/new",
+                std::env!("CARGO_PKG_REPOSITORY")
+            )?;
+
             if !std::env::var("RUST_BACKTRACE").is_ok_and(|var| var == "full") {
-                ctx.ui.hint_with(|w| {
-                    writeln!(
-                        w,
-                        "consider running with the environment variable RUST_BACKTRACE set to 'full' when reporting issues\n",
-                    )
-                })?;
+                writeln!(
+                    ctx.ui.hint()?,
+                    "consider running with the environment variable RUST_BACKTRACE set to 'full' when reporting issues\n",
+                )?;
             }
-            ctx.ui.error_with(|w| writeln!(w, "{err:?}"))?;
+            writeln!(ctx.ui.error()?, "{err:?}")?;
 
             cli::EXIT_OPERATION_FAILURE
         }

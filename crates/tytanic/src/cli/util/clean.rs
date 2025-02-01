@@ -5,7 +5,7 @@ use termcolor::Color;
 use tytanic_core::stdx::fmt::Term;
 
 use super::Context;
-use crate::ui;
+use crate::cwrite;
 
 pub fn run(ctx: &mut Context) -> eyre::Result<()> {
     let project = ctx.project()?;
@@ -19,7 +19,7 @@ pub fn run(ctx: &mut Context) -> eyre::Result<()> {
 
     let mut w = ctx.ui.stderr();
     write!(w, "Removed temporary directories for ")?;
-    ui::write_colored(&mut w, Color::Green, |w| write!(w, "{len}"))?;
+    cwrite!(colored(w, Color::Green), "{len}")?;
     writeln!(w, " {}", Term::simple("test").with(len))?;
 
     Ok(())

@@ -5,7 +5,7 @@ use termcolor::Color;
 use tytanic_core::stdx::fmt::Term;
 
 use super::{Context, FilterArgs};
-use crate::ui;
+use crate::cwrite;
 
 #[derive(clap::Args, Debug, Clone)]
 #[group(id = "remove-args")]
@@ -45,7 +45,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
     let mut w = ctx.ui.stderr();
 
     write!(w, "Removed ")?;
-    ui::write_bold_colored(&mut w, Color::Green, |w| write!(w, "{len}"))?;
+    cwrite!(bold_colored(w, Color::Green), "{len}")?;
     writeln!(w, " {}", Term::simple("test").with(len))?;
 
     Ok(())

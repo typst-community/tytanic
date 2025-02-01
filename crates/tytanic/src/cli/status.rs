@@ -5,8 +5,8 @@ use termcolor::Color;
 use tytanic_core::test::Kind;
 
 use super::Context;
+use crate::cwrite;
 use crate::json::ProjectJson;
-use crate::ui;
 
 #[derive(clap::Args, Debug, Clone)]
 #[group(id = "status-args")]
@@ -39,26 +39,26 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
 
     if let Some(package) = project.manifest_package_info() {
         write!(w, "{:>align$}{}", "Project", delim_open)?;
-        ui::write_bold_colored(&mut w, Color::Cyan, |w| write!(w, "{}", &package.name))?;
+        cwrite!(bold_colored(w, Color::Cyan), "{}", &package.name)?;
         write!(w, ":")?;
-        ui::write_bold_colored(&mut w, Color::Cyan, |w| write!(w, "{}", &package.version))?;
+        cwrite!(bold_colored(w, Color::Cyan), "{}", &package.version)?;
     } else {
         write!(w, "{:>align$}{}", "Project", delim_open)?;
-        ui::write_bold_colored(&mut w, Color::Yellow, |w| write!(w, "none"))?;
+        cwrite!(bold_colored(w, Color::Yellow), "none")?;
     }
     writeln!(w)?;
 
     write!(w, "{:>align$}{}", "Vcs", delim_middle)?;
     if let Some(vcs) = project.vcs() {
-        ui::write_bold_colored(&mut w, Color::Green, |w| write!(w, "{vcs}"))?;
+        cwrite!(bold_colored(w, Color::Green), "{vcs}")?;
     } else {
-        ui::write_bold_colored(&mut w, Color::Yellow, |w| write!(w, "none"))?;
+        cwrite!(bold_colored(w, Color::Yellow), "none")?;
     }
     writeln!(w)?;
 
     if suite.matched().is_empty() {
         write!(w, "{:>align$}{}", "Tests", delim_close)?;
-        ui::write_bold_colored(&mut w, Color::Cyan, |w| write!(w, "none"))?;
+        cwrite!(bold_colored(w, Color::Cyan), "none")?;
         writeln!(w)?;
     } else {
         let mut persistent = 0;
@@ -74,15 +74,15 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
         }
 
         write!(w, "{:>align$}{}", "Tests", delim_middle)?;
-        ui::write_bold_colored(&mut w, Color::Green, |w| write!(w, "{persistent}"))?;
+        cwrite!(bold_colored(w, Color::Green), "{persistent}")?;
         writeln!(w, " persistent")?;
 
         write!(w, "{:>align$}{}", "", delim_middle)?;
-        ui::write_bold_colored(&mut w, Color::Green, |w| write!(w, "{ephemeral}"))?;
+        cwrite!(bold_colored(w, Color::Green), "{ephemeral}")?;
         writeln!(w, " ephemeral")?;
 
         write!(w, "{:>align$}{}", "", delim_close)?;
-        ui::write_bold_colored(&mut w, Color::Yellow, |w| write!(w, "{compile_only}"))?;
+        cwrite!(bold_colored(w, Color::Yellow), "{compile_only}")?;
         writeln!(w, " compile-only")?;
     }
 

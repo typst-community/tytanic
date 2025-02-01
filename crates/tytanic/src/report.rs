@@ -3,19 +3,15 @@
 use std::io::{self, Write};
 use std::time::Duration;
 
-use codespan_reporting::diagnostic::{Diagnostic, Label};
-use codespan_reporting::term;
 use color_eyre::eyre;
-use ecow::eco_format;
 use termcolor::{Color, WriteColor};
-use typst::diag::{Severity, SourceDiagnostic};
-use typst::WorldExt;
-use typst_syntax::{FileId, Span};
+use typst::diag::SourceDiagnostic;
 use tytanic_core::doc::compare::{self, PageError};
 use tytanic_core::project::Project;
 use tytanic_core::stdx::fmt::Term;
 use tytanic_core::test::{SuiteResult, Test, TestResult, TestResultKind};
 
+use crate::cwrite;
 use crate::ui::{self, Ui};
 use crate::world::SystemWorld;
 
@@ -41,7 +37,6 @@ pub struct Reporter<'ui, 'p> {
     live: bool,
     warnings: When,
     errors: bool,
-    diagnostic_config: term::Config,
 }
 
 impl<'ui, 'p> Reporter<'ui, 'p> {
@@ -53,11 +48,6 @@ impl<'ui, 'p> Reporter<'ui, 'p> {
             live,
             warnings: When::Always,
             errors: true,
-            diagnostic_config: term::Config {
-                display_style: term::DisplayStyle::Rich,
-                tab_width: 2,
-                ..Default::default()
-            },
         }
     }
 }
@@ -65,25 +55,28 @@ impl<'ui, 'p> Reporter<'ui, 'p> {
 impl Reporter<'_, '_> {
     /// Reports the start of a test run.
     pub fn report_start(&self, result: &SuiteResult) -> io::Result<()> {
-        let mut w = self.ui.stderr();
+        let mut w = ui::annotated(
+            self.ui.stderr(),
+            "Starting",
+            Color::Green,
+            RUN_ANNOT_PADDING,
+        )?;
 
-        ui::write_annotated(&mut w, "Starting", Color::Green, RUN_ANNOT_PADDING, |w| {
-            ui::write_bold(w, |w| write!(w, "{}", result.total()))?;
-            write!(w, " tests")?;
+        cwrite!(bold(w), "{}", result.total())?;
+        write!(w, " tests")?;
 
-            if result.filtered() != 0 {
-                write!(w, ", ")?;
-                ui::write_bold(w, |w| write!(w, "{}", result.filtered()))?;
-                write!(w, " ")?;
-                ui::write_colored(w, Color::Yellow, |w| write!(w, "filtered"))?;
-            }
+        if result.filtered() != 0 {
+            write!(w, ", ")?;
+            cwrite!(bold(w), "{}", result.filtered())?;
+            write!(w, " ")?;
+            cwrite!(colored(w, Color::Yellow), "filtered")?;
+        }
 
-            write!(w, " (run ID: ")?;
-            ui::write_bold(w, |w| write!(w, "{}", result.id()))?;
-            writeln!(w, ")")?;
+        write!(w, " (run ID: ")?;
+        cwrite!(bold(w), "{}", result.id())?;
+        writeln!(w, ")")?;
 
-            Ok(())
-        })
+        Ok(())
     }
 
     /// Reports the end of a test run.
@@ -100,62 +93,62 @@ impl Reporter<'_, '_> {
 
         writeln!(w, "{:─>RUN_ANNOT_PADDING$}", "")?;
 
-        ui::write_annotated(&mut w, "Summary", color, RUN_ANNOT_PADDING, |w| {
-            write!(w, "[")?;
-            ui::write_colored(
-                w,
+        let mut w = ui::annotated(w, "Summary", color, RUN_ANNOT_PADDING)?;
+
+        write!(w, "[")?;
+        write_duration(
+            &mut ui::colored(
+                &mut w,
                 duration_color(
                     result
                         .duration()
                         .checked_div(result.run() as u32)
                         .unwrap_or_default(),
                 ),
-                |w| write_duration(w, result.duration()),
-            )?;
-            write!(w, "] ")?;
+            )?,
+            result.duration(),
+        )?;
+        write!(w, "] ")?;
 
-            ui::write_bold(w, |w| write!(w, "{}", result.run()))?;
-            write!(w, "/")?;
-            ui::write_bold(w, |w| write!(w, "{}", result.expected()))?;
-            write!(w, " tests run: ")?;
+        cwrite!(bold(w), "{}", result.run())?;
+        write!(w, "/")?;
+        cwrite!(bold(w), "{}", result.expected())?;
+        write!(w, " tests run: ")?;
 
-            if result.passed() == result.total() {
-                ui::write_bold(w, |w| write!(w, "all {}", result.passed()))?;
-                write!(w, " ")?;
-                ui::write_colored(w, Color::Green, |w| write!(w, "passed"))?;
-            } else if result.failed() == result.total() {
-                ui::write_bold(w, |w| write!(w, "all {}", result.failed()))?;
-                write!(w, " ")?;
-                ui::write_colored(w, Color::Red, |w| write!(w, "failed"))?;
-            } else {
-                ui::write_bold(w, |w| write!(w, "{}", result.passed()))?;
-                write!(w, " ")?;
-                ui::write_colored(w, Color::Green, |w| write!(w, "passed"))?;
+        if result.passed() == result.total() {
+            cwrite!(bold(w), "all {}", result.passed())?;
+            write!(w, " ")?;
+            cwrite!(colored(w, Color::Green), "passed")?;
+        } else if result.failed() == result.total() {
+            cwrite!(bold(w), "all {}", result.failed())?;
+            write!(w, " ")?;
+            cwrite!(colored(w, Color::Red), "failed")?;
+        } else {
+            cwrite!(bold(w), "{}", result.passed())?;
+            write!(w, " ")?;
+            cwrite!(colored(w, Color::Green), "passed")?;
 
-                write!(w, ", ")?;
-                ui::write_bold(w, |w| write!(w, "{}", result.failed()))?;
-                write!(w, " ")?;
-                ui::write_colored(w, Color::Red, |w| write!(w, "failed"))?;
-            }
+            write!(w, ", ")?;
+            cwrite!(bold(w), "{}", result.failed())?;
+            write!(w, " ")?;
+            cwrite!(colored(w, Color::Red), "failed")?;
+        }
 
-            if result.filtered() != 0 {
-                write!(w, ", ")?;
-                ui::write_bold(w, |w| write!(w, "{}", result.filtered()))?;
-                write!(w, " ")?;
-                ui::write_colored(w, Color::Yellow, |w| write!(w, "filtered"))?;
-            }
+        if result.filtered() != 0 {
+            write!(w, ", ")?;
+            cwrite!(bold(w), "{}", result.filtered())?;
+            write!(w, " ")?;
+            cwrite!(colored(w, Color::Yellow), "filtered")?;
+        }
 
-            if result.skipped() != 0 {
-                write!(w, ", ")?;
-                ui::write_bold(w, |w| write!(w, "{}", result.skipped()))?;
-                write!(w, " ")?;
-                ui::write_colored(w, Color::Yellow, |w| write!(w, "skipped"))?;
-            }
+        if result.skipped() != 0 {
+            write!(w, ", ")?;
+            cwrite!(bold(w), "{}", result.skipped())?;
+            write!(w, " ")?;
+            cwrite!(colored(w, Color::Yellow), "skipped")?;
+        }
 
-            writeln!(w)?;
-
-            Ok(())
-        })?;
+        writeln!(w)?;
 
         // TODO(tinger): report failures, mean and avg time
 
@@ -177,58 +170,56 @@ impl Reporter<'_, '_> {
             return Ok(());
         }
 
-        let mut w = self.ui.stderr();
-
         let duration = result.timestamp().elapsed();
 
-        ui::write_annotated(&mut w, "", Color::Black, RUN_ANNOT_PADDING, |w| {
-            write!(w, "[")?;
-            ui::write_colored(
-                w,
+        let mut w = ui::annotated(self.ui.stderr(), "", Color::Black, RUN_ANNOT_PADDING)?;
+
+        write!(w, "[")?;
+        write_duration(
+            &mut ui::colored(
+                &mut w,
                 duration_color(
                     duration
                         .checked_div(result.run() as u32)
                         .unwrap_or_default(),
                 ),
-                |w| write_duration(w, duration),
-            )?;
-            write!(w, "] ")?;
+            )?,
+            result.duration(),
+        )?;
+        write!(w, "] ")?;
 
-            ui::write_bold(w, |w| write!(w, "{}", result.run()))?;
-            write!(w, "/")?;
-            ui::write_bold(w, |w| write!(w, "{}", result.expected()))?;
-            write!(w, " tests run: ")?;
+        cwrite!(bold(w), "{}", result.run())?;
+        write!(w, "/")?;
+        cwrite!(bold(w), "{}", result.expected())?;
+        write!(w, " tests run: ")?;
 
-            if result.passed() == result.total() {
-                ui::write_bold(w, |w| write!(w, "all {}", result.passed()))?;
-                write!(w, " ")?;
-                ui::write_colored(w, Color::Green, |w| write!(w, "passed"))?;
-            } else if result.failed() == result.total() {
-                ui::write_bold(w, |w| write!(w, "all {}", result.failed()))?;
-                write!(w, " ")?;
-                ui::write_colored(w, Color::Red, |w| write!(w, "failed"))?;
-            } else {
-                ui::write_bold(w, |w| write!(w, "{}", result.passed()))?;
-                write!(w, " ")?;
-                ui::write_colored(w, Color::Green, |w| write!(w, "passed"))?;
+        if result.passed() == result.total() {
+            cwrite!(bold(w), "all {}", result.passed())?;
+            write!(w, " ")?;
+            cwrite!(colored(w, Color::Green), "passed")?;
+        } else if result.failed() == result.total() {
+            cwrite!(bold(w), "all {}", result.failed())?;
+            write!(w, " ")?;
+            cwrite!(colored(w, Color::Red), "failed")?;
+        } else {
+            cwrite!(bold(w), "{}", result.passed())?;
+            write!(w, " ")?;
+            cwrite!(colored(w, Color::Green), "passed")?;
 
-                write!(w, ", ")?;
-                ui::write_bold(w, |w| write!(w, "{}", result.failed()))?;
-                write!(w, " ")?;
-                ui::write_colored(w, Color::Red, |w| write!(w, "failed"))?;
-            }
+            write!(w, ", ")?;
+            cwrite!(bold(w), "{}", result.failed())?;
+            write!(w, " ")?;
+            cwrite!(colored(w, Color::Red), "failed")?;
+        }
 
-            if result.filtered() != 0 {
-                write!(w, ", ")?;
-                ui::write_bold(w, |w| write!(w, "{}", result.filtered()))?;
-                write!(w, " ")?;
-                ui::write_colored(w, Color::Yellow, |w| write!(w, "filtered"))?;
-            }
+        if result.filtered() != 0 {
+            write!(w, ", ")?;
+            cwrite!(bold(w), "{}", result.filtered())?;
+            write!(w, " ")?;
+            cwrite!(colored(w, Color::Yellow), "filtered")?;
+        }
 
-            writeln!(w)?;
-
-            Ok(())
-        })?;
+        writeln!(w)?;
 
         Ok(())
     }
@@ -240,30 +231,27 @@ impl Reporter<'_, '_> {
         duration: Duration,
         warnings: &[SourceDiagnostic],
     ) -> eyre::Result<()> {
-        ui::write_annotated(
-            &mut self.ui.stderr(),
-            "pass",
-            Color::Green,
-            RUN_ANNOT_PADDING,
-            |w| {
-                write!(w, "[")?;
-                ui::write_colored(w, duration_color(duration), |w| write_duration(w, duration))?;
-                write!(w, "] ")?;
-                ui::write_test_id(w, test.id())?;
-                writeln!(w)?;
+        let mut w = ui::annotated(self.ui.stderr(), "pass", Color::Green, RUN_ANNOT_PADDING)?;
 
-                self.write_diagnostics(
-                    w,
-                    if self.warnings == When::Always {
-                        warnings
-                    } else {
-                        &[]
-                    },
-                    &[],
-                )?;
+        write!(w, "[")?;
+        write_duration(
+            &mut ui::colored(&mut w, duration_color(duration))?,
+            duration,
+        )?;
+        write!(w, "] ")?;
+        ui::write_test_id(&mut w, test.id())?;
+        writeln!(w)?;
 
-                Ok(())
+        ui::write_diagnostics(
+            &mut w,
+            self.ui.diagnostic_config(),
+            self.world,
+            if self.warnings == When::Always {
+                warnings
+            } else {
+                &[]
             },
+            &[],
         )?;
 
         Ok(())
@@ -276,144 +264,88 @@ impl Reporter<'_, '_> {
         result: &TestResult,
         diff_hint: bool,
     ) -> eyre::Result<()> {
-        ui::write_annotated(
-            &mut self.ui.stderr(),
-            "fail",
-            Color::Red,
-            RUN_ANNOT_PADDING,
-            |w| {
-                write!(w, "[")?;
-                ui::write_colored(w, duration_color(result.duration()), |w| {
-                    write_duration(w, result.duration())
-                })?;
-                write!(w, "] ")?;
-                ui::write_test_id(w, test.id())?;
-                writeln!(w)?;
+        let mut w = ui::annotated(self.ui.stderr(), "fail", Color::Red, RUN_ANNOT_PADDING)?;
 
-                match result.kind() {
-                    Some(TestResultKind::FailedCompilation { error, reference }) => {
-                        writeln!(
-                            w,
-                            "Compilation of {} failed",
-                            if *reference { "reference" } else { "test" },
-                        )?;
+        write!(w, "[")?;
+        write_duration(
+            &mut ui::colored(&mut w, duration_color(result.duration()))?,
+            result.duration(),
+        )?;
+        write!(w, "] ")?;
+        ui::write_test_id(&mut w, test.id())?;
+        writeln!(w)?;
 
-                        self.write_diagnostics(
-                            w,
-                            if self.warnings != When::Never {
-                                result.warnings()
-                            } else {
-                                &[]
-                            },
-                            if self.errors { &error.0 } else { &[] },
-                        )?;
-                    }
-                    Some(TestResultKind::FailedComparison(compare::Error {
-                        output,
-                        reference,
-                        pages,
-                    })) => {
-                        if output != reference {
-                            writeln!(
-                                w,
-                                "Expected {reference} {}, got {output} {}",
-                                Term::simple("page").with(*reference),
-                                Term::simple("page").with(*output),
-                            )?;
-                        }
+        match result.kind() {
+            Some(TestResultKind::FailedCompilation { error, reference }) => {
+                writeln!(
+                    w,
+                    "Compilation of {} failed",
+                    if *reference { "reference" } else { "test" },
+                )?;
 
-                        for (p, e) in pages {
-                            let p = p + 1;
-                            match e {
-                                PageError::Dimensions { output, reference } => {
-                                    writeln!(w, "Page {p} had different dimensions")?;
-                                    w.write_with(2, |w| {
-                                        writeln!(w, "Output: {}", output)?;
-                                        writeln!(w, "Reference: {}", reference)
-                                    })?;
-                                }
-                                PageError::SimpleDeviations { deviations } => {
-                                    writeln!(
-                                        w,
-                                        "Page {p} had {deviations} {}",
-                                        Term::simple("deviation").with(*deviations),
-                                    )?;
-                                }
-                            }
-                        }
-
-                        if diff_hint {
-                            ui::write_hint_with(w, None, |w| {
-                                writeln!(
-                                    w,
-                                    "Diff images have been saved at '{}'",
-                                    self.project.paths().test_diff_dir(test.id()).display()
-                                )
-                            })?;
-                        }
-                    }
-                    _ => unreachable!(),
+                ui::write_diagnostics(
+                    &mut w,
+                    self.ui.diagnostic_config(),
+                    self.world,
+                    if self.warnings != When::Never {
+                        result.warnings()
+                    } else {
+                        &[]
+                    },
+                    if self.errors { &error.0 } else { &[] },
+                )?;
+            }
+            Some(TestResultKind::FailedComparison(compare::Error {
+                output,
+                reference,
+                pages,
+            })) => {
+                if output != reference {
+                    writeln!(
+                        w,
+                        "Expected {reference} {}, got {output} {}",
+                        Term::simple("page").with(*reference),
+                        Term::simple("page").with(*output),
+                    )?;
                 }
 
-                Ok(())
-            },
-        )?;
+                for (p, e) in pages {
+                    let p = p + 1;
+                    match e {
+                        PageError::Dimensions { output, reference } => {
+                            writeln!(w, "Page {p} had different dimensions")?;
+                            w.write_with(2, |w| {
+                                writeln!(w, "Output: {}", output)?;
+                                writeln!(w, "Reference: {}", reference)
+                            })?;
+                        }
+                        PageError::SimpleDeviations { deviations } => {
+                            writeln!(
+                                w,
+                                "Page {p} had {deviations} {}",
+                                Term::simple("deviation").with(*deviations),
+                            )?;
+                        }
+                    }
+                }
 
-        Ok(())
-    }
-
-    fn write_diagnostics<W: WriteColor>(
-        &self,
-        writer: &mut W,
-        warnings: &[SourceDiagnostic],
-        errors: &[SourceDiagnostic],
-    ) -> io::Result<()> {
-        // TODO(tinger): don't use io::ErrorKind::Other
-
-        for diagnostic in warnings.iter().chain(errors) {
-            let diag = match diagnostic.severity {
-                Severity::Error => Diagnostic::error(),
-                Severity::Warning => Diagnostic::warning(),
+                if diff_hint {
+                    writeln!(
+                        ui::hint(w)?,
+                        "Diff images have been saved at '{}'",
+                        self.project.paths().test_diff_dir(test.id()).display()
+                    )?;
+                }
             }
-            .with_message(diagnostic.message.clone())
-            .with_notes(
-                diagnostic
-                    .hints
-                    .iter()
-                    .map(|e| (eco_format!("hint: {e}")).into())
-                    .collect(),
-            )
-            .with_labels(
-                resolve_label(self.world, diagnostic.span)
-                    .into_iter()
-                    .collect(),
-            );
-
-            term::emit(writer, &self.diagnostic_config, self.world, &diag)
-                .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
-
-            // Stacktrace-like helper diagnostics.
-            for point in &diagnostic.trace {
-                let message = point.v.to_string();
-                let help = Diagnostic::help()
-                    .with_message(message)
-                    .with_labels(resolve_label(self.world, point.span).into_iter().collect());
-
-                term::emit(writer, &self.diagnostic_config, self.world, &help)
-                    .map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
-            }
+            _ => unreachable!(),
         }
 
         Ok(())
     }
 }
 
-fn resolve_label(world: &SystemWorld, span: Span) -> Option<Label<FileId>> {
-    Some(Label::primary(span.id()?, world.range(span)?))
-}
-
 /// Writes a padded duration in human readable form
-fn write_duration<W: Write>(w: &mut W, duration: Duration) -> io::Result<()> {
+fn write_duration(w: &mut dyn WriteColor, duration: Duration) -> io::Result<()> {
     let s = duration.as_secs();
     let ms = duration.subsec_millis();
     let us = duration.subsec_micros().saturating_sub(ms * 1000);

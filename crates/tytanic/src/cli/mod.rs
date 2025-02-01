@@ -14,9 +14,9 @@ use tytanic_core::project::Project;
 use tytanic_core::test::{Id, Suite};
 use tytanic_core::test_set::{self, eval, Error as TestSetError, TestSet};
 
-use crate::kit;
 use crate::ui::{self, Ui};
 use crate::world::SystemWorld;
+use crate::{cwrite, kit};
 
 pub mod add;
 pub mod list;
@@ -70,67 +70,58 @@ impl<'a> Context<'a> {
 
 impl Context<'_> {
     pub fn error_aborted(&self) -> io::Result<()> {
-        self.ui.error_with(|w| writeln!(w, "Operation aborted"))
+        writeln!(self.ui.error()?, "Operation aborted")
     }
 
     pub fn error_root_not_found(&self, root: &Path) -> io::Result<()> {
-        self.ui
-            .error_with(|w| writeln!(w, "Root '{}' not found", root.display()))
+        writeln!(self.ui.error()?, "Root '{}' not found", root.display())
     }
 
     pub fn error_no_project(&self) -> io::Result<()> {
-        self.ui.error_hinted_with(
-            |w| writeln!(w, "Must be in a typst project"),
-            |w| {
-                write!(w, "You can pass the project root using ")?;
-                ui::write_colored(w, Color::Cyan, |w| write!(w, "--root <path>"))?;
-                writeln!(w)
-            },
-        )
+        writeln!(self.ui.error()?, "Must be in a typst project")?;
+
+        let mut w = self.ui.hint()?;
+        write!(w, "You can pass the project root using ")?;
+        cwrite!(colored(w, Color::Cyan), "--root <path>")?;
+        writeln!(w)
     }
 
     pub fn error_test_set_failure(&self, error: TestSetError) -> io::Result<()> {
-        self.ui.error_with(|w| {
-            writeln!(
-                w,
-                "Couldn't parse or evaluate test set expression:\n{error:?}",
-            )
-        })
+        writeln!(
+            self.ui.error()?,
+            "Couldn't parse or evaluate test set expression:\n{error:?}",
+        )
     }
 
     pub fn error_test_already_exists(&self, id: &Id) -> io::Result<()> {
-        self.ui.error_with(|w| {
-            write!(w, "Test ")?;
-            ui::write_test_id(w, id)?;
-            writeln!(w, " already exists")
-        })
+        let mut w = self.ui.error()?;
+
+        write!(w, "Test ")?;
+        ui::write_test_id(&mut w, id)?;
+        writeln!(w, " already exists")
     }
 
     pub fn error_no_tests(&self) -> io::Result<()> {
-        self.ui.error("Matched no tests")
+        writeln!(self.ui.error()?, "Matched no tests")
     }
 
     pub fn error_too_many_tests(&self, expr: &str) -> io::Result<()> {
-        self.ui.error_hinted_with(
-            |w| writeln!(w, "Matched more than one test"),
-            |w| {
-                write!(w, "use '")?;
-                ui::write_colored(w, Color::Cyan, |w| write!(w, "all:"))?;
-                writeln!(w, "{expr}' to confirm using all tests")
-            },
-        )
+        writeln!(self.ui.error()?, "Matched more than one test")?;
+
+        let mut w = self.ui.hint()?;
+        write!(w, "use '")?;
+        cwrite!(colored(w, Color::Cyan), "all:")?;
+        writeln!(w, "{expr}' to confirm using all tests")
     }
 
     pub fn error_nested_tests(&self) -> io::Result<()> {
-        self.ui.error_hinted_with(
-            |w| writeln!(w, "Found nested tests"),
-            |w| {
-                writeln!(w, "This is no longer supported")?;
-                write!(w, "You can run ")?;
-                ui::write_colored(w, Color::Cyan, |w| write!(w, "tt util migrate"))?;
-                writeln!(w, " to automatically fix the tests")
-            },
-        )
+        writeln!(self.ui.error()?, "Found nested tests")?;
+
+        let mut w = self.ui.hint()?;
+        writeln!(w, "This is no longer supported")?;
+        write!(w, "You can run ")?;
+        cwrite!(colored(w, Color::Cyan), "tt util migrate")?;
+        writeln!(w, " to automatically fix the tests")
     }
 
     pub fn run(&mut self) -> eyre::Result<()> {

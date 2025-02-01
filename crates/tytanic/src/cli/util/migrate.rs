@@ -9,7 +9,7 @@ use tytanic_core::project::Paths;
 use tytanic_core::test::Id;
 
 use crate::cli::Context;
-use crate::ui;
+use crate::{cwrite, ui};
 
 #[derive(clap::Args, Debug, Clone)]
 #[group(id = "util-migrate-args")]
@@ -43,7 +43,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
 
     for (old, (new, collision)) in &mappings {
         if *collision {
-            ui::write_bold_colored(&mut w, Color::Red, |w| write!(w, "*"))?;
+            cwrite!(bold_colored(w, Color::Red), "*")?;
             write!(w, " ")?;
         } else {
             write!(w, "  ")?;
@@ -68,39 +68,39 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
     }
 
     if has_colission {
-        ctx.ui.hint_with(|w| {
-            ui::write_bold_colored(w, Color::Red, |w| write!(w, "*"))?;
-            writeln!(
-                w,
-                " denotes paths which were excluded because of another test with the same id."
-            )?;
-            write!(w, "Try another name using ")?;
-            ui::write_colored(w, Color::Cyan, |w| write!(w, "--name"))?;
-            writeln!(w)
-        })?;
+        let mut w = ctx.ui.hint()?;
+        cwrite!(bold_colored(w, Color::Red), "*")?;
+        writeln!(
+            w,
+            " denotes paths which were excluded because of another test with the same id."
+        )?;
+        write!(w, "Try another name using ")?;
+        cwrite!(colored(w, Color::Cyan), "--name")?;
+        writeln!(w)?;
     }
 
     if !args.confirm {
-        ctx.ui.warning("Make sure to back up your code!")?;
+        writeln!(ctx.ui.warn()?, "Make sure to back up your code!")?;
 
-        ctx.ui.hint_with(|w| {
+        {
+            let mut w = ctx.ui.hint()?;
             write!(w, "Use ")?;
-            ui::write_colored(w, Color::Cyan, |w| write!(w, "--confirm"))?;
-            writeln!(w, " to move the tests automatically")
-        })?;
+            cwrite!(colored(w, Color::Cyan), "--confirm")?;
+            writeln!(w, " to move the tests automatically")?;
+        }
 
-        ctx.ui.hint_with(|w| {
+        {
+            let mut w = ctx.ui.hint()?;
             write!(w, "Use ")?;
-            ui::write_colored(w, Color::Cyan, |w| write!(w, "--name"))?;
-            writeln!(w, " to configure the sub directory name")
-        })?;
+            cwrite!(colored(w, Color::Cyan), "--name")?;
+            writeln!(w, " to configure the sub directory name")?;
+        }
 
         if project.vcs().is_some() {
-            ctx.ui.hint_with(|w| {
-                write!(w, "VCS detected, consider also running ")?;
-                ui::write_colored(w, Color::Cyan, |w| write!(w, "tt util vcs ignore"))?;
-                writeln!(w, " after you've migrated")
-            })?;
+            let mut w = ctx.ui.hint()?;
+            write!(w, "VCS detected, consider also running ")?;
+            cwrite!(colored(w, Color::Cyan), "tt util vcs ignore")?;
+            writeln!(w, " after you've migrated")?;
         }
     }
 

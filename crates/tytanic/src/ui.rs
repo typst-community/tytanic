@@ -1,20 +1,54 @@
-#![allow(dead_code)]
-
 use std::fmt::{Debug, Display};
 use std::io::{BufRead, IsTerminal, Stdin, StdinLock, Write};
 use std::{fmt, io};
 
+use codespan_reporting::diagnostic::{Diagnostic, Label};
+use codespan_reporting::term;
 use color_eyre::eyre;
+use ecow::eco_format;
 use termcolor::{
     Color, ColorChoice, ColorSpec, HyperlinkSpec, StandardStream, StandardStreamLock, WriteColor,
 };
+use typst::diag::{Severity, SourceDiagnostic};
+use typst::WorldExt;
+use typst_syntax::{FileId, Span};
 use tytanic_core::test::Id;
 
-/// The maximum needed padding to align all standard annotations. The longest of
-/// which is currently `warning:` at 8 bytes.
-///
-/// This is used in all annotated messages of [`Ui`].
-pub const ANNOTATION_MAX_PADDING: usize = 8;
+use crate::world::SystemWorld;
+
+#[macro_export]
+macro_rules! cwrite {
+    ($ctor:ident($dst:expr $(, $($arg1:tt)*)?), $($arg2:tt)*) => {{
+        let mut w = $crate::ui::$ctor(&mut $dst $(, $($arg1)*)?)?;
+        write!(w, $($arg2)*)?;
+        $crate::ui::CWrite::finish(w)
+    }};
+}
+
+#[macro_export]
+macro_rules! cwriteln {
+    ($ctor:ident($dst:expr $(, $($arg1:tt)*)?), $($arg2:tt)*) => {{
+        let mut w = $crate::ui::$ctor(&mut $dst $(, $($arg1)*)?)?;
+        write!(w, $($arg2)*)?;
+        let w = $crate::ui::CWrite::finish(w)?;
+        writeln!(w)?;
+        ::std::io::Result::Ok(w)
+    }};
+}
+
+pub trait CWrite: WriteColor {
+    type Inner;
+
+    fn finish(self) -> io::Result<Self::Inner>;
+}
+
+impl CWrite for StandardStreamLock<'_> {
+    type Inner = Self;
+
+    fn finish(self) -> io::Result<Self::Inner> {
+        Ok(self)
+    }
+}
 
 /// A terminal ui wrapper for common tasks such as input prompts and output
 /// messaging.
@@ -28,6 +62,9 @@ pub struct Ui {
 
     /// The unlocked stderr stream.
     stderr: StandardStream,
+
+    /// The diagnostic config to use for emitting typst source diagnostics.
+    diagnostic_config: term::Config,
 }
 
 /// Returns whether or not a given output stream is connected to a terminal.
@@ -43,12 +80,31 @@ pub fn check_terminal<T: IsTerminal>(t: T, choice: ColorChoice) -> ColorChoice {
 
 impl Ui {
     /// Creates a new [`Ui`] with the gven color choices for stdout and stderr.
-    pub fn new(out: ColorChoice, err: ColorChoice) -> Self {
+    pub fn new(out: ColorChoice, err: ColorChoice, diagnostic_config: term::Config) -> Self {
         Self {
             stdin: io::stdin(),
             stdout: StandardStream::stdout(check_terminal(io::stdout(), out)),
             stderr: StandardStream::stderr(check_terminal(io::stderr(), err)),
+            diagnostic_config,
         }
+    }
+}
+
+impl Ui {
+    /// Whether a live status report can be printed and cleared using ANSI
+    /// escape codes.
+    pub fn can_live_report(&self) -> bool {
+        io::stderr().is_terminal()
+    }
+
+    /// Whether a prompt can be displayed and confirmed by the user.
+    pub fn can_prompt(&self) -> bool {
+        io::stdin().is_terminal() && io::stderr().is_terminal()
+    }
+
+    /// Returns the diagnostic config to use for displaying diagnostics.
+    pub fn diagnostic_config(&self) -> &term::Config {
+        &self.diagnostic_config
     }
 
     /// Returns an exclusive lock to stdin.
@@ -65,85 +121,22 @@ impl Ui {
     pub fn stderr(&self) -> StandardStreamLock<'_> {
         self.stderr.lock()
     }
+}
 
-    /// Writes the given closure with an error annotation header.
-    pub fn error_with(
-        &self,
-        f: impl FnOnce(&mut Indented<&mut StandardStreamLock<'_>>) -> io::Result<()>,
-    ) -> io::Result<()> {
-        write_error_with(&mut self.stderr(), ANNOTATION_MAX_PADDING, f)
+impl Ui {
+    /// Returns a writer for emitting a user-facing error.
+    pub fn error(&self) -> io::Result<Indented<impl WriteColor + '_>> {
+        error(self.stderr())
     }
 
-    /// Writes the given closure with a warning annotation header.
-    pub fn warning_with(
-        &self,
-        f: impl FnOnce(&mut Indented<&mut StandardStreamLock<'_>>) -> io::Result<()>,
-    ) -> io::Result<()> {
-        write_warning_with(&mut self.stderr(), ANNOTATION_MAX_PADDING, f)
+    /// Returns a writer for emitting a user-facing warning.
+    pub fn warn(&self) -> io::Result<Indented<impl WriteColor + '_>> {
+        warn(self.stderr())
     }
 
-    /// Writes the given closure with a hint annotation header.
-    pub fn hint_with(
-        &self,
-        f: impl FnOnce(&mut Indented<&mut StandardStreamLock<'_>>) -> io::Result<()>,
-    ) -> io::Result<()> {
-        write_hint_with(&mut self.stderr(), ANNOTATION_MAX_PADDING, f)
-    }
-
-    /// Writes the given closure with an error annotation header.
-    pub fn error_hinted_with(
-        &self,
-        f: impl FnOnce(&mut Indented<&mut StandardStreamLock<'_>>) -> io::Result<()>,
-        h: impl FnOnce(&mut Indented<&mut StandardStreamLock<'_>>) -> io::Result<()>,
-    ) -> io::Result<()> {
-        write_error_with(&mut self.stderr(), ANNOTATION_MAX_PADDING, f)?;
-        write_hint_with(&mut self.stderr(), ANNOTATION_MAX_PADDING, h)
-    }
-
-    /// Writes the given closure with a warning annotation header.
-    pub fn warning_hinted_with(
-        &self,
-        f: impl FnOnce(&mut Indented<&mut StandardStreamLock<'_>>) -> io::Result<()>,
-        h: impl FnOnce(&mut Indented<&mut StandardStreamLock<'_>>) -> io::Result<()>,
-    ) -> io::Result<()> {
-        write_warning_with(&mut self.stderr(), ANNOTATION_MAX_PADDING, f)?;
-        write_hint_with(&mut self.stderr(), ANNOTATION_MAX_PADDING, h)
-    }
-
-    /// A shorthand for [`Ui::error_with`].
-    pub fn error(&self, message: impl Display) -> io::Result<()> {
-        self.error_with(|w| writeln!(w, "{message}"))
-    }
-
-    /// A shorthand for [`Ui::warning_with`].
-    pub fn warning(&self, message: impl Display) -> io::Result<()> {
-        self.warning_with(|w| writeln!(w, "{message}"))
-    }
-
-    /// A shorthand for [`Ui::hint_with`].
-    pub fn hint(&self, message: impl Display) -> io::Result<()> {
-        self.hint_with(|w| writeln!(w, "{message}"))
-    }
-
-    /// Writes a hinted error to stderr.
-    pub fn error_hinted(&self, message: impl Display, hint: impl Display) -> io::Result<()> {
-        self.error_hinted_with(|w| writeln!(w, "{message}"), |w| writeln!(w, "{hint}"))
-    }
-
-    /// Writes a hinted warning to stderr.
-    pub fn warning_hinted(&self, message: impl Display, hint: impl Display) -> io::Result<()> {
-        self.warning_hinted_with(|w| writeln!(w, "{message}"), |w| writeln!(w, "{hint}"))
-    }
-
-    /// Whether a live status report can be printed and cleared using ANSI
-    /// escape codes.
-    pub fn can_live_report(&self) -> bool {
-        io::stderr().is_terminal()
-    }
-
-    /// Whether a prompt can be displayed and confirmed by the user.
-    pub fn can_prompt(&self) -> bool {
-        io::stdin().is_terminal() && io::stderr().is_terminal()
+    /// Returns a writer for emitting a user-facing hint.
+    pub fn hint(&self) -> io::Result<Indented<impl WriteColor + '_>> {
+        hint(self.stderr())
     }
 
     /// Prompts the user for input with the given prompt on stderr.
@@ -224,153 +217,149 @@ impl Ui {
     }
 }
 
-/// Executes the given closure with custom set and reset style closures.
-pub fn write_with<W: WriteColor + ?Sized>(
-    w: &mut W,
-    set: impl FnOnce(&mut ColorSpec) -> &mut ColorSpec,
-    unset: impl FnOnce(&mut ColorSpec) -> &mut ColorSpec,
-    f: impl FnOnce(&mut W) -> io::Result<()>,
-) -> io::Result<()> {
-    w.set_color(set(&mut ColorSpec::new()))?;
-    f(w)?;
-    w.set_color(unset(&mut ColorSpec::new()))?;
-    Ok(())
+/// Returns a writer for styled output.
+pub fn styled<W, F, G>(w: W, set: F, unset: G) -> io::Result<Styled<W, F, G>>
+where
+    W: WriteColor,
+    F: FnOnce() -> ColorSpec,
+    G: FnOnce() -> ColorSpec,
+{
+    Ok(Styled::new(w, set, unset))
 }
 
-/// A shorthand for [`write_with`] which writes bold.
-pub fn write_bold<W: WriteColor + ?Sized>(
-    w: &mut W,
-    f: impl FnOnce(&mut W) -> io::Result<()>,
-) -> io::Result<()> {
-    write_with(w, |c| c.set_bold(true), |c| c.set_bold(false), f)
-}
-
-/// A shorthand for [`write_with`] which writes with the given color.
-pub fn write_colored<W: WriteColor + ?Sized>(
-    w: &mut W,
-    color: Color,
-    f: impl FnOnce(&mut W) -> io::Result<()>,
-) -> io::Result<()> {
-    write_with(w, |c| c.set_fg(Some(color)), |c| c.set_fg(None), f)
-}
-
-/// A shorthand for [`write_with`] which writes bold and with the given color.
-pub fn write_bold_colored<W: WriteColor + ?Sized>(
-    w: &mut W,
-    color: Color,
-    f: impl FnOnce(&mut W) -> io::Result<()>,
-) -> io::Result<()> {
-    write_with(
+/// Returns a bold writer.
+pub fn bold<W: WriteColor>(w: W) -> io::Result<impl CWrite<Inner = W>> {
+    styled(
         w,
-        |c| c.set_bold(true).set_fg(Some(color)),
-        |c| c.set_bold(false).set_fg(None),
-        f,
+        || {
+            let mut spec = ColorSpec::default();
+            spec.set_bold(true);
+            spec
+        },
+        || {
+            let mut spec = ColorSpec::default();
+            spec.set_bold(false);
+            spec
+        },
     )
 }
 
-/// A shorthand for [`write_bold_colored`] with cyan as the color.
-pub fn write_ident<W: WriteColor + ?Sized>(
-    w: &mut W,
-    f: impl FnOnce(&mut W) -> io::Result<()>,
-) -> io::Result<()> {
-    write_with(
+/// Returns a colored writer.
+pub fn colored<W: WriteColor>(w: W, color: Color) -> io::Result<impl CWrite<Inner = W>> {
+    styled(
         w,
-        |c| c.set_bold(true).set_fg(Some(Color::Cyan)),
-        |c| c.set_bold(false).set_fg(None),
-        f,
+        move || {
+            let mut spec = ColorSpec::default();
+            spec.set_fg(Some(color));
+            spec
+        },
+        || {
+            let mut spec = ColorSpec::default();
+            spec.set_fg(None);
+            spec
+        },
     )
 }
 
-/// Writes the given closure as an annotation, that is, it is written with a
-/// header after which each line is indented by the header length.
-///
-/// The maximum hanging indent can be set.
-pub fn write_annotated<W: WriteColor + ?Sized>(
-    w: &mut W,
+/// Returns a colored writer.
+pub fn bold_colored<W: WriteColor>(w: W, color: Color) -> io::Result<impl CWrite<Inner = W>> {
+    styled(
+        w,
+        move || {
+            let mut spec = ColorSpec::default();
+            spec.set_bold(true).set_fg(Some(color));
+            spec
+        },
+        || {
+            let mut spec = ColorSpec::default();
+            spec.set_bold(false).set_fg(None);
+            spec
+        },
+    )
+}
+
+/// Returns a writer for annotated output. Annotated output is output which uses
+/// a hanging indent after an initial indentation. The writer will continue on
+/// the same line as the annotation.
+pub fn annotated<W: WriteColor>(
+    mut w: W,
     header: &str,
     color: Color,
     max_align: impl Into<Option<usize>>,
-    f: impl FnOnce(&mut Indented<&mut W>) -> io::Result<()>,
-) -> io::Result<()> {
+) -> io::Result<Indented<W>> {
     let align = max_align.into().unwrap_or(header.len());
-    write_bold_colored(w, color, |w| write!(w, "{header:>align$} "))?;
+    cwrite!(bold_colored(w, color), "{header:>align$} ")?;
 
     // when taking the indent from the header length, we need to account for the
     // additional space
-    f(&mut Indented::continued(w, align + 1))?;
-    Ok(())
+    Ok(Indented::continued(w, align + 1))
 }
 
-/// Writes the given closure with an error annotation header.
-pub fn write_error_with<W: WriteColor + ?Sized>(
-    w: &mut W,
-    pad: impl Into<Option<usize>>,
-    f: impl FnOnce(&mut Indented<&mut W>) -> io::Result<()>,
-) -> io::Result<()> {
-    write_annotated(w, "error:", Color::Red, pad, f)
+/// Returns a writer for emitting a user-facing error.
+pub fn error<W: WriteColor>(w: W) -> io::Result<Indented<W>> {
+    annotated(w, "error:", Color::Red, 0)
 }
 
-/// Writes the given closure with a warning annotation header.
-pub fn write_warning_with<W: WriteColor + ?Sized>(
-    w: &mut W,
-    pad: impl Into<Option<usize>>,
-    f: impl FnOnce(&mut Indented<&mut W>) -> io::Result<()>,
-) -> io::Result<()> {
-    write_annotated(w, "warning:", Color::Yellow, pad, f)
+/// Returns a writer for emitting a user-facing warning.
+pub fn warn<W: WriteColor>(w: W) -> io::Result<Indented<W>> {
+    annotated(w, "warning:", Color::Yellow, 0)
 }
 
-/// Writes the given closure with a hint annotation header.
-pub fn write_hint_with<W: WriteColor + ?Sized>(
-    w: &mut W,
-    pad: impl Into<Option<usize>>,
-    f: impl FnOnce(&mut Indented<&mut W>) -> io::Result<()>,
-) -> io::Result<()> {
-    write_annotated(w, "hint:", Color::Cyan, pad, f)
-}
-
-/// A shorthand for [`write_error_with`].
-pub fn write_error<W: WriteColor + ?Sized, M: Display>(
-    w: &mut W,
-    pad: impl Into<Option<usize>>,
-    message: M,
-) -> io::Result<()> {
-    write_error_with(w, pad, |w| writeln!(w, "{message}"))
-}
-
-/// A shorthand for [`write_warning_with`].
-pub fn write_warning<W: WriteColor + ?Sized, M: Display>(
-    w: &mut W,
-    pad: impl Into<Option<usize>>,
-    message: M,
-) -> io::Result<()> {
-    write_warning_with(w, pad, |w| writeln!(w, "{message}"))
-}
-
-/// A shorthand for [`write_hint_with`].
-pub fn write_hint<W: WriteColor + ?Sized, M: Display>(
-    w: &mut W,
-    pad: impl Into<Option<usize>>,
-    message: M,
-) -> io::Result<()> {
-    write_hint_with(w, pad, |w| writeln!(w, "{message}"))
-}
-
-/// Writes the ANSI escape codes to clear the given number of last lines.
-pub fn clear_last_lines<W: Write + ?Sized>(w: &mut W, lines: usize) -> io::Result<()> {
-    if lines != 0 {
-        write!(w, "\x1B[{}F\x1B[0J", lines)?;
-    }
-
-    Ok(())
+/// Returns a writer for emitting a user-facing hint.
+pub fn hint<W: WriteColor>(w: W) -> io::Result<Indented<W>> {
+    annotated(w, "hint:", Color::Cyan, 0)
 }
 
 /// Write a test id.
-pub fn write_test_id<W: WriteColor + ?Sized>(w: &mut W, id: &Id) -> io::Result<()> {
+pub fn write_test_id(mut w: &mut dyn WriteColor, id: &Id) -> io::Result<()> {
     if !id.module().is_empty() {
-        write_colored(w, Color::Cyan, |w| write!(w, "{}/", id.module()))?;
+        cwrite!(colored(w, Color::Cyan), "{}/", id.module())?;
     }
 
-    write_bold_colored(w, Color::Blue, |w| write!(w, "{}", id.name()))?;
+    cwrite!(bold_colored(w, Color::Blue), "{}", id.name())?;
+
+    Ok(())
+}
+
+/// Writes the given diagnostics.
+pub fn write_diagnostics(
+    w: &mut dyn WriteColor,
+    diagnostic_config: &term::Config,
+    world: &SystemWorld,
+    warnings: &[SourceDiagnostic],
+    errors: &[SourceDiagnostic],
+) -> eyre::Result<()> {
+    fn resolve_label(world: &SystemWorld, span: Span) -> Option<Label<FileId>> {
+        Some(Label::primary(span.id()?, world.range(span)?))
+    }
+
+    for diagnostic in warnings.iter().chain(errors) {
+        let diag = match diagnostic.severity {
+            Severity::Error => Diagnostic::error(),
+            Severity::Warning => Diagnostic::warning(),
+        }
+        .with_message(diagnostic.message.clone())
+        .with_notes(
+            diagnostic
+                .hints
+                .iter()
+                .map(|e| (eco_format!("hint: {e}")).into())
+                .collect(),
+        )
+        .with_labels(resolve_label(world, diagnostic.span).into_iter().collect());
+
+        term::emit(w, diagnostic_config, world, &diag)?;
+
+        // Stacktrace-like helper diagnostics.
+        for point in &diagnostic.trace {
+            let message = point.v.to_string();
+            let help = Diagnostic::help()
+                .with_message(message)
+                .with_labels(resolve_label(world, point.span).into_iter().collect());
+
+            term::emit(w, diagnostic_config, world, &help)?;
+        }
+    }
 
     Ok(())
 }
@@ -462,6 +451,116 @@ impl<W: WriteColor> WriteColor for Counted<W> {
     }
 }
 
+/// Writes content with some styles, this does not implement [`WriteColor`]
+/// because it sets and unsets its own style, manualy interference should be
+/// avoided.
+#[derive(Debug)]
+pub struct Styled<W, F, G> {
+    /// The writer to write to.
+    writer: W,
+
+    /// The set closure.
+    set: Option<F>,
+
+    /// The unset closure.
+    unset: Option<G>,
+}
+
+impl<W, F, G> Styled<W, F, G> {
+    /// Creates a new writer which writes with a set of styles.
+    pub fn new(writer: W, set: F, unset: G) -> Self {
+        Self {
+            writer,
+            set: Some(set),
+            unset: Some(unset),
+        }
+    }
+
+    /// Returns a mutable reference to the inner writer.
+    pub fn inner(&mut self) -> &mut W {
+        &mut self.writer
+    }
+
+    /// Returns the inner writer without writing the styles.
+    pub fn into_inner(self) -> W {
+        self.writer
+    }
+}
+
+impl<W: WriteColor, F, G> fmt::Write for Styled<W, F, G>
+where
+    F: FnOnce() -> ColorSpec,
+{
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        self.write_all(s.as_bytes()).map_err(|_| fmt::Error)
+    }
+}
+
+impl<W: WriteColor, F, G> Write for Styled<W, F, G>
+where
+    F: FnOnce() -> ColorSpec,
+{
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.write_all(buf).map(|_| buf.len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.writer.flush()
+    }
+
+    fn write_all(&mut self, buf: &[u8]) -> io::Result<()> {
+        if let Some(set) = self.set.take() {
+            self.writer.set_color(&set())?;
+        }
+
+        self.writer.write_all(buf)
+    }
+}
+
+impl<W: WriteColor, F, G> WriteColor for Styled<W, F, G>
+where
+    F: FnOnce() -> ColorSpec,
+{
+    fn supports_color(&self) -> bool {
+        self.writer.supports_color()
+    }
+
+    fn set_color(&mut self, spec: &ColorSpec) -> io::Result<()> {
+        self.writer.set_color(spec)
+    }
+
+    fn reset(&mut self) -> io::Result<()> {
+        self.writer.reset()
+    }
+
+    fn is_synchronous(&self) -> bool {
+        self.writer.is_synchronous()
+    }
+
+    fn set_hyperlink(&mut self, link: &HyperlinkSpec) -> io::Result<()> {
+        self.writer.set_hyperlink(link)
+    }
+
+    fn supports_hyperlinks(&self) -> bool {
+        self.writer.supports_hyperlinks()
+    }
+}
+
+impl<W, F, G> CWrite for Styled<W, F, G>
+where
+    W: WriteColor,
+    F: FnOnce() -> ColorSpec,
+    G: FnOnce() -> ColorSpec,
+{
+    type Inner = W;
+
+    fn finish(mut self) -> io::Result<W> {
+        self.writer
+            .set_color(&self.unset.take().expect("is only taken once")())?;
+        Ok(self.writer)
+    }
+}
+
 /// Writes content indented, ensuring color specs are correctly enabled and
 /// disabled.
 #[derive(Debug)]
@@ -517,6 +616,11 @@ impl<W> Indented<W> {
     /// Returns the inner writer.
     pub fn into_inner(self) -> W {
         self.writer
+    }
+
+    /// Returns the inner writer.
+    pub fn finish(self) -> io::Result<W> {
+        Ok(self.writer)
     }
 }
 
@@ -596,6 +700,14 @@ impl<W: WriteColor> WriteColor for Indented<W> {
 
     fn supports_hyperlinks(&self) -> bool {
         self.writer.supports_hyperlinks()
+    }
+}
+
+impl<W: WriteColor> CWrite for Indented<W> {
+    type Inner = W;
+
+    fn finish(self) -> io::Result<W> {
+        Ok(self.writer)
     }
 }
 

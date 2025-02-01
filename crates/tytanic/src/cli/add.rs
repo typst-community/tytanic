@@ -11,7 +11,7 @@ use tytanic_core::test::{Id, Reference, Test};
 
 use super::{CompileArgs, Context, ExportArgs};
 use crate::cli::OperationFailure;
-use crate::{ui, DEFAULT_OPTIMIZE_OPTIONS};
+use crate::{cwriteln, DEFAULT_OPTIMIZE_OPTIONS};
 
 #[derive(clap::Args, Debug, Clone)]
 #[group(id = "add-args")]
@@ -100,7 +100,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
     let mut w = ctx.ui.stderr();
 
     write!(w, "Added ")?;
-    ui::write_colored(&mut w, Color::Cyan, |w| writeln!(w, "{}", args.test))?;
+    cwriteln!(colored(w, Color::Cyan), "{}", args.test)?;
 
     Ok(())
 }
