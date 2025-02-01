@@ -2,7 +2,7 @@ use std::fmt::Debug;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use color_eyre::eyre::{self, ContextCompat};
-use typst::diag::{Severity, Warned};
+use typst::diag::Warned;
 use typst::model::Document as TypstDocument;
 use typst::syntax::Source;
 use tytanic_core::doc::compare::Strategy;
@@ -347,7 +347,7 @@ impl TestRunner<'_, '_, '_> {
     pub fn compile_out_doc(&mut self, output: Source) -> eyre::Result<TypstDocument> {
         tracing::trace!(test = ?self.test.id(), "compiling output document");
 
-        self.compile_inner(output)
+        self.compile_inner(output, false)
     }
 
     pub fn compile_ref_doc(&mut self, reference: Source) -> eyre::Result<TypstDocument> {
@@ -357,44 +357,31 @@ impl TestRunner<'_, '_, '_> {
             eyre::bail!("attempted to compile reference for compile-only test");
         }
 
-        self.compile_inner(reference)
+        self.compile_inner(reference, true)
     }
 
-    fn compile_inner(&mut self, source: Source) -> eyre::Result<TypstDocument> {
-        let Warned {
-            output,
-            mut warnings,
-        } = compile::compile(source, self.project_runner.world);
+    fn compile_inner(&mut self, source: Source, is_reference: bool) -> eyre::Result<TypstDocument> {
+        let Warned { output, warnings } = compile::compile(
+            source,
+            self.project_runner.world,
+            self.project_runner.config.promote_warnings,
+        );
 
-        if self.project_runner.config.promote_warnings {
-            warnings = warnings
-                .into_iter()
-                .map(|mut warning| {
-                    warning.severity = Severity::Error;
-                    warning.with_hint("this warning was promoted to an error")
-                })
-                .collect();
+        if warnings.is_empty() {
+            self.result.set_warnings(warnings);
         }
 
         let doc = match output {
             Ok(doc) => {
                 self.result.set_passed_compilation();
-                if self.project_runner.config.promote_warnings {
-                    self.result
-                        .set_failed_reference_compilation(compile::Error(warnings));
-                    eyre::bail!(TestFailure);
-                } else {
-                    self.result.set_warnings(warnings);
-                }
                 doc
             }
-            Err(mut err) => {
-                if self.project_runner.config.promote_warnings {
-                    err.0.extend(warnings);
+            Err(err) => {
+                if is_reference {
+                    self.result.set_failed_reference_compilation(err);
                 } else {
-                    self.result.set_warnings(warnings);
+                    self.result.set_failed_test_compilation(err);
                 }
-                self.result.set_failed_reference_compilation(err);
                 eyre::bail!(TestFailure);
             }
         };

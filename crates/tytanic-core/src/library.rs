@@ -125,7 +125,7 @@ mod tests {
         "#,
         );
 
-        compile::compile(source, &world).output.unwrap();
+        compile::compile(source, &world, false).output.unwrap();
     }
 
     #[test]
@@ -139,6 +139,6 @@ mod tests {
         "#,
         );
 
-        compile::compile(source, &world).output.unwrap();
+        compile::compile(source, &world, false).output.unwrap();
     }
 }

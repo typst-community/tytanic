@@ -44,8 +44,9 @@ impl Document {
         source: Source,
         world: &dyn World,
         pixel_per_pt: f32,
+        promote_warnings: bool,
     ) -> Warned<Result<Self, compile::Error>> {
-        let Warned { output, warnings } = compile::compile(source, world);
+        let Warned { output, warnings } = compile::compile(source, world, promote_warnings);
 
         Warned {
             output: output.map(|doc| Self::render(doc, pixel_per_pt)),

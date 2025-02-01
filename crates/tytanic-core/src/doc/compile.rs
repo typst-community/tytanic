@@ -2,9 +2,9 @@
 
 use std::fmt::Debug;
 
-use ecow::EcoVec;
+use ecow::{eco_vec, EcoVec};
 use thiserror::Error;
-use typst::diag::{FileResult, SourceDiagnostic, Warned};
+use typst::diag::{FileResult, Severity, SourceDiagnostic, Warned};
 use typst::foundations::{Bytes, Datetime};
 use typst::model::Document;
 use typst::syntax::{FileId, Source};
@@ -21,7 +21,11 @@ use crate::stdx::fmt::Term;
 pub struct Error(pub EcoVec<SourceDiagnostic>);
 
 /// Compiles a source with the given global world.
-pub fn compile(source: Source, world: &dyn World) -> Warned<Result<Document, Error>> {
+pub fn compile(
+    source: Source,
+    world: &dyn World,
+    promote_warnings: bool,
+) -> Warned<Result<Document, Error>> {
     struct TestWorldAdapter<'s, 'w> {
         source: &'s Source,
         global: &'w dyn World,
@@ -61,14 +65,52 @@ pub fn compile(source: Source, world: &dyn World) -> Warned<Result<Document, Err
         }
     }
 
-    let Warned { output, warnings } = typst::compile(&TestWorldAdapter {
+    let Warned {
+        output,
+        mut warnings,
+    } = typst::compile(&TestWorldAdapter {
         source: &source,
         global: world,
     });
 
-    Warned {
-        output: output.map_err(Error),
-        warnings,
+    if promote_warnings {
+        warnings = warnings
+            .into_iter()
+            .map(|mut warning| {
+                warning.severity = Severity::Error;
+                warning.with_hint("this warning was promoted to an error")
+            })
+            .collect();
+    }
+
+    match output {
+        Ok(doc) => {
+            if promote_warnings {
+                Warned {
+                    output: Err(Error(warnings)),
+                    warnings: eco_vec![],
+                }
+            } else {
+                Warned {
+                    output: Ok(doc),
+                    warnings,
+                }
+            }
+        }
+        Err(errors) => {
+            if promote_warnings {
+                warnings.extend(errors);
+                Warned {
+                    output: Err(Error(warnings)),
+                    warnings: eco_vec![],
+                }
+            } else {
+                Warned {
+                    output: Err(Error(errors)),
+                    warnings,
+                }
+            }
+        }
     }
 }
 
@@ -82,7 +124,16 @@ mod tests {
         let world = GlobalTestWorld::default();
         let source = Source::detached("Hello World");
 
-        compile(source, &world).output.unwrap();
+        compile(source, &world, false).output.unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_compile_failure_promoted() {
+        let world = GlobalTestWorld::default();
+        let source = Source::detached("#set text(font: \"foo\")");
+
+        compile(source, &world, true).output.unwrap();
     }
 
     #[test]
@@ -91,6 +142,6 @@ mod tests {
         let world = GlobalTestWorld::default();
         let source = Source::detached("#panic()");
 
-        compile(source, &world).output.unwrap();
+        compile(source, &world, false).output.unwrap();
     }
 }

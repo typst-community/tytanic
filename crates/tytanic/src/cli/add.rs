@@ -76,6 +76,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
                 Source::new(FileId::new_fake(VirtualPath::new("")), template.to_owned()),
                 &world,
                 ppi_to_ppp(args.export.render.pixel_per_inch),
+                args.compile.promote_warnings,
             );
             let doc = output?;
 
