@@ -1,23 +1,56 @@
 # Installation
-To install `tytanic` on your PC, you must, for the time being, compile it from source.
-Once `tytanic` reaches 0.1.0, this restriction will be lifted and each release will provide precompiled binaries for major operating systems (Windows, Linux and macOS).
+## Versions
+You can either install a stable version or a nightly version, a stable version uses a version tag like `v0.1.0`, whereas nightly versions are simply whatever is currently pointed to by the `main` branch on the GitHub repository.
 
-## Installation From Source
-To install `tytanic` from source, you must have a Rust toolchain (Rust **v1.80.0+**) and cargo installed.
+Nightly has the newest features, but may have unfixed bugs or rough edges, use this with caution and backup your tests.
 
-To install the latest stable release version run:
-```bash
-cargo install --locked tytanic
+Once installed you will have a `tt` binary available, make sure to have a look at [Dependencies](#dependencies) if running `tytanic` spits out some error about dynamic libraries.
+
+## Methods
+### Download from GitHub
+You can download pre-built binaries of all stable versions from the [release page][releases] of the GitHub repository, these are automatically built for Linux, macOS and Windows.
+Nightly versions are not pre-built.
+
+After you downloaded the correct archive for your operating system and architecture you have to extract them and place the `tt` binary somewhere in your `$PATH`.
+
+### Installation From Source
+To install `tytanic` from source, you must have a Rust toolchain (Rust **v1.80.0+**) and `cargo` installed, you can get these using [`rustup`][rustup].
+
+#### Stable
+```shell
+cargo install --locked tytanic@v0.1.0
 ```
 
-If you want to install the latest nightly version, you can run:
-```bash
+#### Nightly
+```shell
 cargo install --locked --git https://github.com/tingerrr/tytanic
 ```
-This version has the newest features, but may have unfixed bugs or rough edges.
 
-## Required Libraries
+This method usually doesn't require manually placing the `tt` binary in your `$PATH` because the cargo binary directory should already be in there.
+
+### Nix Flake
+#### Stable
+```shell
+nix run github:tingerrr/tytanic/v0.1.0
+```
+
+#### Nightly
+```shell
+nix run github:tingerrr/tytanic
+```
+
+This method does't require any extraction or `$PATH` modifications.
+
+## Dependencies
+The following dependencies are required for running `tytanic`, though they are widely used and should in most cases already be installed if you used `typst` before.
+`tytanic` tries to provide feature flags for vendoring dependencies where possible.
+
 ### OpenSSL
-OpenSSL (**v1.0.1** to **v3.x.x**) or LibreSSL (**v2.5** to **v3.7.x**) are required to allow `tytanic` to download packages from the [Typst Universe](https://typst.app/universe) package registry.
+OpenSSL (**v1.0.1** to **v3.x.x**) or LibreSSL (**v2.5** to **v3.7.x**) are required to allow `tytanic` to download packages from the [Typst Universe][universe] package registry.
 
-When installing from source the `vendor-openssl` feature can be used on operating systems other than Windows and macOS to  vendor and statically link to OpenSSL, avoiding the need for it on the operating system.
+When installing from source the `vendor-openssl` feature can be used on unix-like operating systems to vendor OpenSSL.
+This avoids the need for it on the operating system.
+
+[releases]: https://github.com/tingerrr/tytanic/releases/
+[rustup]: https://www.rust-lang.org/tools/install
+[universe]: https://typst.app/universe
