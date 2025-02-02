@@ -7,12 +7,15 @@
 
 ## Changed
 - **BREAKING CHANGE** `Vcs::ignore` and `Vcs::unignore` API
+- **BREAKING CHANGE** `doc::compare` API, removed fail_fast parameter
 - Changed location of ignore files to be in the test directory itself.
 
 ## Fixed
 - Removed a dead asset path from the `flake.nix`.
 - Panic when optimizing reference documents
 - Panic when running `tt add` with faulty template.
+- `--no-fail-fast` not being repsected for test failures
+- `--no-fail-fast` causing partial confusing comparison diagostics
 
 ---
 

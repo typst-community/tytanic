@@ -194,34 +194,22 @@ impl Document {
 }
 
 impl Document {
-    /// Compares two documents using the given strategy. May not return all
-    /// errors if `fail_fast == true`.
+    /// Compares two documents using the given strategy.
     ///
     /// Comparisons are created pair-wise in order using [`compare::page`].
     pub fn compare(
-        outputs: Self,
-        references: Self,
+        outputs: &Self,
+        references: &Self,
         strategy: Strategy,
-        fail_fast: bool,
     ) -> Result<(), compare::Error> {
         let output_len = outputs.buffers.len();
         let reference_len = references.buffers.len();
 
-        let max_cap = Ord::min(output_len, reference_len);
-
-        let mut page_errors = if !fail_fast || max_cap <= 32 {
-            Vec::with_capacity(max_cap)
-        } else {
-            vec![]
-        };
+        let mut page_errors = Vec::with_capacity(Ord::min(output_len, reference_len));
 
         for (idx, (a, b)) in iter::zip(&outputs.buffers, &references.buffers).enumerate() {
             if let Err(err) = compare::page(a, b, strategy) {
                 page_errors.push((idx, err));
-
-                if fail_fast {
-                    break;
-                }
             }
         }
 
