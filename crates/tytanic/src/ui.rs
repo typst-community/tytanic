@@ -21,7 +21,7 @@ macro_rules! cwrite {
     ($ctor:ident($dst:expr $(, $($arg1:tt)*)?), $($arg2:tt)*) => {{
         let mut w = $crate::ui::$ctor(&mut $dst $(, $($arg1)*)?)?;
         write!(w, $($arg2)*)?;
-        $crate::ui::CWrite::finish(w)
+        $crate::ui::CWrite::finish(w).map(|_| ())
     }};
 }
 
@@ -32,7 +32,7 @@ macro_rules! cwriteln {
         write!(w, $($arg2)*)?;
         let w = $crate::ui::CWrite::finish(w)?;
         writeln!(w)?;
-        ::std::io::Result::Ok(w)
+        ::std::io::Result::Ok(())
     }};
 }
 
@@ -225,6 +225,23 @@ where
     G: FnOnce() -> ColorSpec,
 {
     Ok(Styled::new(w, set, unset))
+}
+
+/// Returns an italic writer.
+pub fn italic<W: WriteColor>(w: W) -> io::Result<impl CWrite<Inner = W>> {
+    styled(
+        w,
+        || {
+            let mut spec = ColorSpec::default();
+            spec.set_italic(true);
+            spec
+        },
+        || {
+            let mut spec = ColorSpec::default();
+            spec.set_italic(false);
+            spec
+        },
+    )
 }
 
 /// Returns a bold writer.

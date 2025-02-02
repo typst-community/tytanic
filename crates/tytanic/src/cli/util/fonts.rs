@@ -13,6 +13,9 @@ use crate::{cwrite, cwriteln, kit};
 #[group(id = "util-font-args")]
 pub struct Args {
     /// List variants alongside fonts
+    ///
+    /// Variants are listed as their weight, followed by their style and
+    /// optionally their stretch, if it is not 1.
     #[arg(long)]
     pub variants: bool,
 
@@ -30,16 +33,20 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
         .map(|(name, info)| FontJson {
             name,
             variants: if args.variants {
-                info.map(|info| FontVariantJson {
-                    style: match info.variant.style {
-                        FontStyle::Normal => "normal",
-                        FontStyle::Italic => "italic",
-                        FontStyle::Oblique => "oblique",
-                    },
-                    weight: info.variant.weight.to_number(),
-                    stretch: info.variant.stretch.to_ratio().get(),
-                })
-                .collect()
+                let mut variants = info
+                    .map(|info| FontVariantJson {
+                        weight: info.variant.weight.to_number(),
+                        style: match info.variant.style {
+                            FontStyle::Normal => "normal",
+                            FontStyle::Italic => "italic",
+                            FontStyle::Oblique => "oblique",
+                        },
+                        stretch: info.variant.stretch.to_ratio().get(),
+                    })
+                    .collect::<Vec<_>>();
+
+                variants.sort_by_key(|v| v.weight);
+                variants
             } else {
                 vec![]
             },
@@ -53,19 +60,28 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
 
     let mut w = ctx.ui.stderr();
 
-    cwriteln!(bold(w), "Fonts")?;
-
-    let mut w = Indented::new(w, 2);
     for font in fonts {
-        cwrite!(bold_colored(w, Color::Cyan), "{}", font.name)?;
+        cwriteln!(bold_colored(w, Color::Cyan), "{}", font.name)?;
 
         let mut w = Indented::new(&mut w, 2);
         for variant in &font.variants {
-            writeln!(
-                w,
-                "Style: {}, Weight: {}, Stretch: {}",
-                variant.style, variant.weight, variant.stretch
-            )?;
+            match variant.weight {
+                0..700 => write!(w, "{}", variant.weight)?,
+                700.. => cwrite!(bold(w), "{}", variant.weight)?,
+            }
+
+            write!(w, " ")?;
+
+            match variant.style {
+                "italic" | "oblique" => cwrite!(italic(w), "{}", variant.style)?,
+                _ => write!(w, "normal")?,
+            }
+
+            if variant.stretch != 1.0 {
+                write!(w, " {}", variant.stretch)?;
+            }
+
+            writeln!(w)?;
         }
     }
 

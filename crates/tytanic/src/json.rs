@@ -50,8 +50,8 @@ impl<'t> TestJson<'t> {
 
 #[derive(Debug, Serialize)]
 pub struct FontVariantJson {
-    pub style: &'static str,
     pub weight: u16,
+    pub style: &'static str,
     pub stretch: f64,
 }
 

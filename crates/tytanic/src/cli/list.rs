@@ -7,7 +7,6 @@ use tytanic_core::test::Kind as TestKind;
 use super::{Context, FilterArgs};
 use crate::cwriteln;
 use crate::json::TestJson;
-use crate::ui::Indented;
 
 #[derive(clap::Args, Debug, Clone)]
 #[group(id = "list-args")]
@@ -39,10 +38,6 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
     }
 
     let mut w = ctx.ui.stderr();
-
-    cwriteln!(bold(w), "Tests")?;
-
-    let mut w = Indented::new(w, 2);
 
     // NOTE(tinger): max padding of 50 should be enough for most cases
     let pad = Ord::min(
