@@ -2,9 +2,8 @@
 name: Feature request
 about: Request a feature or change in behavior
 title: 'FR: '
-labels: 'C-feature'
+labels: 'C-feature S-needs-triage'
 assignees: ''
-
 ---
 
 <!--

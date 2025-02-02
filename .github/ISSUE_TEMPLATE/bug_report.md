@@ -2,9 +2,8 @@
 name: Bug report
 about: Report a bug or incorrect documentation
 title: 'BUG: '
-labels: 'C-bug'
+labels: 'C-bug S-needs-triage'
 assignees: ''
-
 ---
 
 <!--
