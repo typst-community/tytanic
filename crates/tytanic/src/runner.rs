@@ -7,7 +7,7 @@ use typst::model::Document as TypstDocument;
 use typst::syntax::Source;
 use tytanic_core::doc::compare::Strategy;
 use tytanic_core::doc::render::Origin;
-use tytanic_core::doc::{compare, compile, Document};
+use tytanic_core::doc::{compile, Document};
 use tytanic_core::project::Project;
 use tytanic_core::test::{Kind, Suite, SuiteResult, Test, TestResult, TestResultKind};
 
@@ -111,6 +111,11 @@ impl<'c, 'p> Runner<'c, 'p> {
                 ) => {
                     // TODO(tinger): retrieve export var from action
                     reporter.report_test_fail(test, &result, true)?;
+
+                    if self.config.fail_fast {
+                        self.result.set_test_result(id.clone(), result);
+                        return Ok(());
+                    }
                 }
                 Some(TestResultKind::PassedCompilation | TestResultKind::PassedComparison) => {
                     reporter.report_test_pass(test, result.duration(), result.warnings())?;
@@ -451,29 +456,8 @@ impl TestRunner<'_, '_, '_> {
             eyre::bail!("attempted to compare compile-only test");
         }
 
-        let mut pages =
-            Vec::with_capacity(Ord::min(output.buffers().len(), reference.buffers().len()));
-
-        for (idx, (output, reference)) in
-            output.buffers().iter().zip(reference.buffers()).enumerate()
-        {
-            match compare::page(output, reference, strategy) {
-                Ok(_) => {}
-                Err(err) if self.project_runner.config.fail_fast => {
-                    pages.push((idx, err));
-                    break;
-                }
-                Err(err) => pages.push((idx, err)),
-            }
-        }
-
-        if !pages.is_empty() || output.buffers().len() != reference.buffers().len() {
-            self.result.set_failed_comparison(compare::Error {
-                output: output.buffers().len(),
-                reference: reference.buffers().len(),
-                pages,
-            });
-
+        if let Err(error) = Document::compare(output, reference, strategy) {
+            self.result.set_failed_comparison(error);
             eyre::bail!(TestFailure);
         }
 
