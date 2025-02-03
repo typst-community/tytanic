@@ -16,10 +16,18 @@ After you downloaded the correct archive for your operating system and architect
 ### Using cargo-binstall
 The most straight forward way to install `tytanic` is to use `cargo-binstall`, this saves you the hassle of compiling from source:
 ```shell
-cargo binstall tytanic@v0.1.1
+cargo binstall tytanic
 ```
 
 This methods requires `cargo-binstall` to be installed.
+
+<div class="warning">
+
+Installing via `cargo-binstall` will not work for versions `v0.1.1` or earlier.
+
+You can use one of the other installation methods for those versions.
+
+</div>
 
 ### Installation From Source
 To install `tytanic` from source, you must have a Rust toolchain (Rust **v1.80.0+**) and `cargo` installed, you can get these using [`rustup`][rustup].
