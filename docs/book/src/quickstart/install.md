@@ -1,6 +1,6 @@
 # Installation
 ## Versions
-You can either install a stable version or a nightly version, a stable version uses a version tag like `v0.1.0`, whereas nightly versions are simply whatever is currently pointed to by the `main` branch on the GitHub repository.
+You can either install a stable version or a nightly version, a stable version uses a version tag like `v0.1.1`, whereas nightly versions are simply whatever is currently pointed to by the `main` branch on the GitHub repository.
 
 Nightly has the newest features, but may have unfixed bugs or rough edges, use this with caution and backup your tests.
 
@@ -16,7 +16,7 @@ After you downloaded the correct archive for your operating system and architect
 ### Using cargo-binstall
 The most straight forward way to install `tytanic` is to use `cargo-binstall`, this saves you the hassle of compiling from source:
 ```shell
-cargo binstall tytanic@v0.1.0
+cargo binstall tytanic@v0.1.1
 ```
 
 This methods requires `cargo-binstall` to be installed.
@@ -26,7 +26,7 @@ To install `tytanic` from source, you must have a Rust toolchain (Rust **v1.80.0
 
 #### Stable
 ```shell
-cargo install --locked tytanic@v0.1.0
+cargo install --locked tytanic@v0.1.1
 ```
 
 #### Nightly
@@ -39,7 +39,7 @@ This method usually doesn't require manually placing the `tt` binary in your `$P
 ### Nix Flake
 #### Stable
 ```shell
-nix run github:tingerrr/tytanic/v0.1.0
+nix run github:tingerrr/tytanic/v0.1.1
 ```
 
 #### Nightly

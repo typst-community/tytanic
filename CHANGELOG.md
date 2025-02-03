@@ -1,16 +1,28 @@
 # [unreleased](https://github.com/tingerrr/tytanic/releases/tags/)
 ## Added
+
+## Removed
+
+## Changed
+
+## Fixed
+
+---
+
+# [v0.1.1](https://github.com/tingerrr/tytanic/releases/tags/v0.1.1)
+## Added
 - `util vcs ignore` command to regenerate ignore files
 - Show if template is detected in `tt status`
 
 ## Removed
 
 ## Changed
-- **BREAKING CHANGE** `Vcs::ignore` and `Vcs::unignore` API
-- **BREAKING CHANGE** `doc::compare` API, removed fail_fast parameter
+- `Vcs::ignore` and `Vcs::unignore` API
+- `doc::compare` API, removed fail_fast parameter
 - Changed location of ignore files to be in the test directory itself.
 
 ## Fixed
+- Write correct header for mercurial ignore files
 - Removed a dead asset path from the `flake.nix`.
 - Panic when optimizing reference documents
 - Panic when running `tt add` with faulty template.

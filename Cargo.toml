@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/*"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.1"
 # must match ci.yml
 rust-version = "1.80.0"
 description = "A test runner for typst projects."
@@ -17,7 +17,7 @@ keywords = ["typst", "test"]
 readme = "README.md"
 
 [workspace.dependencies]
-tytanic-core = { version = "0.1.0", path = "crates/tytanic-core" }
+tytanic-core = { version = "0.1.1", path = "crates/tytanic-core" }
 
 chrono = "0.4.38"
 clap = "4.4.12"
