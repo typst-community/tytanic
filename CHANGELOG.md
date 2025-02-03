@@ -8,6 +8,7 @@
 ## Fixed
 - filter: Don't ignore single test argument (#97)
 - test: Update default test reference (#98)
+- vcs: fix detection of git repository
 
 ---
 

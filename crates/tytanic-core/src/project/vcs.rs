@@ -58,7 +58,7 @@ impl Vcs {
 
     /// Checks the given directory for a Vcs, returning it a vcs is rooted here.
     pub fn try_new(root: &Path) -> io::Result<Option<Self>> {
-        if root.join(".git").try_exists()? && root.join(".jj").try_exists()? {
+        if root.join(".git").try_exists()? || root.join(".jj").try_exists()? {
             Ok(Some(Self::new(root, Kind::Git)))
         } else if root.join(".hg").try_exists()? {
             Ok(Some(Self::new(root, Kind::Mercurial)))
