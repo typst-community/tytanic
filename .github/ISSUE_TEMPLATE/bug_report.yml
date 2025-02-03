@@ -1,0 +1,68 @@
+name: Bug report
+about: Report a bug or other issue
+title: 'BUG: '
+labels:
+  - C-bug
+  - S-needs-triage
+body:
+  - type: markdown
+    value: |
+      Thank you for your report!
+
+      For questions please use the [Typst community discord][discord].
+
+      [discord]: https://discord.gg/2uDybryKPe
+
+  - type: textarea
+    validations:
+      required: true
+    attributes:
+      label: Description
+      description: Describe the issue you encountered.
+      placeholder: Please describe your problem here.
+      value: |
+        I added a new test to my project and ran it immediately and it spat out a cryptic error.
+
+        ## Expected Result
+        The tests are all run.
+
+        ## Actual Result
+        The feat1 test fails witht he following message:
+
+  - type: textarea
+    validations:
+      required: false
+    attributes:
+      label: Steps to reproduce
+      description: Describe which preconditions and steps reproduce the issue.
+      placeholder: Describe the steps you've taken.
+      value: |
+        1. Prepare project with weird name
+        2. `tt add features/feat1`
+        3. `tt run`
+
+  - type: input
+    validations:
+      required: true
+    attributes:
+      label: Version
+      description: Which version did you use? (run `tt --version` to find out)
+
+  - type: dropdown
+    validations:
+      required: true
+    attributes:
+      label: Operating System
+      description: On which operating system family did you encounter this issue?
+      options:
+        - Linux
+        - macOS
+        - Windows
+
+  - type: textarea
+    validations:
+      required: false
+    attributes:
+      label: Additional Context
+      description: Add any useful extra information here.
+      placeholder: Describe the steps you've taken.

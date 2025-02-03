@@ -1,0 +1,38 @@
+name: Feature request
+about: Request a feature or change in behavior
+title: 'FR: '
+labels:
+  - 'C-feature'
+  - 'S-needs-triage'
+body:
+  - type: markdown
+    value: |
+      Thank you for your feature request!
+
+      For questions please use the [Typst community discord][discord].
+
+      [discord]: https://discord.gg/2uDybryKPe
+
+  - type: textarea
+    validations:
+      required: true
+    attributes:
+      label: Description
+      description: Describe the feature or change you would you like have.
+      placeholder: Please describe your request here.
+
+  - type: textarea
+    validations:
+      required: false
+    attributes:
+      label: Possible Alternatives
+      description: If you've considered alternatives write them down here.
+      placeholder: Describe some alternatives that you've considered .
+
+  - type: textarea
+    validations:
+      required: false
+    attributes:
+      label: Additional Context
+      description: Add any useful extra information here.
+      placeholder: Describe the steps you've taken.
