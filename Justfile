@@ -51,4 +51,4 @@ clean:
 
 # install tytanic using cargo
 install *args='--force':
-	cargo install --path crates/tytanic-cli {{ args }}
+	cargo install --path crates/tytanic {{ args }}
