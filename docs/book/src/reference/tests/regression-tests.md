@@ -1,5 +1,5 @@
 # Regression tests
-Regression tests are those tests found in their on directory identified by a `test.typ` script and are located in `tests`.
+Regression tests are those tests found in their own directory identified by a `test.typ` script and are located in `tests`.
 
 Regression tests are the only tests which have access to an extended Typst standard library.
 This [test library](./lib.md) contains modules and functions to thoroughly test both the success and failure paths of your project.
@@ -8,7 +8,7 @@ This [test library](./lib.md) contains modules and functions to thoroughly test 
 There are three kinds of regression tests:
 - `compile-only`: Tests which are compiled, but not compared to any reference, these don't produce any output.
 - `persistent`: Tests which are compared to persistent reference documents.
-  The references for these tests are stored in a `ref` directory along side the test script as individual pages using PNGs.
+  The references for these tests are stored in a `ref` directory alongside the test script as individual pages using PNGs.
   These tests can be updated with the `tt update` command.
 - `ephemeral`: Tests which are compared to the output of another script.
   The references for these tests are compiled on the fly using a `ref.typ` script.
@@ -24,7 +24,7 @@ The directory path within the test root `tests` in your project is the identifie
 Given a directory within `tests`, it is considered a valid test, if it contains at least a `test.typ` file.
 The strucutre of this directory looks as follows:
 - `test.typ`: The main test script, this is always compiled as the entrypoint.
-- `ref.typ` (optional): This makes a test ephemeral and is used to compile the reference document for eahc invocation.
+- `ref.typ` (optional): This makes a test ephemeral and is used to compile the reference document for each invocation.
 - `ref` (optional, temporary): This makes a test either persistent or ephemeral and is used to store the reference documents.
   If the test is ephemeral this directory is temporary.
 - `out` (temporary): Contains the test output document.
@@ -37,13 +37,13 @@ The kind of a test is determined as follows:
 
 Temporary directories are ignored within the VCS if one is detected, this is currently done by simply adding an ignore file within the directory which ignores all entries inside it.
 
-A test cannot contain other her tests, if a test script is found `tytanic` will not search for any sub tests.
+A test cannot contain other tests, if a test script is found `tytanic` will not search for any sub tests.
 
 Regression test are compiled with the project root as their typst root, such that they can easily access package internals with absolute paths.
 
 ## Comparison
 Ephemeral and persistent tests are curently compared using a simple deviation threshold which determines if two images should be considered the same or different.
-If the images have differnet dimensions consider them different.
+If the images have different dimensions consider them different.
 Given two images of equal dimensions, pair up each pixel and compare them, if any of the 3 channels (red, green, blue) differ by at least `min-delta` count it as a deviation.
 If there are more than `max-deviations` of such deviating pixels, consider the images different.
 

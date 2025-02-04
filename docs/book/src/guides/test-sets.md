@@ -3,7 +3,7 @@
 Many operations such as running, comparing, removing or updating tests all need to somehow select which tests to operate on.
 `tytanic` offers a functional set-based language which is used to select tests, it visually resembles writing a predicate which is applied to each test.
 
-Test set expresisons are passed using the `--expression` or `-e` flag, they support the following features:
+Test set expressions are passed using the `--expression` or `-e` flag, they support the following features:
 - binary and unary operators like `&`/`and` or `!`/`not`
 - built-in primitive test sets such as `ephemeral()`, `compile-only()` or `skip()`
 - identity test sets for easier scripting like `all()` and `none()`
@@ -63,10 +63,10 @@ regressions/issue-42
 regressions/issue-33
 ```
 
-The you can simply run `tt run` with the same expression and it will run only those tests.
+Then you can simply run `tt run` with the same expression and it will run only those tests.
 
-If you want to incldue or exclude various directories or tests by identifier you can use patterns.
-Let's you want to only run feature tests, you can a pattern like `c:features` or more correctly `r:^features`.
+If you want to include or exclude various directories or tests by identifier you can use patterns.
+Let's say you want to only run feature tests, you can a pattern like `c:features` or more correctly `r:^features`.
 
 If you run
 ```shell

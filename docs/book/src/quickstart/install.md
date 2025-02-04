@@ -34,7 +34,7 @@ To install `tytanic` from source, you must have a Rust toolchain (Rust **v1.80.0
 
 #### Stable
 ```shell
-cargo install --locked tytanic@v0.1.1
+cargo install --locked tytanic@0.1.1
 ```
 
 #### Nightly

@@ -1,7 +1,7 @@
 # Writing tests
 To start writing tests, you only need to write regular `typst` scripts, no special syntax or annotations are required.
 
-Let's start with the most common type of tests, regression tests. 
+Let's start with the most common type of tests, regression tests.
 We'll assume you have a normal package directory structure:
 ```txt
 <project>
@@ -11,7 +11,7 @@ We'll assume you have a normal package directory structure:
 ```
 
 ## Regression tests
-Regression tests are found in the `test` directory of your project (remember that this is where your `typst.toml` manifest is found).
+Regression tests are found in the `tests` directory of your project (remember that this is where your `typst.toml` manifest is found).
 
 Let's write our first test, you can run `tt add my-test` to add a new regression test, this creates a new directory called `my-test` inside `tests` and adds a test script and reference document.
 This test is located in `tests/my-test/tests.typ` and is the entrypoint script (like a `main.typ` file).
@@ -164,7 +164,9 @@ See [#73].
 
 </div>
 
+<!--
 The more your project grows
+-->
 
 ## Template tests
 

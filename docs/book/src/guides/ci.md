@@ -1,6 +1,6 @@
 # Setting Up CI
 Continuous integration can take a lot of manual work off of your shoulders.
-In this chapter we'll look at how to run `tytanic` in your GitHub CI to continuously to test your code and catch bugs before they get merged into your project.
+In this chapter we'll look at how to run `tytanic` in your GitHub CI to continuously test your code and catch bugs before they get merged into your project.
 
 <div class="warning">
 
