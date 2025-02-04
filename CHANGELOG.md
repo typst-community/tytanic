@@ -10,6 +10,7 @@
 - test: Update default test reference (#98)
 - vcs: fix detection of git repository
 - docs: fix some typos
+- cli: add: Don't add references for non-pereistent tests (#96)
 
 ---
 

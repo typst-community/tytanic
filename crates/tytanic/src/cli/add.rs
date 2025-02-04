@@ -7,12 +7,11 @@ use typst::diag::Warned;
 use typst_syntax::{FileId, Source, VirtualPath};
 use tytanic_core::doc::render::ppi_to_ppp;
 use tytanic_core::doc::Document;
-use tytanic_core::test::{Id, Reference, Test};
+use tytanic_core::test::{self, Id, Reference, Test};
 
 use super::{CompileArgs, Context, ExportArgs};
 use crate::cli::OperationFailure;
-use crate::ui;
-use crate::{cwriteln, DEFAULT_OPTIMIZE_OPTIONS};
+use crate::{cwriteln, ui, DEFAULT_OPTIMIZE_OPTIONS};
 
 #[derive(clap::Args, Debug, Clone)]
 #[group(id = "add-args")]
@@ -52,18 +51,25 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
     let vcs = project.vcs();
     let id = args.test.clone();
 
-    if let Some(template) = suite.template().filter(|_| !args.no_template) {
-        if args.ephemeral {
-            Test::create(
-                paths,
-                vcs,
-                id,
-                template,
-                Some(Reference::Ephemeral(template.into())),
-            )?;
+    'create: {
+        let source = suite
+            .template()
+            .filter(|_| !args.no_template)
+            .unwrap_or(test::DEFAULT_TEST_INPUT);
+
+        let reference = if args.ephemeral {
+            Some(Reference::Ephemeral(source.into()))
         } else if args.compile_only {
-            Test::create(paths, vcs, id, template, None)?;
+            None
         } else {
+            if args.no_template {
+                // NOTE(tinger): this is an optimized case where we write the
+                // already optimized bytes directly to disk, skipping redunant
+                // png compression optimization and compilation from source
+                Test::create_default(paths, vcs, id)?;
+                break 'create;
+            }
+
             let world = ctx.world(&args.compile)?;
             let path = project.paths().template();
 
@@ -72,10 +78,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
                 .expect("template is in project root");
 
             let Warned { output, warnings } = Document::compile(
-                Source::new(
-                    FileId::new(None, VirtualPath::new(path)),
-                    template.to_owned(),
-                ),
+                Source::new(FileId::new(None, VirtualPath::new(path)), source.into()),
                 &world,
                 ppi_to_ppp(args.export.render.pixel_per_inch),
                 args.compile.promote_warnings,
@@ -106,22 +109,16 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
                 }
             };
 
-            Test::create(
-                paths,
-                vcs,
-                id,
-                template,
-                Some(Reference::Persistent(
-                    doc,
-                    args.export
-                        .no_optimize_references
-                        .not()
-                        .then(|| Box::new(DEFAULT_OPTIMIZE_OPTIONS.clone())),
-                )),
-            )?;
+            Some(Reference::Persistent(
+                doc,
+                args.export
+                    .no_optimize_references
+                    .not()
+                    .then(|| Box::new(DEFAULT_OPTIMIZE_OPTIONS.clone())),
+            ))
         };
-    } else {
-        Test::create_default(paths, vcs, id)?;
+
+        Test::create(paths, vcs, id, source, reference)?;
     }
 
     let mut w = ctx.ui.stderr();
