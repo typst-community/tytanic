@@ -3,7 +3,7 @@
 However, you can work around this by using [`watchexec`] or an equivalent tool which re-runs `tytanic` whenever a file in your project changes.
 
 Let's look at a concrete example with `watchexec`.
-Navigate to your project root directory, i.e. that whhich contains your `typst.toml` manifest and run:
+Navigate to your project root directory, i.e. that which contains your `typst.toml` manifest and run:
 ```shell
 watchexec \
   --watch . \
@@ -17,7 +17,7 @@ watchexec \
 Of course a shell alias or task runner definition makes this more convenient.
 While this is running, any change to a file in your project which is not excluded by the patterns proivided using the `--ignore` flag will trigger a re-run of `tt run`.
 
-If you have other files youmay edit which don't influence the outcome of your test suite, then you should ignore them too.
+If you have other files you may edit which don't influence the outcome of your test suite, then you should ignore them too.
 
 <div class="warning">
 

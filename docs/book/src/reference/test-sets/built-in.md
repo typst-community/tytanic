@@ -7,7 +7,7 @@ There are a few available types:
 |`test set`|Represents a set of tests.|
 |`number`|Positive whole numbers.|
 |`string`|Used for patterns containing special characters.|
-|`pattern`|Special syntax for test sets which operator on test identifiers.|
+|`pattern`|Special syntax for test sets which operate on test identifiers.|
 
 A test set expression must always evaluate to a test set, otherwise it is ill-formed, all operators operate on test sets only.
 The following may be valid `set(1) & set("aaa", 2)`, but `set() & 1` is not.
@@ -38,6 +38,6 @@ The following pattern types exist:
 |`e`/`exact`|`exact:mod/name`|Matches by comparing the identifier exactly to the given term.|
 |`c`/`contains`|`c:plot`|Matches by checking if the given term is contained in the identifier.|
 |`r`/`regex`|`regex:mod-[234]/.*`|Matches using the given regex.|
-|`g`/`glob`|`g:foo/**/bar`|Matches using the given glob battern.|
-|`p`/`path`|`p:foo`|Matches using the given glob battern.|
+|`g`/`glob`|`g:foo/**/bar`|Matches using the given glob pattern.|
+|`p`/`path`|`p:foo`|Matches using the given glob pattern.|
 
