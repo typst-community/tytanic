@@ -176,13 +176,12 @@ impl Context<'_> {
                 .iter()
                 .map(|test| eval::Set::built_in_pattern(test_set::Pat::Exact(test.into())));
 
-            let a = tests.next();
-            let b = tests.next();
+            let a = tests.next().expect("`tests` is not empty");
 
-            let set = a
-                .and_then(|a| b.map(|b| (a, b)))
-                .map(|(a, b)| eval::Set::built_in_union(a, b, tests))
-                .unwrap_or_default();
+            let set = match tests.next() {
+                Some(b) => eval::Set::built_in_union(a, b, tests),
+                None => a,
+            };
 
             Ok(TestSet::new(eval::Context::empty(), set))
         } else {
