@@ -1,5 +1,5 @@
 name: Bug report
-about: Report a bug or other issue
+description: Report a bug or other issue
 title: 'BUG: '
 labels:
   - C-bug

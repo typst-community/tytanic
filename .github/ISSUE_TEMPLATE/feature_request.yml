@@ -1,5 +1,5 @@
 name: Feature request
-about: Request a feature or change in behavior
+description: Request a feature or change in behavior
 title: 'FR: '
 labels:
   - 'C-feature'
