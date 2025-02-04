@@ -6,6 +6,7 @@
 ## Changed
 
 ## Fixed
+- test: Update default test reference (#98)
 
 ---
 
