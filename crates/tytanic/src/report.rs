@@ -13,7 +13,7 @@ use tytanic_core::test::{Stage, Test, TestResult};
 use tytanic_utils::fmt::Term;
 
 use crate::cwrite;
-use crate::ui::{self, Ui};
+use crate::ui::{self, CWrite, Ui};
 use crate::world::SystemWorld;
 
 /// The padding to use for annotations while test run reporting.
@@ -83,8 +83,8 @@ impl Reporter<'_, '_> {
         let mut w = ui::annotated(w, "Summary", color, RUN_ANNOT_PADDING)?;
 
         write!(w, "[")?;
-        write_duration(
-            &mut ui::colored(
+        {
+            let mut w = ui::colored(
                 &mut w,
                 duration_color(
                     result
@@ -92,9 +92,10 @@ impl Reporter<'_, '_> {
                         .checked_div(result.run() as u32)
                         .unwrap_or_default(),
                 ),
-            )?,
-            result.duration(),
-        )?;
+            )?;
+            write_duration(&mut w, result.duration())?;
+            w.finish()?;
+        }
         write!(w, "] ")?;
 
         cwrite!(bold(w), "{}", result.run())?;
@@ -162,17 +163,18 @@ impl Reporter<'_, '_> {
         let mut w = ui::annotated(self.ui.stderr(), "", Color::Black, RUN_ANNOT_PADDING)?;
 
         write!(w, "[")?;
-        write_duration(
-            &mut ui::colored(
+        {
+            let mut w = ui::colored(
                 &mut w,
                 duration_color(
                     duration
                         .checked_div(result.run() as u32)
                         .unwrap_or_default(),
                 ),
-            )?,
-            result.duration(),
-        )?;
+            )?;
+            write_duration(&mut w, duration)?;
+            w.finish()?;
+        }
         write!(w, "] ")?;
 
         cwrite!(bold(w), "{}", result.run())?;
@@ -221,10 +223,11 @@ impl Reporter<'_, '_> {
         let mut w = ui::annotated(self.ui.stderr(), "pass", Color::Green, RUN_ANNOT_PADDING)?;
 
         write!(w, "[")?;
-        write_duration(
-            &mut ui::colored(&mut w, duration_color(duration))?,
-            duration,
-        )?;
+        {
+            let mut w = ui::colored(&mut w, duration_color(duration))?;
+            write_duration(&mut w, duration)?;
+            w.finish()?;
+        }
         write!(w, "] ")?;
         ui::write_test_id(&mut w, test.id())?;
         writeln!(w)?;
@@ -250,10 +253,11 @@ impl Reporter<'_, '_> {
         let mut w = ui::annotated(self.ui.stderr(), "fail", Color::Red, RUN_ANNOT_PADDING)?;
 
         write!(w, "[")?;
-        write_duration(
-            &mut ui::colored(&mut w, duration_color(result.duration()))?,
-            result.duration(),
-        )?;
+        {
+            let mut w = ui::colored(&mut w, duration_color(result.duration()))?;
+            write_duration(&mut w, result.duration())?;
+            w.finish()?;
+        }
         write!(w, "] ")?;
         ui::write_test_id(&mut w, test.id())?;
         writeln!(w)?;

@@ -346,10 +346,10 @@ impl SuiteResult {
         self.filtered
     }
 
-    /// The number of tests in the suite which were _not_ run either by
-    /// filtering or test run cancellation.
+    /// The number of tests in the suite which were _not_ run due to
+    /// cancellation.
     pub fn skipped(&self) -> usize {
-        self.total() - self.run()
+        self.expected() - self.run()
     }
 
     /// The number of tests in the suite which passed.
