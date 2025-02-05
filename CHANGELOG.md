@@ -1,7 +1,20 @@
 # [unreleased](https://github.com/tingerrr/tytanic/releases/tags/)
 ## Added
+- cli: Add `--[no-]compare`
+- cli: Add `--[no-]fail-fast`
+- cli: Add `--[no-]skip` (renamed from `--no-implicit-skip`)
+- cli: Add `--[no-]optimize-refs` (renamed from `--no-optimize-references`)
+- cli: Add `--[no-]export-ephemeral`
+- cli: Add `--warnings` enum
+  - `ignore` to ignore all warnings
+  - `emit` (default) to emit all warnings
+  - `promote` to promote all warnings to errors (from `--promote-warnings`)
 
 ## Removed
+- cli: Remove `--no-optimize-references` (renamed to `--[no-]optimize-refs`)
+- cli: Remove `--no-implicit-skip` (renamed to `--[no-]skip`)
+- cli: Remove `--promote-warnings` (renamed to `--warnings`)
+- cli: run: Remove `--no-export` (renamed to `--[no-]export-ephemeral`)
 
 ## Changed
 

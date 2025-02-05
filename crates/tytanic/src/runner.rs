@@ -11,6 +11,7 @@ use tytanic_core::doc::{compile, Document};
 use tytanic_core::project::Project;
 use tytanic_core::test::{Kind, Suite, SuiteResult, Test, TestResult, TestResultKind};
 
+use crate::cli::options::Warnings;
 use crate::cli::TestFailure;
 use crate::report::Reporter;
 use crate::world::SystemWorld;
@@ -23,8 +24,8 @@ pub enum Action {
         /// The strategy to use when comparing documents.
         strategy: Option<Strategy>,
 
-        /// Whether to export temporaries.
-        export: bool,
+        /// Whether to export ephemeral output.
+        export_ephemeral: bool,
 
         /// The origin at which to render diff images of different dimensions.
         origin: Origin,
@@ -32,8 +33,8 @@ pub enum Action {
 
     /// Compile and update test references.
     Update {
-        /// Whether to export temporaries.
-        export: bool,
+        /// Whether to export ephemeral output.
+        export_ephemeral: bool,
 
         /// The origin at which to render diff images of different dimensions.
         origin: Origin,
@@ -42,8 +43,8 @@ pub enum Action {
 
 #[derive(Debug, Clone)]
 pub struct RunnerConfig<'c> {
-    /// Whether to promote warnings to errors.
-    pub promote_warnings: bool,
+    /// How to handle warnings.
+    pub warnings: Warnings,
 
     /// Whether to optimize reference documents.
     pub optimize: bool,
@@ -160,7 +161,7 @@ impl TestRunner<'_, '_, '_> {
         match self.project_runner.config.action {
             Action::Run {
                 strategy,
-                export,
+                export_ephemeral: export,
                 origin,
             } => {
                 let output = self.load_out_src()?;
@@ -210,7 +211,10 @@ impl TestRunner<'_, '_, '_> {
                     Kind::CompileOnly => {}
                 }
             }
-            Action::Update { export, origin } => match self.test.kind() {
+            Action::Update {
+                export_ephemeral: export,
+                origin,
+            } => match self.test.kind() {
                 Kind::Ephemeral => {
                     let output = self.load_out_src()?;
                     let output = self.compile_out_doc(output)?;
@@ -366,11 +370,18 @@ impl TestRunner<'_, '_, '_> {
     }
 
     fn compile_inner(&mut self, source: Source, is_reference: bool) -> eyre::Result<TypstDocument> {
-        let Warned { output, warnings } = compile::compile(
+        let Warned {
+            output,
+            mut warnings,
+        } = compile::compile(
             source,
             self.project_runner.world,
-            self.project_runner.config.promote_warnings,
+            self.project_runner.config.warnings == Warnings::Promote,
         );
+
+        if self.project_runner.config.warnings == Warnings::Ignore {
+            warnings.clear();
+        }
 
         if warnings.is_empty() {
             self.result.set_warnings(warnings);

@@ -5,26 +5,21 @@ use typst_kit::download::Downloader;
 use typst_kit::fonts::{FontSearcher, Fonts};
 use typst_kit::package::PackageStorage;
 
-use crate::cli::{CompileArgs, FontArgs, PackageArgs};
+use crate::cli::options::{FontOptions, PackageOptions, TypstOptions};
 use crate::world::SystemWorld;
 
-pub fn world(
-    project_root: PathBuf,
-    font_args: &FontArgs,
-    package_args: &PackageArgs,
-    compile_args: &CompileArgs,
-) -> eyre::Result<SystemWorld> {
+pub fn world(project_root: PathBuf, typst_options: &TypstOptions) -> eyre::Result<SystemWorld> {
     let world = SystemWorld::new(
         project_root,
-        fonts_from_args(font_args),
-        package_storage_from_args(package_args),
-        compile_args.creation_timestamp,
+        fonts_from_args(&typst_options.font),
+        package_storage_from_args(&typst_options.package),
+        typst_options.creation_timestamp,
     )?;
 
     Ok(world)
 }
 
-pub fn downloader_from_args(args: &PackageArgs) -> Downloader {
+pub fn downloader_from_args(args: &PackageOptions) -> Downloader {
     let agent = format!("{}/{}", tytanic_core::TOOL_NAME, env!("CARGO_PKG_VERSION"));
 
     match args.certificate.clone() {
@@ -33,7 +28,7 @@ pub fn downloader_from_args(args: &PackageArgs) -> Downloader {
     }
 }
 
-pub fn package_storage_from_args(args: &PackageArgs) -> PackageStorage {
+pub fn package_storage_from_args(args: &PackageOptions) -> PackageStorage {
     PackageStorage::new(
         args.package_cache_path.clone(),
         args.package_path.clone(),
@@ -41,7 +36,7 @@ pub fn package_storage_from_args(args: &PackageArgs) -> PackageStorage {
     )
 }
 
-pub fn fonts_from_args(args: &FontArgs) -> Fonts {
+pub fn fonts_from_args(args: &FontOptions) -> Fonts {
     let _span = tracing::debug_span!(
         "searching for fonts",
         paths = ?args.font_paths,

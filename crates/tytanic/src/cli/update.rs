@@ -2,7 +2,9 @@ use color_eyre::eyre;
 use tytanic_core::doc::render::{self, Origin};
 use tytanic_core::test_set::eval;
 
-use super::{CompileArgs, Context, Direction, ExportArgs, FilterArgs, RunArgs, CANCELLED};
+use super::options::Switch;
+use super::{Context, CANCELLED};
+use crate::cli::options::{CompileOptions, Direction, ExportOptions, FilterOptions, RunnerOptions};
 use crate::cli::TestFailure;
 use crate::report::Reporter;
 use crate::runner::{Action, Runner, RunnerConfig};
@@ -11,16 +13,16 @@ use crate::runner::{Action, Runner, RunnerConfig};
 #[group(id = "update-args")]
 pub struct Args {
     #[command(flatten)]
-    pub compile: CompileArgs,
+    pub compile: CompileOptions,
 
     #[command(flatten)]
-    pub export: ExportArgs,
+    pub export: ExportOptions,
 
     #[command(flatten)]
-    pub run: RunArgs,
+    pub runner: RunnerOptions,
 
     #[command(flatten)]
-    pub filter: FilterArgs,
+    pub filter: FilterOptions,
 }
 
 pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
@@ -28,28 +30,25 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
     let mut set = ctx.test_set(&args.filter)?;
     set.add_intersection(eval::Set::built_in_persistent());
     let suite = ctx.collect_tests(&project, &set)?;
-    let world = ctx.world(&args.compile)?;
+    let world = ctx.world()?;
+
+    let origin = match args.export.dir {
+        Direction::Ltr => Origin::TopLeft,
+        Direction::Rtl => Origin::TopRight,
+    };
 
     let runner = Runner::new(
         &project,
         &suite,
         &world,
         RunnerConfig {
-            promote_warnings: args.compile.promote_warnings,
-            optimize: !args.export.no_optimize_references,
-            fail_fast: !args.run.no_fail_fast,
-            pixel_per_pt: render::ppi_to_ppp(args.export.render.pixel_per_inch),
+            warnings: args.compile.warnings,
+            optimize: args.export.optimize_refs.get_or_default(),
+            fail_fast: args.runner.fail_fast.get_or_default(),
+            pixel_per_pt: render::ppi_to_ppp(args.export.ppi),
             action: Action::Update {
-                export: true,
-                origin: args
-                    .export
-                    .render
-                    .direction
-                    .map(|dir| match dir {
-                        Direction::Ltr => Origin::TopLeft,
-                        Direction::Rtl => Origin::TopRight,
-                    })
-                    .unwrap_or_default(),
+                export_ephemeral: args.export.export_ephemeral.get_or_default(),
+                origin,
             },
             cancellation: &CANCELLED,
         },
@@ -59,7 +58,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
         ctx.ui,
         &project,
         &world,
-        ctx.ui.can_live_report() && ctx.args.global.output.verbose == 0,
+        ctx.ui.can_live_report() && ctx.args.output.verbose == 0,
     );
     let result = runner.run(&reporter)?;
 

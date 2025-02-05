@@ -9,7 +9,9 @@ use tytanic_core::doc::render::ppi_to_ppp;
 use tytanic_core::doc::Document;
 use tytanic_core::test::{self, Id, Reference, Test};
 
-use super::{CompileArgs, Context, ExportArgs};
+use super::options::{Switch, Warnings};
+use super::Context;
+use crate::cli::options::{CompileOptions, ExportOptions};
 use crate::cli::OperationFailure;
 use crate::{cwriteln, ui, DEFAULT_OPTIMIZE_OPTIONS};
 
@@ -29,10 +31,10 @@ pub struct Args {
     pub no_template: bool,
 
     #[command(flatten)]
-    pub compile: CompileArgs,
+    pub compile: CompileOptions,
 
     #[command(flatten)]
-    pub export: ExportArgs,
+    pub export: ExportOptions,
 
     /// The name of the test to add
     pub test: Id,
@@ -70,31 +72,36 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
                 break 'create;
             }
 
-            let world = ctx.world(&args.compile)?;
+            let world = ctx.world()?;
             let path = project.paths().template();
 
             let path = path
                 .strip_prefix(project.paths().project_root())
                 .expect("template is in project root");
 
-            let Warned { output, warnings } = Document::compile(
+            let Warned {
+                output,
+                mut warnings,
+            } = Document::compile(
                 Source::new(FileId::new(None, VirtualPath::new(path)), source.into()),
                 &world,
-                ppi_to_ppp(args.export.render.pixel_per_inch),
-                args.compile.promote_warnings,
+                ppi_to_ppp(args.export.ppi),
+                args.compile.warnings == Warnings::Promote,
             );
+
+            if args.compile.warnings == Warnings::Ignore {
+                warnings.clear();
+            }
 
             let doc = match output {
                 Ok(doc) => {
-                    if !warnings.is_empty() {
-                        ui::write_diagnostics(
-                            &mut ctx.ui.stderr(),
-                            ctx.ui.diagnostic_config(),
-                            &world,
-                            &warnings,
-                            &[],
-                        )?;
-                    }
+                    ui::write_diagnostics(
+                        &mut ctx.ui.stderr(),
+                        ctx.ui.diagnostic_config(),
+                        &world,
+                        &warnings,
+                        &[],
+                    )?;
                     doc
                 }
                 Err(err) => {
@@ -112,7 +119,8 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
             Some(Reference::Persistent(
                 doc,
                 args.export
-                    .no_optimize_references
+                    .optimize_refs
+                    .get_or_default()
                     .not()
                     .then(|| Box::new(DEFAULT_OPTIMIZE_OPTIONS.clone())),
             ))
