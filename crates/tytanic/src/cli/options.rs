@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use clap::{Args, ColorChoice, Parser, ValueEnum};
 use color_eyre::eyre;
 
-use super::{add, list, remove, run, status, update, util, Context};
+use super::{delete, list, new, run, status, update, util, Context};
 
 // TODO(tinger): use built in negation once in clap
 // See: https://github.com/clap-rs/clap/issues/815
@@ -76,10 +76,19 @@ macro_rules! impl_switch {
 }
 
 impl_switch! {
+    /// The `--template`/`--no-template` option.
+    TemplateSwitch(true) {
+        /// Use the template (default)
+        template,
+        /// Don't use the template
+        no_template,
+    }
+}
+
+impl_switch! {
     /// The `--compare`/`--no-compare` option.
     CompareSwitch(true) {
-        #[allow(rustdoc::broken_intra_doc_links)]
-        /// Compare tests if they have references [default]
+        /// Compare tests if they have references (default)
         compare,
         /// Don't compare tests
         no_compare,
@@ -89,8 +98,7 @@ impl_switch! {
 impl_switch! {
     /// The `--export-ephemeral`/`--no-export-ephemeral` option.
     ExportEphemeralSwitch(true) {
-        #[allow(rustdoc::broken_intra_doc_links)]
-        /// Export ephemeral documents [default]
+        /// Export ephemeral documents (default)
         ///
         /// Ephemeral documents are those which are created for each test run,
         /// i.e. non-persistent ones.
@@ -103,8 +111,7 @@ impl_switch! {
 impl_switch! {
     /// The `--fail-fast`/`--no-fail-fast` option.
     FailFastSwitch(true) {
-        #[allow(rustdoc::broken_intra_doc_links)]
-        /// Abort after the first test failure [default]
+        /// Abort after the first test failure (default)
         fail_fast = 'f',
         /// Don't abort after the first test failure
         no_fail_fast = 'F',
@@ -114,8 +121,7 @@ impl_switch! {
 impl_switch! {
     /// The `--skip`/`--no-skip` option.
     SkipSwitch(true) {
-        #[allow(rustdoc::broken_intra_doc_links)]
-        /// Automatically remove skipped tests [default]
+        /// Automatically remove skipped tests (default)
         ///
         /// Equivalent to wrapping the test set expression in `(...) ~ skip()`.
         skip = 's',
@@ -128,8 +134,7 @@ impl_switch! {
 impl_switch! {
     /// The `--optimize-refs`/`--no-optimize-refs` option.
     OptimizeRefsSwitch(true) {
-        #[allow(rustdoc::broken_intra_doc_links)]
-        /// Optimize persistent references [default]
+        /// Optimize persistent references (default)
         optimize_refs,
 
         /// Don't optimize persistent references
@@ -413,16 +418,13 @@ pub enum Command {
     #[command()]
     Update(update::Args),
 
-    /// Add a new test
-    ///
-    /// The default test simply contains `Hello World`, if a
-    /// test template file is given, it is used instead.
-    #[command()]
-    Add(add::Args),
+    /// Create a new test
+    #[command(alias = "add")]
+    New(new::Args),
 
     /// Remove tests
-    #[command(visible_alias = "rm")]
-    Remove(remove::Args),
+    #[command(alias = "remove", alias = "rm")]
+    Delete(delete::Args),
 
     /// Utility commands
     #[command()]
@@ -432,8 +434,8 @@ pub enum Command {
 impl Command {
     pub fn run(&self, ctx: &mut Context<'_>) -> eyre::Result<()> {
         match self {
-            Command::Add(args) => add::run(ctx, args),
-            Command::Remove(args) => remove::run(ctx, args),
+            Command::New(args) => new::run(ctx, args),
+            Command::Delete(args) => delete::run(ctx, args),
             Command::Status(args) => status::run(ctx, args),
             Command::List(args) => list::run(ctx, args),
             Command::Update(args) => update::run(ctx, args),

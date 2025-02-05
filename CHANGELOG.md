@@ -9,6 +9,11 @@
   - `ignore` to ignore all warnings
   - `emit` (default) to emit all warnings
   - `promote` to promote all warnings to errors (from `--promote-warnings`)
+- cli: new: Add `--type`
+  - `persistent` (default)
+  - `ephemeral`
+  - `compile-only`
+- cli: new: Add `--persistent`
 
 ## Removed
 - cli: Remove `--no-optimize-references` (renamed to `--[no-]optimize-refs`)
@@ -17,6 +22,8 @@
 - cli: run: Remove `--no-export` (renamed to `--[no-]export-ephemeral`)
 
 ## Changed
+- cli: Deprecated `add` in favor of `new`
+- cli: Deprecated `remove` in favor of `delete`
 
 ## Fixed
 - filter: Don't ignore single test argument (#97)

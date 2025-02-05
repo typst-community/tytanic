@@ -1,5 +1,6 @@
 //! A test runner for t4gl set suites.
 
+use std::env;
 use std::io::{self, Write};
 use std::process::ExitCode;
 use std::sync::atomic::Ordering;
@@ -10,7 +11,7 @@ use cli::Context;
 use codespan_reporting::term;
 use color_eyre::eyre;
 use once_cell::sync::Lazy;
-use termcolor::{StandardStream, WriteColor};
+use termcolor::{Color, StandardStream, WriteColor};
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::filter::Targets;
 use tracing_subscriber::layer::SubscriberExt;
@@ -63,6 +64,39 @@ fn main_impl() -> eyre::Result<ExitCode> {
             ..Default::default()
         },
     );
+
+    // Emit deprecation waring for aliases
+    if let Some(arg) = env::args().skip(1).find(|arg| !arg.starts_with('-')) {
+        match &arg[..] {
+            "remove" | "rm" => {
+                let mut w = ui.warn()?;
+                write!(w, "Sub command alias ")?;
+                cwrite!(colored(w, Color::Cyan), "remove")?;
+                write!(w, "|")?;
+                cwrite!(colored(w, Color::Cyan), "rm")?;
+                writeln!(w, " is deprecated")?;
+                drop(w);
+
+                let mut w = ui.hint()?;
+                write!(w, "Use ")?;
+                cwrite!(colored(w, Color::Cyan), "delete")?;
+                writeln!(w, " instead")?;
+            }
+            "add" => {
+                let mut w = ui.warn()?;
+                write!(w, "Sub command alias ")?;
+                cwrite!(colored(w, Color::Cyan), "add")?;
+                writeln!(w, " is deprecated")?;
+                drop(w);
+
+                let mut w = ui.hint()?;
+                write!(w, "Use ")?;
+                cwrite!(colored(w, Color::Cyan), "new")?;
+                writeln!(w, " instead")?;
+            }
+            _ => {}
+        }
+    }
 
     // this is a hack, termcolor does not expose any way for us to easily reuse
     // their internal mechanism of checking whether the given stream is color

@@ -17,10 +17,10 @@ use crate::ui::{self, Ui};
 use crate::world::SystemWorld;
 use crate::{cwrite, kit};
 
-pub mod add;
+pub mod delete;
 pub mod list;
+pub mod new;
 pub mod options;
-pub mod remove;
 pub mod run;
 pub mod status;
 pub mod update;

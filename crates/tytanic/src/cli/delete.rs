@@ -8,7 +8,7 @@ use super::{Context, FilterOptions};
 use crate::cwrite;
 
 #[derive(clap::Args, Debug, Clone)]
-#[group(id = "remove-args")]
+#[group(id = "delete-args")]
 pub struct Args {
     /// Whether to the skip confirmation prompt
     #[arg(long, short)]
@@ -44,7 +44,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
 
     let mut w = ctx.ui.stderr();
 
-    write!(w, "Removed ")?;
+    write!(w, "Deleted ")?;
     cwrite!(bold_colored(w, Color::Green), "{len}")?;
     writeln!(w, " {}", Term::simple("test").with(len))?;
 
