@@ -5,6 +5,7 @@ use std::process::ExitCode;
 use std::sync::atomic::Ordering;
 
 use clap::Parser;
+use cli::options::CliArguments;
 use cli::Context;
 use codespan_reporting::term;
 use color_eyre::eyre;
@@ -17,7 +18,7 @@ use tracing_subscriber::util::SubscriberInitExt;
 use tracing_tree::HierarchicalLayer;
 use tytanic_core::config::{Config, ConfigLayer};
 
-use crate::cli::{Args, OperationFailure, TestFailure};
+use crate::cli::{OperationFailure, TestFailure};
 use crate::ui::Ui;
 
 mod cli;
@@ -43,11 +44,11 @@ fn main() -> ExitCode {
 }
 
 fn main_impl() -> eyre::Result<ExitCode> {
-    let args = Args::parse();
+    let args = CliArguments::parse();
 
     color_eyre::install()?;
 
-    let cc = match args.global.output.color {
+    let cc = match args.output.color {
         clap::ColorChoice::Auto => termcolor::ColorChoice::Auto,
         clap::ColorChoice::Always => termcolor::ColorChoice::Always,
         clap::ColorChoice::Never => termcolor::ColorChoice::Never,
@@ -78,7 +79,7 @@ fn main_impl() -> eyre::Result<ExitCode> {
         )
         .with(Targets::new().with_target(
             tytanic_core::TOOL_NAME,
-            match args.global.output.verbose {
+            match args.output.verbose {
                 0 => LevelFilter::OFF,
                 1 => LevelFilter::ERROR,
                 2 => LevelFilter::WARN,
@@ -99,14 +100,7 @@ fn main_impl() -> eyre::Result<ExitCode> {
         )?;
     }
 
-    if let Some(jobs) = args.global.jobs {
-        let jobs = if jobs < 2 {
-            writeln!(ui.warn()?, "at least 2 threads are needed, using 2")?;
-            2
-        } else {
-            jobs
-        };
-
+    if let Some(jobs) = args.typst.jobs {
         rayon::ThreadPoolBuilder::new()
             .num_threads(jobs)
             .build_global()

@@ -4,7 +4,7 @@ use color_eyre::eyre;
 use termcolor::Color;
 use tytanic_core::test::Kind as TestKind;
 
-use super::{Context, FilterArgs};
+use super::{Context, FilterOptions};
 use crate::cwriteln;
 use crate::json::TestJson;
 
@@ -16,7 +16,7 @@ pub struct Args {
     pub json: bool,
 
     #[command(flatten)]
-    pub filter: FilterArgs,
+    pub filter: FilterOptions,
 }
 
 pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {

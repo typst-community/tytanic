@@ -1,11 +1,11 @@
-use std::ops::Not;
-
 use color_eyre::eyre;
 use tytanic_core::doc::compare::Strategy;
 use tytanic_core::doc::render::{self, Origin};
 
-use super::{
-    CompareArgs, CompileArgs, Context, Direction, ExportArgs, FilterArgs, RunArgs, CANCELLED,
+use super::options::Switch;
+use super::{Context, CANCELLED};
+use crate::cli::options::{
+    CompareOptions, CompileOptions, Direction, ExportOptions, FilterOptions, RunnerOptions,
 };
 use crate::cli::TestFailure;
 use crate::report::Reporter;
@@ -15,60 +15,51 @@ use crate::runner::{Action, Runner, RunnerConfig};
 #[group(id = "run-args")]
 pub struct Args {
     #[command(flatten)]
-    pub compile: CompileArgs,
-
-    /// Do not compare tests
-    #[arg(long, short = 'C')]
-    pub no_compare: bool,
+    pub compile: CompileOptions,
 
     #[command(flatten)]
-    pub compare: CompareArgs,
-
-    /// Do not export any documents
-    #[arg(long, short = 'E')]
-    pub no_export: bool,
+    pub compare: CompareOptions,
 
     #[command(flatten)]
-    pub export: ExportArgs,
+    pub export: ExportOptions,
 
     #[command(flatten)]
-    pub run: RunArgs,
+    pub runner: RunnerOptions,
 
     #[command(flatten)]
-    pub filter: FilterArgs,
+    pub filter: FilterOptions,
 }
 
 pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
     let project = ctx.project()?;
     let set = ctx.test_set(&args.filter)?;
     let suite = ctx.collect_tests(&project, &set)?;
-    let world = ctx.world(&args.compile)?;
+    let world = ctx.world()?;
 
-    let origin = args
-        .export
-        .render
-        .direction
-        .map(|dir| match dir {
-            Direction::Ltr => Origin::TopLeft,
-            Direction::Rtl => Origin::TopRight,
-        })
-        .unwrap_or_default();
+    let origin = match args.export.dir {
+        Direction::Ltr => Origin::TopLeft,
+        Direction::Rtl => Origin::TopRight,
+    };
 
     let runner = Runner::new(
         &project,
         &suite,
         &world,
         RunnerConfig {
-            promote_warnings: args.compile.promote_warnings,
-            optimize: !args.export.no_optimize_references,
-            fail_fast: !args.run.no_fail_fast,
-            pixel_per_pt: render::ppi_to_ppp(args.export.render.pixel_per_inch),
+            warnings: args.compile.warnings,
+            optimize: args.export.optimize_refs.get_or_default(),
+            fail_fast: args.runner.fail_fast.get_or_default(),
+            pixel_per_pt: render::ppi_to_ppp(args.export.ppi),
             action: Action::Run {
-                strategy: args.no_compare.not().then_some(Strategy::Simple {
-                    max_delta: args.compare.max_delta,
-                    max_deviation: args.compare.max_deviations,
-                }),
-                export: !args.no_export,
+                strategy: args
+                    .compare
+                    .compare
+                    .get_or_default()
+                    .then_some(Strategy::Simple {
+                        max_delta: args.compare.max_delta,
+                        max_deviation: args.compare.max_deviations,
+                    }),
+                export_ephemeral: args.export.export_ephemeral.get_or_default(),
                 origin,
             },
             cancellation: &CANCELLED,
@@ -79,7 +70,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
         ctx.ui,
         &project,
         &world,
-        ctx.ui.can_live_report() && ctx.args.global.output.verbose == 0,
+        ctx.ui.can_live_report() && ctx.args.output.verbose == 0,
     );
     let result = runner.run(&reporter)?;
 
