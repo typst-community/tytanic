@@ -25,6 +25,7 @@
 - cli: Deprecated `add` in favor of `new`
 - cli: Deprecated `remove` in favor of `delete`
 - book: Updated annotation parsing page (#109)
+- test: Make migration of nested tests optional
 
 ## Fixed
 - filter: Don't ignore single test argument (#97)
@@ -33,6 +34,7 @@
 - docs: fix some typos
 - cli: add: Don't add references for non-pereistent tests (#96)
 - test: Fix annotation parsing (#109)
+- test: Don't panic on lack of `tests` directory (#108)
 
 ---
 
