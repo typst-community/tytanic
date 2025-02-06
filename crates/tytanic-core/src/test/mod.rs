@@ -1,8 +1,8 @@
 //! Test loading and on-disk manipulation.
 
 use std::fmt::Debug;
-use std::fs::File;
-use std::io::{self, BufRead, BufReader, Write};
+use std::fs::{self, File};
+use std::io::{self, Write};
 
 use ecow::{eco_vec, EcoString, EcoVec};
 use thiserror::Error;
@@ -137,21 +137,7 @@ impl Test {
             Kind::CompileOnly
         };
 
-        let annotations = {
-            let reader = BufReader::new(File::options().read(true).open(test_script)?);
-
-            let mut annotations = eco_vec![];
-            for line in reader.lines() {
-                let line = line?;
-                let Some(line) = line.strip_prefix("///") else {
-                    break;
-                };
-
-                annotations.push(line.trim().parse()?);
-            }
-
-            annotations
-        };
+        let annotations = Annotation::collect(&fs::read_to_string(test_script)?)?;
 
         Ok(Some(Test {
             id,
@@ -224,15 +210,7 @@ impl Test {
             .map(Reference::kind)
             .unwrap_or(Kind::CompileOnly);
 
-        let annotations = source
-            .lines()
-            .take_while(|&l| l.starts_with("///"))
-            .map(|l| {
-                l.strip_prefix("///")
-                    .expect("we only take leading annotation lines")
-                    .parse()
-            })
-            .collect::<Result<_, _>>()?;
+        let annotations = Annotation::collect(source)?;
 
         let this = Self {
             id,
