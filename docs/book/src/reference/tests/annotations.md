@@ -1,17 +1,20 @@
 # Annotations
-Tests may contain annotations which are used for configuring the test runner for each test.
-These annotations are placed on a leading doc comment at the start of the test script, i.e. they must be before any content or imports.
-The doc comment may contain any content after the annotations, any empty lines are ignored.
+Test annotations are used to add information to a test for `tytanic` to pick up on.
+
+Annotations may be placed on a leading doc comment block (indicated by `///`), such a doc comment block can be placed after initial empty or regular comment lines, but must come before any content.
+All annotations in such a block must be at the start, once non-annotation content is encountered parsing stops.
 
 For ephemeral regression tests only the main test file will be checked for annotations, the reference file will be ignored.
 
 <div class="warning">
 
-The syntax for annotations may change if typst adds first class annotation or documentation comment syntax.
+The syntax for annotations may change if Typst adds first class annotation or documentation comment syntax.
 
 </div>
 
 ```typst
+// SPDX-License-Identifier: MIT
+
 /// [skip]
 ///
 /// Synopsis:

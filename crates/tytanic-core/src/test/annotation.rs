@@ -1,8 +1,27 @@
-//! Inline annotations of tests.
+//! Test annotations are used to add information to a test for `tytanic` to pick
+//! up on.
+//!
+//! Annotations may be placed on a leading doc comment block (indicated by
+//! `///`), such a doc comment block can be placed after initial empty or
+//! regular comment lines, but must come before any content. All annotations in
+//! such a block must be at the start, once non-annotation content is
+//! encountered parsing stops.
+//!
+//! ```typst
+//! // SPDX-License-Identifier: MIT
+//!
+//! /// [skip]
+//! ///
+//! /// Synopsis:
+//! /// ...
+//!
+//! #set page("a4")
+//! ...
+//! ```
 
 use std::str::FromStr;
 
-use ecow::EcoString;
+use ecow::{EcoString, EcoVec};
 use thiserror::Error;
 
 /// An error which may occur while parsing an annotation.
@@ -25,19 +44,36 @@ pub enum ParseAnnotationError {
 ///
 /// Test annotations are placed on doc comments at the top of a test's source
 /// file:
-/// ```typst
-/// /// [skip]
 ///
-/// #set page("a4")
-/// ...
-/// ```
-///
-/// Each annotation is on it's own line and may have optional arguments.
+/// Each annotation is on it's own line.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Annotation {
     /// The ignored annotation, this can be used to exclude a test by virtue of
     /// the `ignored` test set.
     Skip,
+}
+
+impl Annotation {
+    /// Collects all annotations found within a test's source code.
+    pub fn collect(source: &str) -> Result<EcoVec<Self>, ParseAnnotationError> {
+        // skip regular comments and leading empty lines
+        let lines = source.lines().skip_while(|line| {
+            line.strip_prefix("//")
+                .is_some_and(|rest| !rest.starts_with('/'))
+                || line.trim().is_empty()
+        });
+
+        // then collect all consecutive doc comment lines
+        let lines = lines.map_while(|line| line.strip_prefix("///").map(str::trim));
+
+        // ignore empty ones
+        let lines = lines.filter(|line| !line.is_empty());
+
+        // take only those which start with an annotation deimiter
+        let lines = lines.take_while(|line| line.starts_with('['));
+
+        lines.map(str::parse).collect()
+    }
 }
 
 impl FromStr for Annotation {
@@ -72,5 +108,36 @@ mod tests {
 
         assert!(Annotation::from_str("[ skip  ").is_err());
         assert!(Annotation::from_str("[unknown]").is_err());
+    }
+
+    #[test]
+    fn test_collect_book_example() {
+        let source = "\
+        /// [skip]    \n\
+        ///           \n\
+        /// Synopsis: \n\
+        /// ...       \n\
+                      \n\
+        #import \"/src/internal.typ\": foo \n\
+        ...";
+
+        assert_eq!(Annotation::collect(source).unwrap(), [Annotation::Skip]);
+    }
+
+    #[test]
+    fn test_collect_issue_109() {
+        assert_eq!(
+            Annotation::collect("///[skip]").unwrap(),
+            [Annotation::Skip]
+        );
+        assert_eq!(Annotation::collect("///").unwrap(), []);
+        assert_eq!(
+            Annotation::collect("/// [skip]").unwrap(),
+            [Annotation::Skip]
+        );
+        assert_eq!(
+            Annotation::collect("///[skip]\n///").unwrap(),
+            [Annotation::Skip]
+        );
     }
 }

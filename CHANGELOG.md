@@ -24,6 +24,7 @@
 ## Changed
 - cli: Deprecated `add` in favor of `new`
 - cli: Deprecated `remove` in favor of `delete`
+- book: Updated annotation parsing page (#109)
 
 ## Fixed
 - filter: Don't ignore single test argument (#97)
@@ -31,6 +32,7 @@
 - vcs: fix detection of git repository
 - docs: fix some typos
 - cli: add: Don't add references for non-pereistent tests (#96)
+- test: Fix annotation parsing (#109)
 
 ---
 
