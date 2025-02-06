@@ -1,6 +1,6 @@
 //! Reading, and filtering of test suites.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::{fs, io};
 
@@ -17,6 +17,7 @@ use crate::test_set::{Error as TestSetError, TestSet};
 pub struct Suite {
     matched: BTreeMap<Id, Test>,
     filtered: BTreeMap<Id, Test>,
+    nested: BTreeMap<Id, Test>,
     template: Option<String>,
 }
 
@@ -26,6 +27,7 @@ impl Suite {
         Self {
             matched: BTreeMap::new(),
             filtered: BTreeMap::new(),
+            nested: BTreeMap::new(),
             template: None,
         }
     }
@@ -36,11 +38,7 @@ impl Suite {
     pub fn collect(paths: &Paths, test_set: &TestSet) -> Result<Self, CollectError> {
         let root = paths.test_root();
 
-        let mut this = Self {
-            matched: BTreeMap::new(),
-            filtered: BTreeMap::new(),
-            template: None,
-        };
+        let mut this = Self::new();
 
         tracing::debug!("loading test template");
         if let Some(content) =
@@ -64,15 +62,37 @@ impl Suite {
                         this.collect_dir(paths, rel, test_set)?;
                     }
                 }
-
-                Ok(this)
             }
             Err(err) if err.kind() == io::ErrorKind::NotFound => {
                 tracing::debug!("regression test suite empty");
-                Ok(this)
             }
-            Err(err) => Err(err.into()),
+            Err(err) => return Err(err.into()),
         }
+
+        let without_leafs: BTreeSet<_> = this
+            .matched
+            .keys()
+            .chain(this.filtered.keys())
+            .flat_map(|test| test.ancestors().skip(1))
+            .map(|test| test.to_owned())
+            .collect();
+
+        let all: BTreeSet<_> = this
+            .matched
+            .keys()
+            .chain(this.filtered.keys())
+            .map(|test| test.as_str().to_owned())
+            .collect();
+
+        for id in all.intersection(&without_leafs) {
+            if let Some((id, test)) = this.matched.remove_entry(id.as_str()) {
+                this.nested.insert(id, test);
+            } else if let Some((id, test)) = this.filtered.remove_entry(id.as_str()) {
+                this.nested.insert(id, test);
+            }
+        }
+
+        Ok(this)
     }
 
     /// Recursively collect tests in the given directory.
@@ -96,19 +116,19 @@ impl Suite {
                 tracing::debug!(id = %test.id(), "filtered test");
                 self.filtered.insert(id, test);
             }
-        } else {
-            for entry in fs::read_dir(&abs)? {
-                let entry = entry?;
+        }
 
-                if entry.metadata()?.is_dir() {
-                    let abs = entry.path();
-                    let rel = abs
-                        .strip_prefix(paths.test_root())
-                        .expect("entry must be in full");
+        for entry in fs::read_dir(&abs)? {
+            let entry = entry?;
 
-                    tracing::trace!(path = ?rel, "reading directory entry");
-                    self.collect_dir(paths, rel, test_set)?;
-                }
+            if entry.metadata()?.is_dir() {
+                let abs = entry.path();
+                let rel = abs
+                    .strip_prefix(paths.test_root())
+                    .expect("entry must be in full");
+
+                tracing::trace!(path = ?rel, "reading directory entry");
+                self.collect_dir(paths, rel, test_set)?;
             }
         }
 
@@ -143,6 +163,13 @@ impl Suite {
     /// The keys in this map are mutually exclusive with [`Suite::matched`].
     pub fn filtered(&self) -> &BTreeMap<Id, Test> {
         &self.filtered
+    }
+
+    /// The nested tests, those which contain other tests and need to be migrated.
+    ///
+    /// This is a temporary method and will be removed in a future release.
+    pub fn nested(&self) -> &BTreeMap<Id, Test> {
+        &self.nested
     }
 
     /// The template for new tests in this suite.

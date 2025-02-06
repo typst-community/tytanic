@@ -111,14 +111,22 @@ impl Context<'_> {
         writeln!(w, "{expr}' to confirm using all tests")
     }
 
-    pub fn error_nested_tests(&self) -> io::Result<()> {
-        writeln!(self.ui.error()?, "Found nested tests")?;
+    pub fn warn_nested_tests(&self) -> io::Result<()> {
+        writeln!(self.ui.warn()?, "Found nested tests")?;
+
+        writeln!(
+            self.ui.hint()?,
+            "This is no longer supported, these tests will be ignored"
+        )?;
+        writeln!(
+            self.ui.hint()?,
+            "This will become a hard error in a future version"
+        )?;
 
         let mut w = self.ui.hint()?;
-        writeln!(w, "This is no longer supported")?;
         write!(w, "You can run ")?;
         cwrite!(colored(w, Color::Cyan), "tt util migrate")?;
-        writeln!(w, " to automatically fix the tests")
+        writeln!(w, " to automatically move the tests")
     }
 
     pub fn run(&mut self) -> eyre::Result<()> {
@@ -201,12 +209,11 @@ impl Context<'_> {
 
     /// Collect and filter tests for the given project.
     pub fn collect_tests(&self, project: &Project, set: &TestSet) -> eyre::Result<Suite> {
-        if !util::migrate::collect_old_structure(project.paths(), "self")?.is_empty() {
-            self.error_nested_tests()?;
-            eyre::bail!(OperationFailure);
-        }
-
         let suite = Suite::collect(project.paths(), set)?;
+
+        if !suite.nested().is_empty() {
+            self.warn_nested_tests()?;
+        }
 
         Ok(suite)
     }
@@ -217,6 +224,11 @@ impl Context<'_> {
             project.paths(),
             &TestSet::new(eval::Context::empty(), eval::Set::built_in_all()),
         )?;
+
+        if !suite.nested().is_empty() {
+            self.warn_nested_tests()?;
+        }
+
         Ok(suite)
     }
 
