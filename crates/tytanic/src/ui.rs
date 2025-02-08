@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::fmt::{Debug, Display};
 use std::io::{BufRead, IsTerminal, Stdin, StdinLock, Write};
 use std::{fmt, io};
@@ -381,93 +383,6 @@ pub fn write_diagnostics(
     Ok(())
 }
 
-/// Counts the lines this writer wrote since the last reset.
-#[derive(Debug)]
-pub struct Counted<W> {
-    /// The writer to write to.
-    writer: W,
-
-    /// The currently counted lines.
-    lines: usize,
-}
-
-impl<W> Counted<W> {
-    /// Creates a new writer which counts the number of lines printed.
-    pub fn new(writer: W) -> Self {
-        Self { writer, lines: 0 }
-    }
-
-    /// Returns a mutable reference to the inner writer.
-    pub fn inner(&mut self) -> &mut W {
-        &mut self.writer
-    }
-
-    /// Returns the number of lines since the last reset.
-    pub fn lines(&self) -> usize {
-        self.lines
-    }
-
-    /// Resets the line counter to `0`.
-    pub fn reset_lines(&mut self) {
-        self.lines = 0;
-    }
-
-    /// Returns the inner writer.
-    pub fn into_inner(self) -> W {
-        self.writer
-    }
-}
-
-impl<W: WriteColor> fmt::Write for Counted<W> {
-    fn write_str(&mut self, s: &str) -> fmt::Result {
-        self.write_all(s.as_bytes()).map_err(|_| fmt::Error)
-    }
-}
-
-impl<W: Write> Write for Counted<W> {
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.writer.write(buf).inspect(|&len| {
-            self.lines += buf[..len].iter().filter(|&&b| b == b'\n').count();
-        })
-    }
-
-    fn flush(&mut self) -> io::Result<()> {
-        self.writer.flush()
-    }
-
-    fn write_all(&mut self, buf: &[u8]) -> io::Result<()> {
-        self.writer.write_all(buf)?;
-        self.lines += buf.iter().filter(|&&b| b == b'\n').count();
-        Ok(())
-    }
-}
-
-impl<W: WriteColor> WriteColor for Counted<W> {
-    fn supports_color(&self) -> bool {
-        self.writer.supports_color()
-    }
-
-    fn set_color(&mut self, spec: &ColorSpec) -> io::Result<()> {
-        self.writer.set_color(spec)
-    }
-
-    fn reset(&mut self) -> io::Result<()> {
-        self.writer.reset()
-    }
-
-    fn is_synchronous(&self) -> bool {
-        self.writer.is_synchronous()
-    }
-
-    fn set_hyperlink(&mut self, link: &HyperlinkSpec) -> io::Result<()> {
-        self.writer.set_hyperlink(link)
-    }
-
-    fn supports_hyperlinks(&self) -> bool {
-        self.writer.supports_hyperlinks()
-    }
-}
-
 /// Writes content with some styles, this does not implement [`WriteColor`]
 /// because it sets and unsets its own style, manualy interference should be
 /// avoided.
@@ -744,19 +659,6 @@ mod tests {
     use termcolor::Ansi;
 
     use super::*;
-
-    #[test]
-    fn test_counted() {
-        let mut w = Counted::new(vec![]);
-
-        write!(w, "Hello\n\nWorld\n").unwrap();
-
-        assert_eq!(w.lines(), 3);
-
-        let w = w.into_inner();
-        let str = std::str::from_utf8(&w).unwrap();
-        assert_snapshot!(str);
-    }
 
     #[test]
     fn test_indented() {
