@@ -5,15 +5,12 @@ use termcolor::Color;
 use tytanic_core::stdx::fmt::Term;
 
 use super::{Context, FilterOptions};
+use crate::cli::OperationFailure;
 use crate::cwrite;
 
 #[derive(clap::Args, Debug, Clone)]
 #[group(id = "delete-args")]
 pub struct Args {
-    /// Whether to the skip confirmation prompt
-    #[arg(long, short)]
-    pub force: bool,
-
     #[command(flatten)]
     pub filter: FilterOptions,
 }
@@ -25,17 +22,17 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
 
     let len = suite.matched().len();
 
-    let confirmed = args.force
-        || ctx.ui.prompt_yes_no(
-            format!(
-                "confirm deletion of {len} {}",
-                Term::simple("test").with(len)
-            ),
-            false,
-        )?;
-
-    if !confirmed {
-        ctx.error_aborted()?;
+    match len {
+        0 => {
+            ctx.warn_no_tests()?;
+            return Ok(());
+        }
+        1 => {}
+        _ if set.has_all_modifier() || !args.filter.tests.is_empty() => {}
+        _ => {
+            ctx.error_too_many_tests(&args.filter.expression)?;
+            eyre::bail!(OperationFailure);
+        }
     }
 
     for test in suite.matched().values() {

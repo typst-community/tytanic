@@ -8,7 +8,6 @@ use color_eyre::eyre::WrapErr;
 use options::{CliArguments, FilterOptions, Switch};
 use termcolor::Color;
 use thiserror::Error;
-use tytanic_core::config::{Config, ConfigLayer};
 use tytanic_core::project::Project;
 use tytanic_core::test::{Id, Suite};
 use tytanic_core::test_set::{self, eval, Error as TestSetError, TestSet};
@@ -66,10 +65,6 @@ impl<'a> Context<'a> {
 }
 
 impl Context<'_> {
-    pub fn error_aborted(&self) -> io::Result<()> {
-        writeln!(self.ui.error()?, "Operation aborted")
-    }
-
     pub fn error_root_not_found(&self, root: &Path) -> io::Result<()> {
         writeln!(self.ui.error()?, "Root '{}' not found", root.display())
     }
@@ -98,8 +93,8 @@ impl Context<'_> {
         writeln!(w, " already exists")
     }
 
-    pub fn error_no_tests(&self) -> io::Result<()> {
-        writeln!(self.ui.error()?, "Matched no tests")
+    pub fn warn_no_tests(&self) -> io::Result<()> {
+        writeln!(self.ui.warn()?, "Matched no tests")
     }
 
     pub fn error_too_many_tests(&self, expr: &str) -> io::Result<()> {
@@ -149,16 +144,6 @@ impl Context<'_> {
             }
             None => env::current_dir().wrap_err("reading PWD")?,
         })
-    }
-
-    /// Resolve the user and override config layers.
-    pub fn config(&self) -> eyre::Result<Config> {
-        // TODO(tinger): cli/envar overrides go here
-
-        let mut config = Config::new(None);
-        config.user = ConfigLayer::collect_user()?;
-
-        Ok(config)
     }
 
     /// Discover the current and ensure it is initialized.

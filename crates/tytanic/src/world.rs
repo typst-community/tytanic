@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Credits: The Typst Authors
 
+#![allow(dead_code)]
+
 // TODO(tinger): upstream this to typst-kit
 
 use std::collections::HashMap;

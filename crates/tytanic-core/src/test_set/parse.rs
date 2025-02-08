@@ -291,15 +291,6 @@ pub enum PrefixOp {
     Not,
 }
 
-impl PrefixOp {
-    /// The symbol representing this operator.
-    pub fn symbol(self) -> &'static str {
-        match self {
-            Self::Not => "!",
-        }
-    }
-}
-
 /// A binary infix operator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum InfixOp {
@@ -314,18 +305,6 @@ pub enum InfixOp {
 
     /// The symmetric difference/xor operator.
     SymDiff,
-}
-
-impl InfixOp {
-    /// The symbol representing this operator.
-    pub fn symbol(self) -> &'static str {
-        match self {
-            Self::Union => "|",
-            Self::Inter => "&",
-            Self::Diff => "~",
-            Self::SymDiff => "^",
-        }
-    }
 }
 
 /// An general expression.
