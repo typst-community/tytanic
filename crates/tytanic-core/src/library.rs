@@ -111,7 +111,7 @@ mod tests {
 
     use super::*;
     use crate::_dev::GlobalTestWorld;
-    use crate::doc::compile;
+    use crate::doc::compile::{self, Warnings};
 
     #[test]
     fn test_catch() {
@@ -125,7 +125,9 @@ mod tests {
         "#,
         );
 
-        compile::compile(source, &world, false).output.unwrap();
+        compile::compile(source, &world, Warnings::Emit)
+            .output
+            .unwrap();
     }
 
     #[test]
@@ -139,6 +141,8 @@ mod tests {
         "#,
         );
 
-        compile::compile(source, &world, false).output.unwrap();
+        compile::compile(source, &world, Warnings::Emit)
+            .output
+            .unwrap();
     }
 }

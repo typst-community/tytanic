@@ -5,7 +5,8 @@ use tytanic_core::doc::render::{self, Origin};
 use super::options::Switch;
 use super::{Context, CANCELLED};
 use crate::cli::options::{
-    CompareOptions, CompileOptions, Direction, ExportOptions, FilterOptions, RunnerOptions,
+    CompareOptions, CompileOptions, Direction, ExportOptions, FilterOptions, OptionDelegate,
+    RunnerOptions,
 };
 use crate::cli::TestFailure;
 use crate::report::Reporter;
@@ -46,7 +47,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
         &suite,
         &world,
         RunnerConfig {
-            warnings: args.compile.warnings,
+            warnings: args.compile.warnings.into_native(),
             optimize: args.export.optimize_refs.get_or_default(),
             fail_fast: args.runner.fail_fast.get_or_default(),
             pixel_per_pt: render::ppi_to_ppp(args.export.ppi),

@@ -36,6 +36,7 @@
 - cli: add: Don't add references for non-pereistent tests (#96)
 - test: Fix annotation parsing (#109)
 - test: Don't panic on lack of `tests` directory (#108)
+- runner: Don't ignore warnings (#117)
 
 ---
 

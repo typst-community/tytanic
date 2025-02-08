@@ -14,6 +14,20 @@ use typst::{Library, World};
 
 use crate::stdx::fmt::Term;
 
+/// How to handle warnings during compilation.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Warnings {
+    /// Ignore all warnings.
+    Ignore,
+
+    /// Emit all warnings.
+    #[default]
+    Emit,
+
+    /// Promote all warnings to errors.
+    Promote,
+}
+
 /// An error which may occur during compilation. This struct only exists to
 /// implement [`Error`][trait@std::error::Error].
 #[derive(Debug, Clone, Error)]
@@ -24,7 +38,7 @@ pub struct Error(pub EcoVec<SourceDiagnostic>);
 pub fn compile(
     source: Source,
     world: &dyn World,
-    promote_warnings: bool,
+    warnings: Warnings,
 ) -> Warned<Result<Document, Error>> {
     struct TestWorldAdapter<'s, 'w> {
         source: &'s Source,
@@ -67,47 +81,45 @@ pub fn compile(
 
     let Warned {
         output,
-        mut warnings,
+        warnings: mut emitted,
     } = typst::compile(&TestWorldAdapter {
         source: &source,
         global: world,
     });
 
-    if promote_warnings {
-        warnings = warnings
-            .into_iter()
-            .map(|mut warning| {
-                warning.severity = Severity::Error;
-                warning.with_hint("this warning was promoted to an error")
-            })
-            .collect();
-    }
+    match warnings {
+        Warnings::Ignore => Warned {
+            output: output.map_err(Error),
+            warnings: eco_vec![],
+        },
+        Warnings::Emit => Warned {
+            output: output.map_err(Error),
+            warnings: emitted,
+        },
+        Warnings::Promote => {
+            emitted = emitted
+                .into_iter()
+                .map(|mut warning| {
+                    warning.severity = Severity::Error;
+                    warning.with_hint("this warning was promoted to an error")
+                })
+                .collect();
 
-    match output {
-        Ok(doc) => {
-            if promote_warnings {
-                Warned {
-                    output: Err(Error(warnings)),
-                    warnings: eco_vec![],
-                }
-            } else {
-                Warned {
+            match output {
+                Ok(doc) if emitted.is_empty() => Warned {
                     output: Ok(doc),
-                    warnings,
-                }
-            }
-        }
-        Err(errors) => {
-            if promote_warnings {
-                warnings.extend(errors);
-                Warned {
-                    output: Err(Error(warnings)),
                     warnings: eco_vec![],
-                }
-            } else {
-                Warned {
-                    output: Err(Error(errors)),
-                    warnings,
+                },
+                Ok(_) => Warned {
+                    output: Err(Error(emitted)),
+                    warnings: eco_vec![],
+                },
+                Err(errors) => {
+                    emitted.extend(errors);
+                    Warned {
+                        output: Err(Error(emitted)),
+                        warnings: eco_vec![],
+                    }
                 }
             }
         }
@@ -119,29 +131,97 @@ mod tests {
     use super::*;
     use crate::_dev::GlobalTestWorld;
 
-    #[test]
-    fn test_compile() {
-        let world = GlobalTestWorld::default();
-        let source = Source::detached("Hello World");
+    const TEST_PASS: &str = "Hello World";
+    const TEST_WARN: &str = "#set text(font: \"foo\"); Hello World";
+    const TEST_FAIL: &str = "#set text(font: \"foo\"); #panic()";
 
-        compile(source, &world, false).output.unwrap();
+    #[test]
+    fn test_compile_pass_ignore_warnings() {
+        let world = GlobalTestWorld::default();
+        let source = Source::detached(TEST_PASS);
+
+        let Warned { output, warnings } = compile(source, &world, Warnings::Ignore);
+        assert!(output.is_ok());
+        assert!(warnings.is_empty());
     }
 
     #[test]
-    #[should_panic]
-    fn test_compile_failure_promoted() {
+    fn test_compile_pass_emit_warnings() {
         let world = GlobalTestWorld::default();
-        let source = Source::detached("#set text(font: \"foo\")");
+        let source = Source::detached(TEST_PASS);
 
-        compile(source, &world, true).output.unwrap();
+        let Warned { output, warnings } = compile(source, &world, Warnings::Emit);
+        assert!(output.is_ok());
+        assert!(warnings.is_empty());
     }
 
     #[test]
-    #[should_panic]
-    fn test_compile_failure() {
+    fn test_compile_pass_promote_warnings() {
         let world = GlobalTestWorld::default();
-        let source = Source::detached("#panic()");
+        let source = Source::detached(TEST_PASS);
 
-        compile(source, &world, false).output.unwrap();
+        let Warned { output, warnings } = compile(source, &world, Warnings::Promote);
+        assert!(output.is_ok());
+        assert!(warnings.is_empty());
+    }
+
+    #[test]
+    fn test_compile_warn_ignore_warnings() {
+        let world = GlobalTestWorld::default();
+        let source = Source::detached(TEST_WARN);
+
+        let Warned { output, warnings } = compile(source, &world, Warnings::Ignore);
+        assert!(output.is_ok());
+        assert!(warnings.is_empty());
+    }
+
+    #[test]
+    fn test_compile_warn_emit_warnings() {
+        let world = GlobalTestWorld::default();
+        let source = Source::detached(TEST_WARN);
+
+        let Warned { output, warnings } = compile(source, &world, Warnings::Emit);
+        assert!(output.is_ok());
+        assert_eq!(warnings.len(), 1);
+    }
+
+    #[test]
+    fn test_compile_warn_promote_warnings() {
+        let world = GlobalTestWorld::default();
+        let source = Source::detached(TEST_WARN);
+
+        let Warned { output, warnings } = compile(source, &world, Warnings::Promote);
+        assert_eq!(output.unwrap_err().0.len(), 1);
+        assert!(warnings.is_empty());
+    }
+
+    #[test]
+    fn test_compile_fail_ignore_warnings() {
+        let world = GlobalTestWorld::default();
+        let source = Source::detached(TEST_FAIL);
+
+        let Warned { output, warnings } = compile(source, &world, Warnings::Ignore);
+        assert_eq!(output.unwrap_err().0.len(), 1);
+        assert!(warnings.is_empty());
+    }
+
+    #[test]
+    fn test_compile_fail_emit_warnings() {
+        let world = GlobalTestWorld::default();
+        let source = Source::detached(TEST_FAIL);
+
+        let Warned { output, warnings } = compile(source, &world, Warnings::Emit);
+        assert_eq!(output.unwrap_err().0.len(), 1);
+        assert_eq!(warnings.len(), 1);
+    }
+
+    #[test]
+    fn test_compile_fail_promote_warnings() {
+        let world = GlobalTestWorld::default();
+        let source = Source::detached(TEST_FAIL);
+
+        let Warned { output, warnings } = compile(source, &world, Warnings::Promote);
+        assert_eq!(output.unwrap_err().0.len(), 2);
+        assert!(warnings.is_empty());
     }
 }

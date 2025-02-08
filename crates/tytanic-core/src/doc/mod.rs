@@ -5,6 +5,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::{fs, io, iter};
 
+use compile::Warnings;
 use ecow::EcoVec;
 use thiserror::Error;
 use tiny_skia::Pixmap;
@@ -44,9 +45,9 @@ impl Document {
         source: Source,
         world: &dyn World,
         pixel_per_pt: f32,
-        promote_warnings: bool,
+        warnings: Warnings,
     ) -> Warned<Result<Self, compile::Error>> {
-        let Warned { output, warnings } = compile::compile(source, world, promote_warnings);
+        let Warned { output, warnings } = compile::compile(source, world, warnings);
 
         Warned {
             output: output.map(|doc| Self::render(doc, pixel_per_pt)),

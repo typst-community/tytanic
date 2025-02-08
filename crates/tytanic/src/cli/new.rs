@@ -7,36 +7,20 @@ use typst::diag::Warned;
 use typst_syntax::{FileId, Source, VirtualPath};
 use tytanic_core::doc::render::ppi_to_ppp;
 use tytanic_core::doc::Document;
-use tytanic_core::test::{self, Id, Reference, Test};
+use tytanic_core::test::{self, Id, Kind, Reference, Test};
 
-use super::options::{Switch, TemplateSwitch, Warnings};
+use super::options::{KindOption, OptionDelegate, Switch, TemplateSwitch};
 use super::Context;
 use crate::cli::options::{CompileOptions, ExportOptions};
 use crate::cli::OperationFailure;
 use crate::{cwriteln, ui, DEFAULT_OPTIMIZE_OPTIONS};
-
-// NOTE(tinger): because value enum uses the description for the hlpe message we
-// define a new ref kind here.
-
-/// The type of test to create.
-#[derive(clap::ValueEnum, Debug, Clone, Copy)]
-pub enum RefKind {
-    /// Create a persistent test.
-    Persistent,
-
-    /// Create an ephemeral test.
-    Ephemeral,
-
-    /// Create a compile-only test.
-    CompileOnly,
-}
 
 #[derive(clap::Args, Debug, Clone)]
 #[group(id = "new-args")]
 pub struct Args {
     /// The type of test to create
     #[arg(long = "type", short, group = "type", default_value = "persistent")]
-    pub kind: RefKind,
+    pub kind: KindOption,
 
     /// Shorthand for `--type=persistent`
     #[arg(long, short = 'P', group = "type")]
@@ -60,7 +44,7 @@ pub struct Args {
     pub export: ExportOptions,
 
     /// The name of the new test
-    #[arg(value_name = "")]
+    #[arg(value_name = "NAME")]
     pub test: Id,
 }
 
@@ -78,13 +62,13 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
     let id = args.test.clone();
 
     let kind = if args.persistent {
-        RefKind::Persistent
+        Kind::Persistent
     } else if args.ephemeral {
-        RefKind::Ephemeral
+        Kind::Ephemeral
     } else if args.compile_only {
-        RefKind::CompileOnly
+        Kind::CompileOnly
     } else {
-        args.kind
+        args.kind.into_native()
     };
 
     'create: {
@@ -94,9 +78,9 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
             .unwrap_or(test::DEFAULT_TEST_INPUT);
 
         let reference = match kind {
-            RefKind::CompileOnly => None,
-            RefKind::Ephemeral => Some(Reference::Ephemeral(source.into())),
-            RefKind::Persistent => {
+            Kind::CompileOnly => None,
+            Kind::Ephemeral => Some(Reference::Ephemeral(source.into())),
+            Kind::Persistent => {
                 if !args.template.get_or_default() {
                     // NOTE(tinger): this is an optimized case where we write the
                     // already optimized bytes directly to disk, skipping redunant
@@ -112,19 +96,12 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
                     .strip_prefix(project.paths().project_root())
                     .expect("template is in project root");
 
-                let Warned {
-                    output,
-                    mut warnings,
-                } = Document::compile(
+                let Warned { output, warnings } = Document::compile(
                     Source::new(FileId::new(None, VirtualPath::new(path)), source.into()),
                     &world,
                     ppi_to_ppp(args.export.ppi),
-                    args.compile.warnings == Warnings::Promote,
+                    args.compile.warnings.into_native(),
                 );
-
-                if args.compile.warnings == Warnings::Ignore {
-                    warnings.clear();
-                }
 
                 let doc = match output {
                     Ok(doc) => {
