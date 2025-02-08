@@ -84,7 +84,7 @@ jobs:
         retention-days: 3
 
     - name: Add artifacts to release
-      uses: ncipollo/release-action@v1.14
+      uses: ncipollo/release-action@v1
       if: github.event_name == 'release'
       with:
         artifacts: "tytanic-${{ matrix.target }}.*"
