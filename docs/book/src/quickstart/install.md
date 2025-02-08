@@ -57,6 +57,22 @@ nix run github:tingerrr/tytanic
 
 This method does't require any extraction or `$PATH` modifications.
 
+### Using docker
+Every release is automatically added to the GitHub Container Registry `ghcr.io` and can be pulled like so:
+```shell
+docker pull ghcr.io/tingerrr/tytanic:v0.1.1
+```
+
+Check out the [package][docker] for platform specific builds.
+
+<div class="warning">
+
+There are no package releases for versions `v0.1.1` or earlier.
+
+You can use one of the other installation methods for those versions.
+
+</div>
+
 ## Dependencies
 The following dependencies are required for running `tytanic`, though they are widely used and should in most cases already be installed if you used `typst` before.
 `tytanic` tries to provide feature flags for vendoring dependencies where possible.
@@ -69,4 +85,5 @@ This avoids the need for it on the operating system.
 
 [releases]: https://github.com/tingerrr/tytanic/releases/
 [rustup]: https://www.rust-lang.org/tools/install
+[docker]: https://github.com/users/tingerrr/packages/container/tytanic
 [universe]: https://typst.app/universe

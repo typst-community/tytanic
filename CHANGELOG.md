@@ -14,6 +14,7 @@
   - `ephemeral`
   - `compile-only`
 - cli: new: Add `--persistent`
+- docker: Docker release workflow and dockerfile
 
 ## Removed
 - cli: Remove `--no-optimize-references` (renamed to `--[no-]optimize-refs`)
