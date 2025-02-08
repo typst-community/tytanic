@@ -3,6 +3,8 @@ use std::path::PathBuf;
 use chrono::{DateTime, Utc};
 use clap::{Args, ColorChoice, Parser, ValueEnum};
 use color_eyre::eyre;
+use tytanic_core::doc::compile::Warnings;
+use tytanic_core::test::Kind;
 
 use super::{delete, list, new, run, status, update, util, Context};
 
@@ -13,6 +15,65 @@ use super::{delete, list, new, run, status, update, util, Context};
 
 /// The separator used for multiple paths.
 const ENV_PATH_SEP: char = if cfg!(windows) { ';' } else { ':' };
+
+/// A trait types which are delegates for CLI parsing other internal types.
+pub trait OptionDelegate: Sized {
+    /// The type this is an option for.
+    type Native;
+
+    /// COnverit this into its native type.
+    fn into_native(self) -> Self::Native;
+}
+
+/// The kind of a regression test
+#[derive(clap::ValueEnum, Debug, Clone, Copy)]
+pub enum KindOption {
+    /// Create a persistent test
+    Persistent,
+
+    /// Create an ephemeral test
+    Ephemeral,
+
+    /// Create a compile-only test
+    CompileOnly,
+}
+
+impl OptionDelegate for KindOption {
+    type Native = Kind;
+
+    fn into_native(self) -> Self::Native {
+        match self {
+            Self::Persistent => Kind::Persistent,
+            Self::Ephemeral => Kind::Ephemeral,
+            Self::CompileOnly => Kind::CompileOnly,
+        }
+    }
+}
+
+/// How to handle warnings
+#[derive(ValueEnum, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum WarningsOption {
+    /// Ignore warnings
+    Ignore,
+
+    /// Emit warnigns
+    Emit,
+
+    /// Promote warnings to errors
+    Promote,
+}
+
+impl OptionDelegate for WarningsOption {
+    type Native = Warnings;
+
+    fn into_native(self) -> Self::Native {
+        match self {
+            Self::Ignore => Warnings::Ignore,
+            Self::Emit => Warnings::Emit,
+            Self::Promote => Warnings::Promote,
+        }
+    }
+}
 
 /// A trait for switches, i.e. options which come in pairs of flags and inverse
 /// flags.
@@ -296,20 +357,7 @@ pub struct FilterOptions {
 pub struct CompileOptions {
     /// How to handle warnings
     #[arg(long, default_value = "emit", value_name = "WHAT")]
-    pub warnings: Warnings,
-}
-
-/// The options for handling warnings.
-#[derive(ValueEnum, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Warnings {
-    /// Ignore warnings.
-    Ignore,
-
-    /// Emit warnigns.
-    Emit,
-
-    /// Promote warnings to errors.
-    Promote,
+    pub warnings: WarningsOption,
 }
 
 /// Options for document rendering and export.

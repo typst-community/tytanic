@@ -6,12 +6,12 @@ use typst::diag::Warned;
 use typst::model::Document as TypstDocument;
 use typst::syntax::Source;
 use tytanic_core::doc::compare::Strategy;
+use tytanic_core::doc::compile::Warnings;
 use tytanic_core::doc::render::Origin;
 use tytanic_core::doc::{compile, Document};
 use tytanic_core::project::Project;
 use tytanic_core::test::{Kind, Suite, SuiteResult, Test, TestResult, TestResultKind};
 
-use crate::cli::options::Warnings;
 use crate::cli::TestFailure;
 use crate::report::Reporter;
 use crate::world::SystemWorld;
@@ -370,22 +370,13 @@ impl TestRunner<'_, '_, '_> {
     }
 
     fn compile_inner(&mut self, source: Source, is_reference: bool) -> eyre::Result<TypstDocument> {
-        let Warned {
-            output,
-            mut warnings,
-        } = compile::compile(
+        let Warned { output, warnings } = compile::compile(
             source,
             self.project_runner.world,
-            self.project_runner.config.warnings == Warnings::Promote,
+            self.project_runner.config.warnings,
         );
 
-        if self.project_runner.config.warnings == Warnings::Ignore {
-            warnings.clear();
-        }
-
-        if warnings.is_empty() {
-            self.result.set_warnings(warnings);
-        }
+        self.result.set_warnings(warnings);
 
         let doc = match output {
             Ok(doc) => {

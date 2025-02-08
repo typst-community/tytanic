@@ -18,16 +18,6 @@ use crate::world::SystemWorld;
 /// The padding to use for annotations while test run reporting.
 const RUN_ANNOT_PADDING: usize = 10;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum When {
-    Never,
-    // TODO(tinger): make this configurable, along side the richness of
-    // diagnostics
-    #[allow(dead_code)]
-    Failure,
-    Always,
-}
-
 /// A reporter for test output and test run status reporting.
 pub struct Reporter<'ui, 'p> {
     ui: &'ui Ui,
@@ -35,8 +25,6 @@ pub struct Reporter<'ui, 'p> {
     world: &'p SystemWorld,
 
     live: bool,
-    warnings: When,
-    errors: bool,
 }
 
 impl<'ui, 'p> Reporter<'ui, 'p> {
@@ -46,8 +34,6 @@ impl<'ui, 'p> Reporter<'ui, 'p> {
             project,
             world,
             live,
-            warnings: When::Always,
-            errors: true,
         }
     }
 }
@@ -246,11 +232,7 @@ impl Reporter<'_, '_> {
             &mut w,
             self.ui.diagnostic_config(),
             self.world,
-            if self.warnings == When::Always {
-                warnings
-            } else {
-                &[]
-            },
+            warnings,
             &[],
         )?;
 
@@ -287,12 +269,8 @@ impl Reporter<'_, '_> {
                     &mut w,
                     self.ui.diagnostic_config(),
                     self.world,
-                    if self.warnings != When::Never {
-                        result.warnings()
-                    } else {
-                        &[]
-                    },
-                    if self.errors { &error.0 } else { &[] },
+                    result.warnings(),
+                    &error.0,
                 )?;
             }
             Some(TestResultKind::FailedComparison(compare::Error {
@@ -300,6 +278,14 @@ impl Reporter<'_, '_> {
                 reference,
                 pages,
             })) => {
+                ui::write_diagnostics(
+                    &mut w,
+                    self.ui.diagnostic_config(),
+                    self.world,
+                    result.warnings(),
+                    &[],
+                )?;
+
                 if output != reference {
                     writeln!(
                         w,
