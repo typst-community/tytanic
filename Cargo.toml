@@ -5,7 +5,7 @@ members = ["crates/*"]
 [workspace.package]
 version = "0.1.1"
 # must match ci.yml
-rust-version = "1.80.0"
+rust-version = "1.80"
 description = "A test runner for typst projects."
 authors = ["tingerrr <tinger@tinger.dev>"]
 edition = "2021"
