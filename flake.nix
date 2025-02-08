@@ -80,7 +80,7 @@
           ];
 
           GEN_ARTIFACTS = "artifacts";
-          TYPST_TEST_VERSION =
+          TYTANIC_VERSION =
             let
               rev = self.shortRev or "dirty";
               version = cargoToml.workspace.package.version;
