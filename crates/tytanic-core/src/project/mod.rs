@@ -5,8 +5,9 @@ use std::{fs, io};
 
 use thiserror::Error;
 use typst::syntax::package::PackageManifest;
+use tytanic_utils::result::ResultEx;
 
-use crate::stdx::result::ResultEx;
+use crate::suite::{Error as SuiteError, Suite};
 use crate::test::Id;
 
 mod vcs;
@@ -20,7 +21,7 @@ pub const MANIFEST_FILE: &str = "typst.toml";
 /// An object which contains various paths relevant for handling on-disk
 /// operations and path transformations.
 ///
-/// The patsh retruned by this struct are not guaranteed to exist on disk, but
+/// The paths retruned by this struct are not guaranteed to exist on disk, but
 /// if they don't exist at the given paths, then they don't exist for a project.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Paths {
@@ -210,6 +211,11 @@ impl Project {
             .as_deref()
             .map(toml::from_str)
             .transpose()?)
+    }
+
+    /// Collect the full test suite.
+    pub fn collect_suite(&self) -> Result<Suite, SuiteError> {
+        Suite::collect(&self.paths)
     }
 }
 

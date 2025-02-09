@@ -37,6 +37,8 @@
 - test: Fix annotation parsing (#109)
 - test: Don't panic on lack of `tests` directory (#108)
 - runner: Don't ignore warnings (#117)
+- fs: Don't fail if manifest is invalid (#105)
+- filter: Ensure explicitly passed tests fail when a test is missing (#106)
 
 ---
 

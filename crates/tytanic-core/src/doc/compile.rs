@@ -1,4 +1,4 @@
-//! Wrappers around [`typst::compile`] for easier error handling.
+//! Test document compilation and diagnostics handling.
 
 use std::fmt::Debug;
 
@@ -11,8 +11,7 @@ use typst::syntax::{FileId, Source};
 use typst::text::{Font, FontBook};
 use typst::utils::LazyHash;
 use typst::{Library, World};
-
-use crate::stdx::fmt::Term;
+use tytanic_utils::fmt::Term;
 
 /// How to handle warnings during compilation.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -128,8 +127,9 @@ pub fn compile(
 
 #[cfg(test)]
 mod tests {
+    use tytanic_utils::typst::VirtualWorld;
+
     use super::*;
-    use crate::_dev::GlobalTestWorld;
 
     const TEST_PASS: &str = "Hello World";
     const TEST_WARN: &str = "#set text(font: \"foo\"); Hello World";
@@ -137,7 +137,7 @@ mod tests {
 
     #[test]
     fn test_compile_pass_ignore_warnings() {
-        let world = GlobalTestWorld::default();
+        let world = VirtualWorld::default();
         let source = Source::detached(TEST_PASS);
 
         let Warned { output, warnings } = compile(source, &world, Warnings::Ignore);
@@ -147,7 +147,7 @@ mod tests {
 
     #[test]
     fn test_compile_pass_emit_warnings() {
-        let world = GlobalTestWorld::default();
+        let world = VirtualWorld::default();
         let source = Source::detached(TEST_PASS);
 
         let Warned { output, warnings } = compile(source, &world, Warnings::Emit);
@@ -157,7 +157,7 @@ mod tests {
 
     #[test]
     fn test_compile_pass_promote_warnings() {
-        let world = GlobalTestWorld::default();
+        let world = VirtualWorld::default();
         let source = Source::detached(TEST_PASS);
 
         let Warned { output, warnings } = compile(source, &world, Warnings::Promote);
@@ -167,7 +167,7 @@ mod tests {
 
     #[test]
     fn test_compile_warn_ignore_warnings() {
-        let world = GlobalTestWorld::default();
+        let world = VirtualWorld::default();
         let source = Source::detached(TEST_WARN);
 
         let Warned { output, warnings } = compile(source, &world, Warnings::Ignore);
@@ -177,7 +177,7 @@ mod tests {
 
     #[test]
     fn test_compile_warn_emit_warnings() {
-        let world = GlobalTestWorld::default();
+        let world = VirtualWorld::default();
         let source = Source::detached(TEST_WARN);
 
         let Warned { output, warnings } = compile(source, &world, Warnings::Emit);
@@ -187,7 +187,7 @@ mod tests {
 
     #[test]
     fn test_compile_warn_promote_warnings() {
-        let world = GlobalTestWorld::default();
+        let world = VirtualWorld::default();
         let source = Source::detached(TEST_WARN);
 
         let Warned { output, warnings } = compile(source, &world, Warnings::Promote);
@@ -197,7 +197,7 @@ mod tests {
 
     #[test]
     fn test_compile_fail_ignore_warnings() {
-        let world = GlobalTestWorld::default();
+        let world = VirtualWorld::default();
         let source = Source::detached(TEST_FAIL);
 
         let Warned { output, warnings } = compile(source, &world, Warnings::Ignore);
@@ -207,7 +207,7 @@ mod tests {
 
     #[test]
     fn test_compile_fail_emit_warnings() {
-        let world = GlobalTestWorld::default();
+        let world = VirtualWorld::default();
         let source = Source::detached(TEST_FAIL);
 
         let Warned { output, warnings } = compile(source, &world, Warnings::Emit);
@@ -217,7 +217,7 @@ mod tests {
 
     #[test]
     fn test_compile_fail_promote_warnings() {
-        let world = GlobalTestWorld::default();
+        let world = VirtualWorld::default();
         let source = Source::detached(TEST_FAIL);
 
         let Warned { output, warnings } = compile(source, &world, Warnings::Promote);

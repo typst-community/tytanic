@@ -1,0 +1,25 @@
+[package]
+name = "tytanic-filter"
+version.workspace = true
+description.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+categories.workspace = true
+keywords.workspace = true
+readme.workspace = true
+
+[dependencies]
+tytanic-utils.workspace = true
+
+ecow.workspace = true
+glob.workspace = true
+pest.workspace = true
+pest_derive.workspace = true
+regex.workspace = true
+strsim.workspace = true
+thiserror.workspace = true
+tracing.workspace = true

@@ -25,6 +25,8 @@ pkg-fmt = "zip"
 
 [dependencies]
 tytanic-core.workspace = true
+tytanic-filter.workspace = true
+tytanic-utils.workspace = true
 
 chrono = { workspace = true, features = ["serde"] }
 clap = { workspace = true, features = ["derive", "env"] }

@@ -1,16 +1,17 @@
-//! The core library of tytanic.
+//! The core library of the tytanic test runner.
 
 pub mod config;
 pub mod doc;
+pub mod dsl;
 pub mod library;
 pub mod project;
-pub mod stdx;
+pub mod suite;
 pub mod test;
-pub mod test_set;
+
+pub use project::Project;
+pub use suite::{FilteredSuite, Suite};
+pub use test::{Id, Test};
 
 /// The tool name, this is used in various places like config file directories,
-/// manifest tool sections, , and more.
+/// manifest tool sections, and more.
 pub const TOOL_NAME: &str = "tytanic";
-
-#[cfg(test)]
-pub mod _dev;

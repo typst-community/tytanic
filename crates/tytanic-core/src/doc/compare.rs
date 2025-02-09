@@ -1,12 +1,13 @@
-//! Comparison on rendered pages.
+//! Comparison of rendered pages.
+//!
+//! This currently only provies a single primitive comparison algorithm,
+//! [`Strategy::Simple`].
 
 use std::fmt::{Debug, Display};
 
 use thiserror::Error;
 use tiny_skia::Pixmap;
-
-use crate::stdx;
-use crate::stdx::fmt::Term;
+use tytanic_utils::fmt::Term;
 
 /// A struct representing page size in pixels.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -128,7 +129,7 @@ impl Display for Error {
                 f,
                 "{} {} differed at indices: {:?}",
                 self.pages.len(),
-                stdx::fmt::Term::simple("page").with(self.pages.len()),
+                Term::simple("page").with(self.pages.len()),
                 self.pages.iter().map(|(n, _)| n).collect::<Vec<_>>()
             )?;
         }

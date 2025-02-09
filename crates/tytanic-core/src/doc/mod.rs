@@ -1,5 +1,6 @@
-//! On-disk management of reference documents reeference documents are stored as
-//! individual pages in PNG format.
+//! On-disk management of reference and test documents.
+//!
+//! Thsee documents are currently stored as individual pages in the PNG format.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -262,9 +263,9 @@ pub enum SaveError {
 #[cfg(test)]
 mod tests {
     use ecow::eco_vec;
+    use tytanic_utils::fs::TempTestEnv;
 
     use super::*;
-    use crate::_dev;
 
     #[test]
     fn test_document_save() {
@@ -273,7 +274,7 @@ mod tests {
             buffers: eco_vec![Pixmap::new(10, 10).unwrap(); 3],
         };
 
-        _dev::fs::TempEnv::run(
+        TempTestEnv::run(
             |root| root,
             |root| {
                 doc.save(root, None).unwrap();
@@ -290,7 +291,7 @@ mod tests {
     fn test_document_load() {
         let buffers = eco_vec![Pixmap::new(10, 10).unwrap(); 3];
 
-        _dev::fs::TempEnv::run_no_check(
+        TempTestEnv::run_no_check(
             |root| {
                 root.setup_file("1.png", buffers[0].encode_png().unwrap())
                     .setup_file("2.png", buffers[1].encode_png().unwrap())

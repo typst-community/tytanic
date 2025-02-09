@@ -3,7 +3,8 @@
 use serde::Serialize;
 use typst_syntax::package::{PackageManifest, PackageVersion};
 use tytanic_core::project::Project;
-use tytanic_core::test::{Suite, Test};
+use tytanic_core::suite::Suite;
+use tytanic_core::test::Test;
 
 #[derive(Debug, Serialize)]
 pub struct ProjectJson<'m, 's> {
@@ -21,7 +22,7 @@ impl<'m, 's> ProjectJson<'m, 's> {
                 version: &m.package.version,
             }),
             vcs: project.vcs().map(|vcs| vcs.to_string()),
-            tests: suite.matched().values().map(TestJson::new).collect(),
+            tests: suite.tests().values().map(TestJson::new).collect(),
             is_template: manifest.and_then(|m| m.template.as_ref()).is_some(),
         }
     }

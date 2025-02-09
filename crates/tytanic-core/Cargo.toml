@@ -13,6 +13,9 @@ keywords.workspace = true
 readme.workspace = true
 
 [dependencies]
+tytanic-filter.workspace = true
+tytanic-utils.workspace = true
+
 comemo.workspace = true
 dirs.workspace = true
 ecow.workspace = true
