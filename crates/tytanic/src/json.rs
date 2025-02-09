@@ -1,28 +1,28 @@
 //! Common report PODs for stable JSON representation of internal entities.
 
 use serde::Serialize;
-use typst_syntax::package::PackageVersion;
+use typst_syntax::package::{PackageManifest, PackageVersion};
 use tytanic_core::project::Project;
 use tytanic_core::test::{Suite, Test};
 
 #[derive(Debug, Serialize)]
-pub struct ProjectJson<'p, 's> {
-    pub package: Option<PackageJson<'p>>,
+pub struct ProjectJson<'m, 's> {
+    pub package: Option<PackageJson<'m>>,
     pub vcs: Option<String>,
     pub tests: Vec<TestJson<'s>>,
     pub is_template: bool,
 }
 
-impl<'p, 's> ProjectJson<'p, 's> {
-    pub fn new(project: &'p Project, suite: &'s Suite) -> Self {
+impl<'m, 's> ProjectJson<'m, 's> {
+    pub fn new(project: &Project, manifest: Option<&'m PackageManifest>, suite: &'s Suite) -> Self {
         Self {
-            package: project.manifest().map(|m| PackageJson {
+            package: manifest.map(|m| PackageJson {
                 name: &m.package.name,
                 version: &m.package.version,
             }),
             vcs: project.vcs().map(|vcs| vcs.to_string()),
             tests: suite.matched().values().map(TestJson::new).collect(),
-            is_template: project.manifest_template_info().is_some(),
+            is_template: manifest.and_then(|m| m.template.as_ref()).is_some(),
         }
     }
 }

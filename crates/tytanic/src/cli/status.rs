@@ -25,8 +25,19 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
     let delim_middle = " ├ ";
     let delim_close = " └ ";
 
+    let manifest = match project.read_manifest() {
+        Ok(m) => m,
+        Err(err) => {
+            writeln!(ctx.ui.warn()?, "Couldn't parse manifest:\n{err}")?;
+            None
+        }
+    };
+
     if args.json {
-        serde_json::to_writer_pretty(ctx.ui.stdout(), &ProjectJson::new(&project, &suite))?;
+        serde_json::to_writer_pretty(
+            ctx.ui.stdout(),
+            &ProjectJson::new(&project, manifest.as_ref(), &suite),
+        )?;
         return Ok(());
     }
 
@@ -38,11 +49,11 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
         .max()
         .unwrap();
 
-    if let Some(package) = project.manifest_package_info() {
+    if let Some(package) = manifest.as_ref().map(|p| &p.package) {
         write!(w, "{:>align$}{}", "Project", delim_open)?;
-        cwrite!(bold_colored(w, Color::Cyan), "{}", &package.name)?;
+        cwrite!(bold_colored(w, Color::Cyan), "{}", package.name)?;
         write!(w, ":")?;
-        cwrite!(bold_colored(w, Color::Cyan), "{}", &package.version)?;
+        cwrite!(bold_colored(w, Color::Cyan), "{}", package.version)?;
     } else {
         write!(w, "{:>align$}{}", "Project", delim_open)?;
         cwrite!(bold_colored(w, Color::Yellow), "none")?;

@@ -129,9 +129,8 @@ mod tests {
 
     use super::*;
     use crate::_dev;
-    use crate::project::test::Id;
     use crate::project::Paths;
-    use crate::test::Kind as TestKind;
+    use crate::test::{Id, Kind as TestKind};
 
     fn test(kind: TestKind) -> Test {
         Test {
