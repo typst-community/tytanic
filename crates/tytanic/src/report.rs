@@ -8,8 +8,9 @@ use termcolor::{Color, WriteColor};
 use typst::diag::SourceDiagnostic;
 use tytanic_core::doc::compare::{self, PageError};
 use tytanic_core::project::Project;
-use tytanic_core::stdx::fmt::Term;
-use tytanic_core::test::{SuiteResult, Test, TestResult, TestResultKind};
+use tytanic_core::suite::SuiteResult;
+use tytanic_core::test::{Stage, Test, TestResult};
+use tytanic_utils::fmt::Term;
 
 use crate::cwrite;
 use crate::ui::{self, Ui};
@@ -257,8 +258,8 @@ impl Reporter<'_, '_> {
         ui::write_test_id(&mut w, test.id())?;
         writeln!(w)?;
 
-        match result.kind() {
-            Some(TestResultKind::FailedCompilation { error, reference }) => {
+        match result.stage() {
+            Stage::FailedCompilation { error, reference } => {
                 writeln!(
                     w,
                     "Compilation of {} failed",
@@ -273,11 +274,11 @@ impl Reporter<'_, '_> {
                     &error.0,
                 )?;
             }
-            Some(TestResultKind::FailedComparison(compare::Error {
+            Stage::FailedComparison(compare::Error {
                 output,
                 reference,
                 pages,
-            })) => {
+            }) => {
                 ui::write_diagnostics(
                     &mut w,
                     self.ui.diagnostic_config(),

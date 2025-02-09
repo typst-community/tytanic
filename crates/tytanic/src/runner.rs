@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use color_eyre::eyre::{self, ContextCompat};
+use color_eyre::eyre::{self, ContextCompat, WrapErr};
 use typst::diag::Warned;
 use typst::model::Document as TypstDocument;
 use typst::syntax::Source;
@@ -10,7 +10,8 @@ use tytanic_core::doc::compile::Warnings;
 use tytanic_core::doc::render::Origin;
 use tytanic_core::doc::{compile, Document};
 use tytanic_core::project::Project;
-use tytanic_core::test::{Kind, Suite, SuiteResult, Test, TestResult, TestResultKind};
+use tytanic_core::suite::{FilteredSuite, SuiteResult};
+use tytanic_core::test::{Kind, Stage as TestResultKind, Test, TestResult};
 
 use crate::cli::TestFailure;
 use crate::report::Reporter;
@@ -64,7 +65,7 @@ pub struct RunnerConfig<'c> {
 
 pub struct Runner<'c, 'p> {
     pub project: &'p Project,
-    pub suite: &'p Suite,
+    pub suite: &'p FilteredSuite,
     pub world: &'p SystemWorld,
 
     pub result: SuiteResult,
@@ -74,7 +75,7 @@ pub struct Runner<'c, 'p> {
 impl<'c, 'p> Runner<'c, 'p> {
     pub fn new(
         project: &'p Project,
-        suite: &'p Suite,
+        suite: &'p FilteredSuite,
         world: &'p SystemWorld,
         config: RunnerConfig<'c>,
     ) -> Self {
@@ -91,7 +92,7 @@ impl<'c, 'p> Runner<'c, 'p> {
         TestRunner {
             project_runner: self,
             test,
-            result: TestResult::new(),
+            result: TestResult::skipped(),
         }
     }
 
@@ -106,10 +107,8 @@ impl<'c, 'p> Runner<'c, 'p> {
             let result = self.test(test).run()?;
 
             reporter.clear_status()?;
-            match result.kind() {
-                Some(
-                    TestResultKind::FailedCompilation { .. } | TestResultKind::FailedComparison(..),
-                ) => {
+            match result.stage() {
+                TestResultKind::FailedCompilation { .. } | TestResultKind::FailedComparison(..) => {
                     // TODO(tinger): retrieve export var from action
                     reporter.report_test_fail(test, &result, true)?;
 
@@ -118,7 +117,7 @@ impl<'c, 'p> Runner<'c, 'p> {
                         return Ok(());
                     }
                 }
-                Some(TestResultKind::PassedCompilation | TestResultKind::PassedComparison) => {
+                TestResultKind::PassedCompilation | TestResultKind::PassedComparison => {
                     reporter.report_test_pass(test, result.duration(), result.warnings())?;
                 }
                 _ => unreachable!(),
@@ -229,7 +228,7 @@ impl TestRunner<'_, '_, '_> {
                     let output = self.compile_out_doc(output)?;
                     let output = self.render_out_doc(output)?;
 
-                    self.test.create_reference_documents(
+                    self.test.create_reference_document(
                         paths,
                         &output,
                         self.project_runner
@@ -307,7 +306,7 @@ impl TestRunner<'_, '_, '_> {
         }
 
         self.test
-            .load_reference_documents(self.project_runner.project.paths())?
+            .load_reference_document(self.project_runner.project.paths())
             .wrap_err_with(|| {
                 format!(
                     "couldn't load reference document for test {}",

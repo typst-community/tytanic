@@ -1,15 +1,16 @@
-//! Version control support, this is used in a project to ensure that ephemeral
-//! storage directories are not managed by the VCS of the user. Currently
-//! supports `.gitignore` and `.hgignore` based VCS' as well as auto discovery
-//! of Git, Mercurial and Jujutsu through their hidden repository directories.
+//! Version control support.
+//!
+//! This is used in a project to ensure that ephemeral storage directories are
+//! not managed by the VCS of the user. Currently supports `.gitignore` and
+//! `.hgignore` based VCS' as well as auto discovery  of Git, Mercurial and
+//! Jujutsu through their hidden repository directories.
 
 use std::fmt::{self, Debug, Display};
 use std::path::{Path, PathBuf};
 use std::{fs, io};
 
-use crate::test::Test;
-
 use super::Paths;
+use crate::test::Test;
 
 /// The name of the git ignore file.
 const GITIGNORE_NAME: &str = ".gitignore";
@@ -125,24 +126,19 @@ impl Display for Vcs {
 
 #[cfg(test)]
 mod tests {
-    use ecow::eco_vec;
+    use tytanic_utils::fs::TempTestEnv;
 
     use super::*;
-    use crate::_dev;
     use crate::project::Paths;
     use crate::test::{Id, Kind as TestKind};
 
     fn test(kind: TestKind) -> Test {
-        Test {
-            id: Id::new("fancy").unwrap(),
-            kind,
-            annotations: eco_vec![],
-        }
+        Test::new_test(Id::new("fancy").unwrap(), kind)
     }
 
     #[test]
     fn test_git_ignore_create() {
-        _dev::fs::TempEnv::run(
+        TempTestEnv::run(
             |root| root.setup_dir("tests/fancy"),
             |root| {
                 let paths = Paths::new(root, None);
@@ -161,7 +157,7 @@ mod tests {
 
     #[test]
     fn test_git_ignore_truncate() {
-        _dev::fs::TempEnv::run(
+        TempTestEnv::run(
             |root| root.setup_file("tests/fancy/.gitignore", "blah blah"),
             |root| {
                 let paths = Paths::new(root, None);
@@ -180,7 +176,7 @@ mod tests {
 
     #[test]
     fn test_git_unignore() {
-        _dev::fs::TempEnv::run(
+        TempTestEnv::run(
             |root| root.setup_file("tests/fancy/.gitignore", "blah blah"),
             |root| {
                 let paths = Paths::new(root, None);

@@ -1,0 +1,24 @@
+[package]
+name = "tytanic-utils"
+version.workspace = true
+description.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+categories.workspace = true
+keywords.workspace = true
+readme.workspace = true
+
+[dependencies]
+comemo.workspace = true
+dirs.workspace = true
+ecow.workspace = true
+once_cell.workspace = true
+tempdir.workspace = true
+tracing.workspace = true
+typst.workspace = true
+typst-assets = { workspace = true, features = ["fonts"] }
+typst-dev-assets.workspace = true

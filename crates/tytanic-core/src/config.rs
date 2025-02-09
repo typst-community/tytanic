@@ -1,4 +1,4 @@
-//! Reading and writing configuration from TOML files.
+//! Reading and interpreting tytanic configuration.
 
 use std::collections::BTreeMap;
 use std::{fs, io};
@@ -6,10 +6,9 @@ use std::{fs, io};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use typst::syntax::package::PackageManifest;
+use tytanic_utils::result::ResultEx;
 
-use crate::stdx::result::ResultEx;
-
-// TODO: add proper test set collecting and parsing, test sets should be
+// TODO(tinger): add proper test set collecting and parsing, test sets should be
 // overridable in local configs but still fail on duplicate definitions.
 
 /// All valid keys for this config.

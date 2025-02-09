@@ -3115,6 +3115,8 @@ dependencies = [
  "typst-kit",
  "typst-syntax",
  "tytanic-core",
+ "tytanic-filter",
+ "tytanic-utils",
  "uuid",
 ]
 
@@ -3145,7 +3147,39 @@ dependencies = [
  "typst-assets",
  "typst-dev-assets",
  "typst-render",
+ "tytanic-filter",
+ "tytanic-utils",
  "uuid",
+]
+
+[[package]]
+name = "tytanic-filter"
+version = "0.1.1"
+dependencies = [
+ "ecow",
+ "glob",
+ "pest",
+ "pest_derive",
+ "regex",
+ "strsim",
+ "thiserror 1.0.69",
+ "tracing",
+ "tytanic-utils",
+]
+
+[[package]]
+name = "tytanic-utils"
+version = "0.1.1"
+dependencies = [
+ "comemo",
+ "dirs",
+ "ecow",
+ "once_cell",
+ "tempdir",
+ "tracing",
+ "typst",
+ "typst-assets",
+ "typst-dev-assets",
 ]
 
 [[package]]

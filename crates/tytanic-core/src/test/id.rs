@@ -1,4 +1,4 @@
-//! Test ids.
+//! Test identifiers.
 
 use std::borrow::{Borrow, Cow};
 use std::fmt::{self, Debug, Display};

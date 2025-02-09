@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
@@ -5,25 +6,20 @@ use std::{env, io};
 
 use color_eyre::eyre;
 use color_eyre::eyre::WrapErr;
-use options::{CliArguments, FilterOptions, Switch};
 use termcolor::Color;
 use thiserror::Error;
+use tytanic_core::dsl;
 use tytanic_core::project::Project;
-use tytanic_core::test::{Id, Suite};
-use tytanic_core::test_set::{self, eval, Error as TestSetError, TestSet};
+use tytanic_core::suite::{Filter, FilterError, FilteredSuite, Suite};
+use tytanic_core::test::Id;
+use tytanic_filter::{eval, Error as ExpressionFilterError, ExpressionFilter};
 
+use self::commands::{CliArguments, FilterOptions, Switch};
 use crate::ui::{self, Ui};
 use crate::world::SystemWorld;
 use crate::{cwrite, kit};
 
-pub mod delete;
-pub mod list;
-pub mod new;
-pub mod options;
-pub mod run;
-pub mod status;
-pub mod update;
-pub mod util;
+pub mod commands;
 
 /// Whether we received a signal we can gracefully exit from.
 pub static CANCELLED: AtomicBool = AtomicBool::new(false);
@@ -78,7 +74,7 @@ impl Context<'_> {
         writeln!(w)
     }
 
-    pub fn error_test_set_failure(&self, error: TestSetError) -> io::Result<()> {
+    pub fn error_test_set(&self, error: ExpressionFilterError) -> io::Result<()> {
         writeln!(
             self.ui.error()?,
             "Couldn't parse or evaluate test set expression:\n{error:?}",
@@ -91,6 +87,18 @@ impl Context<'_> {
         write!(w, "Test ")?;
         ui::write_test_id(&mut w, id)?;
         writeln!(w, " already exists")
+    }
+
+    pub fn error_missing_tests(&self, missing: &BTreeSet<Id>) -> io::Result<()> {
+        let mut w = self.ui.error()?;
+
+        for id in missing {
+            write!(w, "Test ")?;
+            ui::write_test_id(&mut w, id)?;
+            writeln!(w, " not found")?;
+        }
+
+        Ok(())
     }
 
     pub fn warn_no_tests(&self) -> io::Result<()> {
@@ -123,10 +131,6 @@ impl Context<'_> {
         cwrite!(colored(w, Color::Cyan), "tt util migrate")?;
         writeln!(w, " to automatically move the tests")
     }
-
-    pub fn run(&mut self) -> eyre::Result<()> {
-        self.args.cmd.run(self)
-    }
 }
 
 // TODO(tinger): cache these values
@@ -158,57 +162,51 @@ impl Context<'_> {
         Ok(project)
     }
 
-    /// Create a new test set from the arguments with the given context.
-    pub fn test_set(&self, filter: &FilterOptions) -> eyre::Result<TestSet> {
+    /// Create a new filter from given arguments.
+    pub fn filter(&self, filter: &FilterOptions) -> eyre::Result<Filter> {
         if !filter.tests.is_empty() {
-            let mut tests = filter
-                .tests
-                .iter()
-                .map(|test| eval::Set::built_in_pattern(test_set::Pat::Exact(test.into())));
-
-            let a = tests.next().expect("`tests` is not empty");
-
-            let set = match tests.next() {
-                Some(b) => eval::Set::built_in_union(a, b, tests),
-                None => a,
-            };
-
-            Ok(TestSet::new(eval::Context::empty(), set))
+            Ok(Filter::Explicit(filter.tests.iter().cloned().collect()))
         } else {
-            let ctx = eval::Context::with_built_ins();
-            let mut set = match TestSet::parse_and_evaluate(ctx, &filter.expression) {
+            let ctx = dsl::context();
+            let mut set = match ExpressionFilter::new(ctx, &filter.expression) {
                 Ok(set) => set,
                 Err(err) => {
-                    self.error_test_set_failure(err)?;
+                    self.error_test_set(err)?;
                     eyre::bail!(OperationFailure);
                 }
             };
 
             if filter.skip.get_or_default() {
-                set.add_implicit_skip();
+                set = set.map(|set| eval::Set::expr_diff(set, dsl::built_in::skip()));
             }
 
-            Ok(set)
+            Ok(Filter::TestSet(set))
         }
     }
 
     /// Collect and filter tests for the given project.
-    pub fn collect_tests(&self, project: &Project, set: &TestSet) -> eyre::Result<Suite> {
-        let suite = Suite::collect(project.paths(), set)?;
+    pub fn collect_tests_with_filter(
+        &self,
+        project: &Project,
+        filter: Filter,
+    ) -> eyre::Result<FilteredSuite> {
+        let suite = self.collect_tests(project)?;
 
-        if !suite.nested().is_empty() {
-            self.warn_nested_tests()?;
+        match suite.filter(filter) {
+            Ok(suite) => Ok(suite),
+            Err(err) => match err {
+                FilterError::TestSet(err) => eyre::bail!(err),
+                FilterError::Missing(missing) => {
+                    self.error_missing_tests(&missing)?;
+                    eyre::bail!(OperationFailure);
+                }
+            },
         }
-
-        Ok(suite)
     }
 
     /// Collect all tests for the given project.
-    pub fn collect_all_tests(&self, project: &Project) -> eyre::Result<Suite> {
-        let suite = Suite::collect(
-            project.paths(),
-            &TestSet::new(eval::Context::empty(), eval::Set::built_in_all()),
-        )?;
+    pub fn collect_tests(&self, project: &Project) -> eyre::Result<Suite> {
+        let suite = Suite::collect(project.paths())?;
 
         if !suite.nested().is_empty() {
             self.warn_nested_tests()?;
@@ -220,5 +218,14 @@ impl Context<'_> {
     /// Create a SystemWorld from the given args.
     pub fn world(&self) -> eyre::Result<SystemWorld> {
         kit::world(self.root()?, &self.args.typst)
+    }
+}
+
+impl Context<'_> {
+    /// Run the parsed command and report errors as ui messages.
+    pub fn run(&mut self) -> eyre::Result<()> {
+        // TODO(tinger): catch internal errors here and transform them into
+        // error messages
+        self.args.cmd.run(self)
     }
 }

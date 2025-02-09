@@ -108,14 +108,14 @@ fn assert_panic(
 #[cfg(test)]
 mod tests {
     use typst::syntax::Source;
+    use tytanic_utils::typst::VirtualWorld;
 
     use super::*;
-    use crate::_dev::GlobalTestWorld;
     use crate::doc::compile::{self, Warnings};
 
     #[test]
     fn test_catch() {
-        let world = GlobalTestWorld::new("".into(), augmented_default_library());
+        let world = VirtualWorld::new(augmented_default_library());
         let source = Source::detached(
             r#"
             #let errors = catch(() => {
@@ -132,7 +132,7 @@ mod tests {
 
     #[test]
     fn test_assert_panic() {
-        let world = GlobalTestWorld::new("".into(), augmented_default_library());
+        let world = VirtualWorld::new(augmented_default_library());
         let source = Source::detached(
             r#"
             #assert-panic(() => {

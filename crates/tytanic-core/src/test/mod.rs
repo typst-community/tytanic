@@ -3,25 +3,22 @@
 use std::fmt::Debug;
 use std::fs::{self, File};
 use std::io::{self, Write};
+use std::time::{Duration, Instant};
 
 use ecow::{eco_vec, EcoString, EcoVec};
 use thiserror::Error;
-use tiny_skia::Pixmap;
+use typst::diag::SourceDiagnostic;
 use typst::syntax::{FileId, Source, VirtualPath};
 
-use crate::doc::{Document, LoadError, SaveError};
+use crate::doc;
+use crate::doc::{compare, compile, Document, SaveError};
 use crate::project::{Paths, Vcs};
-use crate::{doc, stdx};
 
 mod annotation;
 mod id;
-mod result;
-mod suite;
 
 pub use self::annotation::{Annotation, ParseAnnotationError};
 pub use self::id::{Id, ParseIdError};
-pub use self::result::{Kind as TestResultKind, SuiteResult, TestResult};
-pub use self::suite::{CollectError as CollectSuiteError, Suite};
 
 // NOTE(tinger): the order of ignoring and deleting/creating documents is not
 // random, this is specifically for VCS like jj with active watchman triggers
@@ -32,7 +29,7 @@ pub use self::suite::{CollectError as CollectSuiteError, Suite};
 /// The default test input as source code.
 pub const DEFAULT_TEST_INPUT: &str = include_str!("default-test.typ");
 
-/// The default test output as a compressed PNG.
+/// The default test output as an encouded PNG.
 pub const DEFAULT_TEST_OUTPUT: &[u8] = include_bytes!("default-test.png");
 
 /// References for a test.
@@ -43,7 +40,14 @@ pub enum Reference {
     Ephemeral(EcoString),
 
     /// Persistent references which are stored on disk.
-    Persistent(Document, Option<Box<oxipng::Options>>),
+    Persistent {
+        /// The reference document.
+        doc: Document,
+
+        /// The optimization options to use when storing the document, `None`
+        /// disabled optimization.
+        opt: Option<Box<oxipng::Options>>,
+    },
 }
 
 /// The kind of a unit test.
@@ -92,37 +96,31 @@ impl Reference {
     pub fn kind(&self) -> Kind {
         match self {
             Self::Ephemeral(_) => Kind::Ephemeral,
-            Self::Persistent(_, _) => Kind::Persistent,
+            Self::Persistent { doc: _, opt: _ } => Kind::Persistent,
         }
     }
 }
 
-/// A unit test.
-///
-/// A test can be created on disk directly using [`Test::create`] or
-/// [`Test::create_default`]. If a test was created using [`Test::new`] it can
-/// be persisted to disk using one of its `make_*` methods.
-///
-/// This type is cheap to clone.
+/// A standalone test script and its assocaited documents.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Test {
-    pub(crate) id: Id,
-    pub(crate) kind: Kind,
-    pub(crate) annotations: EcoVec<Annotation>,
+    id: Id,
+    kind: Kind,
+    annotations: EcoVec<Annotation>,
 }
 
 impl Test {
-    /// Creates a new compile-only test with no annotations.
-    pub fn new(id: Id) -> Self {
+    #[cfg(test)]
+    pub(crate) fn new_test(id: Id, kind: Kind) -> Self {
         Self {
             id,
-            kind: Kind::CompileOnly,
+            kind,
             annotations: eco_vec![],
         }
     }
 
     /// Attempt to load a test, returns `None` if no test could be found.
-    pub fn try_collect(paths: &Paths, id: Id) -> Result<Option<Test>, CollectError> {
+    pub fn load(paths: &Paths, id: Id) -> Result<Option<Test>, LoadError> {
         let test_script = paths.test_script(&id);
 
         if !test_script.try_exists()? {
@@ -170,24 +168,8 @@ impl Test {
 }
 
 impl Test {
-    /// Creates a new default test on disk.
-    pub fn create_default(paths: &Paths, vcs: Option<&Vcs>, id: Id) -> Result<Test, CreateError> {
-        Self::create(
-            paths,
-            vcs,
-            id,
-            DEFAULT_TEST_INPUT,
-            // NOTE(tinger): this image is already optimized
-            Some(Reference::Persistent(
-                Document::new([
-                    Pixmap::decode_png(DEFAULT_TEST_OUTPUT).expect("bytes come from a valid PNG")
-                ]),
-                None,
-            )),
-        )
-    }
-
-    /// Creates a new test on disk.
+    /// Creates a new test on disk, the kind is inferred from the passed
+    /// reference and annotations are parsed from the test script.
     pub fn create(
         paths: &Paths,
         vcs: Option<&Vcs>,
@@ -196,7 +178,7 @@ impl Test {
         reference: Option<Reference>,
     ) -> Result<Test, CreateError> {
         let test_dir = paths.test_dir(&id);
-        stdx::fs::create_dir(test_dir, true)?;
+        tytanic_utils::fs::create_dir(test_dir, true)?;
 
         let mut file = File::options()
             .write(true)
@@ -227,8 +209,11 @@ impl Test {
             Some(Reference::Ephemeral(reference)) => {
                 this.create_reference_script(paths, reference.as_str())?;
             }
-            Some(Reference::Persistent(reference, options)) => {
-                this.create_reference_documents(paths, &reference, options.as_deref())?;
+            Some(Reference::Persistent {
+                doc: reference,
+                opt: options,
+            }) => {
+                this.create_reference_document(paths, &reference, options.as_deref())?;
             }
             None => {}
         }
@@ -236,36 +221,36 @@ impl Test {
         Ok(this)
     }
 
-    /// Creates this test's temporary directories, if they don't exist yet.
+    /// Creates the temporary directories of this test.
     pub fn create_temporary_directories(&self, paths: &Paths) -> io::Result<()> {
         self.delete_temporary_directories(paths)?;
 
         if self.kind.is_ephemeral() {
-            stdx::fs::create_dir(paths.test_ref_dir(&self.id), true)?;
+            tytanic_utils::fs::create_dir(paths.test_ref_dir(&self.id), true)?;
         }
 
-        stdx::fs::create_dir(paths.test_out_dir(&self.id), true)?;
-        stdx::fs::create_dir(paths.test_diff_dir(&self.id), true)?;
+        tytanic_utils::fs::create_dir(paths.test_out_dir(&self.id), true)?;
+        tytanic_utils::fs::create_dir(paths.test_diff_dir(&self.id), true)?;
 
         Ok(())
     }
 
-    /// Creates this test's main script, this will truncate the file if it
+    /// Creates the test script of this test, this will truncate the file if it
     /// already exists.
     pub fn create_script(&self, paths: &Paths, source: &str) -> io::Result<()> {
         std::fs::write(paths.test_script(&self.id), source)?;
         Ok(())
     }
 
-    /// Creates this test's reference script, this will truncate the file if it
+    /// Creates reference script of this test, this will truncate the file if it
     /// already exists.
     pub fn create_reference_script(&self, paths: &Paths, source: &str) -> io::Result<()> {
         std::fs::write(paths.test_ref_script(&self.id), source)?;
         Ok(())
     }
 
-    /// Creates this test's persistent references.
-    pub fn create_reference_documents(
+    /// Creates the persistent reference document of this test.
+    pub fn create_reference_document(
         &self,
         paths: &Paths,
         reference: &Document,
@@ -274,53 +259,53 @@ impl Test {
         // NOTE(tinger): if there are already more pages than we want to create,
         // the surplus pages would persist and make every comparison fail due to
         // a page count mismatch, so we clear them to be sure.
-        self.delete_reference_documents(paths)?;
+        self.delete_reference_document(paths)?;
 
         let ref_dir = paths.test_ref_dir(&self.id);
-        stdx::fs::create_dir(&ref_dir, true)?;
+        tytanic_utils::fs::create_dir(&ref_dir, true)?;
         reference.save(&ref_dir, optimize_options)?;
 
         Ok(())
     }
 
-    /// Deletes this test's directories and scripts, if they exist.
+    /// Deletes all directories and scripts of this test.
     pub fn delete(&self, paths: &Paths) -> io::Result<()> {
-        self.delete_reference_documents(paths)?;
+        self.delete_reference_document(paths)?;
         self.delete_reference_script(paths)?;
         self.delete_temporary_directories(paths)?;
 
-        stdx::fs::remove_file(paths.test_script(&self.id))?;
-        stdx::fs::remove_dir(paths.test_dir(&self.id), true)?;
+        tytanic_utils::fs::remove_file(paths.test_script(&self.id))?;
+        tytanic_utils::fs::remove_dir(paths.test_dir(&self.id), true)?;
 
         Ok(())
     }
 
-    /// Deletes this test's temporary directories, if they exist.
+    /// Deletes the temporary directories of this test.
     pub fn delete_temporary_directories(&self, paths: &Paths) -> io::Result<()> {
-        if self.kind.is_ephemeral() {
-            stdx::fs::remove_dir(paths.test_ref_dir(&self.id), true)?;
+        if !self.kind.is_compile_only() {
+            tytanic_utils::fs::remove_dir(paths.test_ref_dir(&self.id), true)?;
         }
 
-        stdx::fs::remove_dir(paths.test_out_dir(&self.id), true)?;
-        stdx::fs::remove_dir(paths.test_diff_dir(&self.id), true)?;
+        tytanic_utils::fs::remove_dir(paths.test_out_dir(&self.id), true)?;
+        tytanic_utils::fs::remove_dir(paths.test_diff_dir(&self.id), true)?;
         Ok(())
     }
 
-    /// Deletes this test's main script, if it exists.
+    /// Deletes the test script of of this test.
     pub fn delete_script(&self, paths: &Paths) -> io::Result<()> {
-        stdx::fs::remove_file(paths.test_script(&self.id))?;
+        tytanic_utils::fs::remove_file(paths.test_script(&self.id))?;
         Ok(())
     }
 
-    /// Deletes this test's reference script, if it exists.
+    /// Deletes reference script of of this test.
     pub fn delete_reference_script(&self, paths: &Paths) -> io::Result<()> {
-        stdx::fs::remove_file(paths.test_ref_script(&self.id))?;
+        tytanic_utils::fs::remove_file(paths.test_ref_script(&self.id))?;
         Ok(())
     }
 
-    /// Deletes this test's persistent reference documents, if they exist.
-    pub fn delete_reference_documents(&self, paths: &Paths) -> io::Result<()> {
-        stdx::fs::remove_dir(paths.test_ref_dir(&self.id), true)?;
+    /// Deletes persistent reference document of this test.
+    pub fn delete_reference_document(&self, paths: &Paths) -> io::Result<()> {
+        tytanic_utils::fs::remove_dir(paths.test_ref_dir(&self.id), true)?;
         Ok(())
     }
 
@@ -331,7 +316,7 @@ impl Test {
 
         // ensure deletion is recorded before ignore file is updated
         self.delete_reference_script(paths)?;
-        self.delete_reference_documents(paths)?;
+        self.delete_reference_document(paths)?;
 
         if let Some(vcs) = vcs {
             vcs.ignore(paths, self)?;
@@ -356,7 +341,7 @@ impl Test {
 
         // ensure deletion/creation is recorded before ignore file is updated
         self.delete_reference_script(paths)?;
-        self.create_reference_documents(paths, reference, optimize_options)?;
+        self.create_reference_document(paths, reference, optimize_options)?;
 
         if let Some(vcs) = vcs {
             vcs.ignore(paths, self)?;
@@ -370,7 +355,7 @@ impl Test {
         self.kind = Kind::CompileOnly;
 
         // ensure deletion is recorded before ignore file is updated
-        self.delete_reference_documents(paths)?;
+        self.delete_reference_document(paths)?;
         self.delete_reference_script(paths)?;
 
         if let Some(vcs) = vcs {
@@ -418,12 +403,14 @@ impl Test {
         )))
     }
 
-    /// Loads the persistent reference pages of this test, if they exist.
-    pub fn load_reference_documents(&self, paths: &Paths) -> Result<Option<Document>, LoadError> {
-        match self.kind {
-            Kind::Persistent => Document::load(paths.test_ref_dir(&self.id)).map(Some),
-            _ => Ok(None),
-        }
+    /// Loads the test document of this test.
+    pub fn load_document(&self, paths: &Paths) -> Result<Document, doc::LoadError> {
+        Document::load(paths.test_out_dir(&self.id))
+    }
+
+    /// Loads the persistent reference document of this test.
+    pub fn load_reference_document(&self, paths: &Paths) -> Result<Document, doc::LoadError> {
+        Document::load(paths.test_ref_dir(&self.id))
     }
 }
 
@@ -443,9 +430,9 @@ pub enum CreateError {
     Io(#[from] io::Error),
 }
 
-/// Returned by [`Test::try_collect`].
+/// Returned by [`Test::load`].
 #[derive(Debug, Error)]
-pub enum CollectError {
+pub enum LoadError {
     /// An error occurred while parsing a test annotation.
     #[error("an error occurred while parsing a test annotation")]
     Annotation(#[from] ParseAnnotationError),
@@ -455,18 +442,201 @@ pub enum CollectError {
     Io(#[from] io::Error),
 }
 
+/// The stage of a single test run.
+#[derive(Debug, Clone, Default)]
+pub enum Stage {
+    /// The test was cancelled or not started in the first place.
+    #[default]
+    Skipped,
+
+    /// The test was filtered out by a [`Filter`].
+    ///
+    /// [`Filter`]: crate::suite::Filter
+    Filtered,
+
+    /// The test failed compilation.
+    FailedCompilation {
+        /// The inner error.
+        error: compile::Error,
+
+        /// Whether this was a compilation failure of the reference.
+        reference: bool,
+    },
+
+    /// The test passed compilation, but failed comparison.
+    FailedComparison(compare::Error),
+
+    /// The test passed compilation, but did not run comparison.
+    PassedCompilation,
+
+    /// The test passed compilation and comparison.
+    PassedComparison,
+}
+
+/// The result of a single test run.
+#[derive(Debug, Clone)]
+pub struct TestResult {
+    stage: Stage,
+    warnings: EcoVec<SourceDiagnostic>,
+    timestamp: Instant,
+    duration: Duration,
+}
+
+impl TestResult {
+    /// Create a result for a test for a skipped test. This will set the
+    /// starting time to now, the duration to zero and the result to `None`.
+    ///
+    /// This can be used for constructing test results in advance to ensure an
+    /// aborted test run contains a skip result for all yet-to-be-run tests.
+    pub fn skipped() -> Self {
+        Self {
+            stage: Stage::Skipped,
+            warnings: eco_vec![],
+            timestamp: Instant::now(),
+            duration: Duration::ZERO,
+        }
+    }
+
+    /// Create a result for a test for a filtered test. This will set the
+    /// starting time to now, the duration to zero and the result to filtered.
+    pub fn filtered() -> Self {
+        Self {
+            stage: Stage::Filtered,
+            warnings: eco_vec![],
+            timestamp: Instant::now(),
+            duration: Duration::ZERO,
+        }
+    }
+}
+
+impl TestResult {
+    /// The stage of this rest result, if it was started.
+    pub fn stage(&self) -> &Stage {
+        &self.stage
+    }
+
+    /// The warnings of the test emitted by the compiler.
+    pub fn warnings(&self) -> &[SourceDiagnostic] {
+        &self.warnings
+    }
+
+    /// The timestamp at which the suite run started.
+    pub fn timestamp(&self) -> Instant {
+        self.timestamp
+    }
+
+    /// The duration of the test, this a zero if this test wasn't started.
+    pub fn duration(&self) -> Duration {
+        self.duration
+    }
+
+    /// Whether the test was not started.
+    pub fn is_skipped(&self) -> bool {
+        matches!(&self.stage, Stage::Skipped)
+    }
+
+    /// Whether the test was filtered out.
+    pub fn is_filtered(&self) -> bool {
+        matches!(&self.stage, Stage::Filtered)
+    }
+
+    /// Whether the test passed compilation or comparison.
+    pub fn is_pass(&self) -> bool {
+        matches!(
+            &self.stage,
+            Stage::PassedCompilation | Stage::PassedComparison
+        )
+    }
+
+    /// Whether the test failed compilation or comparison.
+    pub fn is_fail(&self) -> bool {
+        matches!(
+            &self.stage,
+            Stage::FailedCompilation { .. } | Stage::FailedComparison(..),
+        )
+    }
+
+    /// The errors emitted by the compiler if compilation failed.
+    pub fn errors(&self) -> Option<&[SourceDiagnostic]> {
+        match &self.stage {
+            Stage::FailedCompilation { error, .. } => Some(&error.0),
+            _ => None,
+        }
+    }
+}
+
+impl TestResult {
+    /// Sets the timestamp to [`Instant::now`].
+    ///
+    /// See [`TestResult::end`].
+    pub fn start(&mut self) {
+        self.timestamp = Instant::now();
+    }
+
+    /// Sets the duration to the time elapsed since [`TestResult::start`] was
+    /// called.
+    pub fn end(&mut self) {
+        self.duration = self.timestamp.elapsed();
+    }
+
+    /// Sets the kind for this test to a compilation pass.
+    pub fn set_passed_compilation(&mut self) {
+        self.stage = Stage::PassedCompilation;
+    }
+
+    /// Sets the kind for this test to a reference compilation failure.
+    pub fn set_failed_reference_compilation(&mut self, error: compile::Error) {
+        self.stage = Stage::FailedCompilation {
+            error,
+            reference: true,
+        };
+    }
+
+    /// Sets the kind for this test to a test compilation failure.
+    pub fn set_failed_test_compilation(&mut self, error: compile::Error) {
+        self.stage = Stage::FailedCompilation {
+            error,
+            reference: false,
+        };
+    }
+
+    /// Sets the kind for this test to a test comparison pass.
+    pub fn set_passed_comparison(&mut self) {
+        self.stage = Stage::PassedComparison;
+    }
+
+    /// Sets the kind for this test to a comparison failure.
+    pub fn set_failed_comparison(&mut self, error: compare::Error) {
+        self.stage = Stage::FailedComparison(error);
+    }
+
+    /// Sets the warnings for this test.
+    pub fn set_warnings<I>(&mut self, warnings: I)
+    where
+        I: Into<EcoVec<SourceDiagnostic>>,
+    {
+        self.warnings = warnings.into();
+    }
+}
+
+impl Default for TestResult {
+    fn default() -> Self {
+        Self::skipped()
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use tytanic_utils::fs::{Setup, TempTestEnv};
+
     use super::*;
-    use crate::_dev;
-    use crate::_dev::fs::Setup;
 
     fn id(id: &str) -> Id {
         Id::new(id).unwrap()
     }
 
-    fn test(test_id: &str) -> Test {
-        Test::new(id(test_id))
+    fn test(test_id: &str, kind: Kind) -> Test {
+        Test::new_test(id(test_id), kind)
     }
 
     fn setup_all(root: &mut Setup) -> &mut Setup {
@@ -479,7 +649,7 @@ mod tests {
 
     #[test]
     fn test_create() {
-        _dev::fs::TempEnv::run(
+        TempTestEnv::run(
             |root| root.setup_dir("tests"),
             |root| {
                 let paths = Paths::new(root, None);
@@ -499,19 +669,18 @@ mod tests {
                     None,
                     id("persistent"),
                     "Hello World",
-                    Some(Reference::Persistent(Document::new(vec![]), None)),
+                    Some(Reference::Persistent {
+                        doc: Document::new(vec![]),
+                        opt: None,
+                    }),
                 )
                 .unwrap();
-
-                Test::create_default(&paths, None, id("default")).unwrap();
             },
             |root| {
                 root.expect_file_content("tests/compile-only/test.typ", "Hello World")
                     .expect_file_content("tests/ephemeral/test.typ", "Hello World")
                     .expect_file_content("tests/ephemeral/ref.typ", "Hello\nWorld")
                     .expect_file_content("tests/persistent/test.typ", "Hello World")
-                    .expect_file_content("tests/default/test.typ", DEFAULT_TEST_INPUT)
-                    .expect_file("tests/default/ref/1.png")
                     .expect_dir("tests/persistent/ref")
             },
         );
@@ -519,13 +688,19 @@ mod tests {
 
     #[test]
     fn test_make_ephemeral() {
-        _dev::fs::TempEnv::run(
+        TempTestEnv::run(
             setup_all,
             |root| {
                 let paths = Paths::new(root, None);
-                test("compile-only").make_ephemeral(&paths, None).unwrap();
-                test("ephemeral").make_ephemeral(&paths, None).unwrap();
-                test("persistent").make_ephemeral(&paths, None).unwrap();
+                test("compile-only", Kind::CompileOnly)
+                    .make_ephemeral(&paths, None)
+                    .unwrap();
+                test("ephemeral", Kind::Ephemeral)
+                    .make_ephemeral(&paths, None)
+                    .unwrap();
+                test("persistent", Kind::Persistent)
+                    .make_ephemeral(&paths, None)
+                    .unwrap();
             },
             |root| {
                 root.expect_file_content("tests/compile-only/test.typ", "Hello World")
@@ -540,19 +715,19 @@ mod tests {
 
     #[test]
     fn test_make_persistent() {
-        _dev::fs::TempEnv::run(
+        TempTestEnv::run(
             setup_all,
             |root| {
                 let paths = Paths::new(root, None);
-                test("compile-only")
+                test("compile-only", Kind::CompileOnly)
                     .make_persistent(&paths, None, &Document::new([]), None)
                     .unwrap();
 
-                test("ephemeral")
+                test("ephemeral", Kind::Ephemeral)
                     .make_persistent(&paths, None, &Document::new([]), None)
                     .unwrap();
 
-                test("persistent")
+                test("persistent", Kind::Persistent)
                     .make_persistent(&paths, None, &Document::new([]), None)
                     .unwrap();
             },
@@ -569,15 +744,21 @@ mod tests {
 
     #[test]
     fn test_make_compile_only() {
-        _dev::fs::TempEnv::run(
+        TempTestEnv::run(
             setup_all,
             |root| {
                 let paths = Paths::new(root, None);
-                test("compile-only")
+                test("compile-only", Kind::CompileOnly)
                     .make_compile_only(&paths, None)
                     .unwrap();
-                test("ephemeral").make_compile_only(&paths, None).unwrap();
-                test("persistent").make_compile_only(&paths, None).unwrap();
+
+                test("ephemeral", Kind::Ephemeral)
+                    .make_compile_only(&paths, None)
+                    .unwrap();
+
+                test("persistent", Kind::Persistent)
+                    .make_compile_only(&paths, None)
+                    .unwrap();
             },
             |root| {
                 root.expect_file_content("tests/compile-only/test.typ", "Hello World")
@@ -589,7 +770,7 @@ mod tests {
 
     #[test]
     fn test_load_sources() {
-        _dev::fs::TempEnv::run_no_check(
+        TempTestEnv::run_no_check(
             |root| {
                 root.setup_file("tests/fancy/test.typ", "Hello World")
                     .setup_file("tests/fancy/ref.typ", "Hello\nWorld")
@@ -597,7 +778,7 @@ mod tests {
             |root| {
                 let paths = Paths::new(root, None);
 
-                let mut test = test("fancy");
+                let mut test = test("fancy", Kind::Ephemeral);
                 test.kind = Kind::Ephemeral;
 
                 test.load_source(&paths).unwrap();
@@ -608,12 +789,12 @@ mod tests {
 
     #[test]
     fn test_sources_virtual() {
-        _dev::fs::TempEnv::run_no_check(
+        TempTestEnv::run_no_check(
             |root| root.setup_file_empty("tests/fancy/test.typ"),
             |root| {
                 let paths = Paths::new(root, None);
 
-                let test = test("fancy");
+                let test = test("fancy", Kind::CompileOnly);
 
                 let source = test.load_source(&paths).unwrap();
                 assert_eq!(

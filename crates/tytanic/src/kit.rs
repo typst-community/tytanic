@@ -5,7 +5,7 @@ use typst_kit::download::Downloader;
 use typst_kit::fonts::{FontSearcher, Fonts};
 use typst_kit::package::PackageStorage;
 
-use crate::cli::options::{FontOptions, PackageOptions, TypstOptions};
+use crate::cli::commands::{FontOptions, PackageOptions, TypstOptions};
 use crate::world::SystemWorld;
 
 pub fn world(project_root: PathBuf, typst_options: &TypstOptions) -> eyre::Result<SystemWorld> {

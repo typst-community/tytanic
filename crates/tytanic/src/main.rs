@@ -6,8 +6,6 @@ use std::process::ExitCode;
 use std::sync::atomic::Ordering;
 
 use clap::Parser;
-use cli::options::CliArguments;
-use cli::Context;
 use codespan_reporting::term;
 use color_eyre::eyre;
 use once_cell::sync::Lazy;
@@ -19,7 +17,8 @@ use tracing_subscriber::util::SubscriberInitExt;
 use tracing_tree::HierarchicalLayer;
 use tytanic_core::config::{Config, ConfigLayer};
 
-use crate::cli::{OperationFailure, TestFailure};
+use crate::cli::commands::CliArguments;
+use crate::cli::{Context, OperationFailure, TestFailure};
 use crate::ui::Ui;
 
 mod cli;
