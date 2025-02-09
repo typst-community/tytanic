@@ -4,10 +4,10 @@ use std::path::{Path, PathBuf};
 use std::{fs, io};
 
 use thiserror::Error;
-use typst::syntax::package::{PackageInfo, PackageManifest, TemplateInfo};
+use typst::syntax::package::PackageManifest;
 
+use crate::stdx::result::ResultEx;
 use crate::test::Id;
-use crate::{config, test};
 
 mod vcs;
 
@@ -19,6 +19,9 @@ pub const MANIFEST_FILE: &str = "typst.toml";
 
 /// An object which contains various paths relevant for handling on-disk
 /// operations and path transformations.
+///
+/// The patsh retruned by this struct are not guaranteed to exist on disk, but
+/// if they don't exist at the given paths, then they don't exist for a project.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Paths {
     project: PathBuf,
@@ -28,7 +31,7 @@ pub struct Paths {
 impl Paths {
     /// Create a new project with the given roots.
     ///
-    /// It is recommended to canonicalize them.
+    /// It is recommended to canonicalize them, but it is not strictly necessary.
     pub fn new<P, Q>(project: P, vcs: Q) -> Self
     where
         P: Into<PathBuf>,
@@ -124,38 +127,28 @@ impl Paths {
 /// A handle for managing typst projects both on-disk and in-memory.
 #[derive(Debug, Clone)]
 pub struct Project {
-    manifest: Option<PackageManifest>,
     paths: Paths,
     vcs: Option<Vcs>,
 }
 
 impl Project {
     /// Create a new project with the given parameters.
-    pub fn new(manifest: Option<PackageManifest>, paths: Paths, vcs: Option<Vcs>) -> Self {
-        Self {
-            manifest,
-            paths,
-            vcs,
-        }
+    pub fn new(paths: Paths, vcs: Option<Vcs>) -> Self {
+        Self { paths, vcs }
     }
 
     /// Attempt to discover the current project from the given directory.
     ///
-    /// This will walk up the directory tree, discovering and reading configs,
-    /// collecting roots and test suites depending on these configurations.
-    ///
     /// If `is_project_root` is `false`, then this will attempt to find it by
     /// looking for a manifest, otherwise it will assume the directory itself is
     /// the project root.
-    ///
     pub fn discover<P: AsRef<Path>>(
         dir: P,
         is_project_root: bool,
-    ) -> Result<Option<Self>, DiscoverError> {
+    ) -> Result<Option<Self>, io::Error> {
         let dir = dir.as_ref();
 
         let mut project_root = is_project_root.then(|| dir.to_path_buf());
-        let mut manifest = None;
         let mut vcs_root = None;
         let mut vcs = None;
 
@@ -164,9 +157,6 @@ impl Project {
                 let manifest_file = dir.join(MANIFEST_FILE);
                 if manifest_file.try_exists()? {
                     project_root = Some(dir.to_path_buf());
-
-                    tracing::debug!(?manifest_file, "reading manifest");
-                    manifest = Some(toml::from_str(&fs::read_to_string(manifest_file)?)?);
                 }
             }
 
@@ -188,7 +178,6 @@ impl Project {
         };
 
         Ok(Some(Self {
-            manifest,
             paths: Paths {
                 project,
                 vcs: vcs_root,
@@ -199,11 +188,6 @@ impl Project {
 }
 
 impl Project {
-    /// Returns the manifest for this project if it is a package.
-    pub fn manifest(&self) -> Option<&PackageManifest> {
-        self.manifest.as_ref()
-    }
-
     /// Returns the paths for this project, these are used in various low-level
     /// on-disk operations to correctly manipulate tests.
     pub fn paths(&self) -> &Paths {
@@ -215,35 +199,26 @@ impl Project {
     pub fn vcs(&self) -> Option<&Vcs> {
         self.vcs.as_ref()
     }
+}
 
-    /// Returns the package info if this project is a package.
-    pub fn manifest_package_info(&self) -> Option<&PackageInfo> {
-        self.manifest.as_ref().map(|m| &m.package)
-    }
-
-    /// Returns the template and package info if this project is a template
-    /// package.
-    pub fn manifest_template_info(&self) -> Option<(&TemplateInfo, &PackageInfo)> {
-        self.manifest
-            .as_ref()
-            .and_then(|m| m.template.as_ref().map(|t| (t, &m.package)))
+impl Project {
+    /// Attempts to read the project manifest if it exists. Returns `None` if no
+    /// manifest is found.
+    pub fn read_manifest(&self) -> Result<Option<PackageManifest>, ManifestError> {
+        Ok(fs::read_to_string(self.paths.manifest())
+            .ignore(|e| e.kind() == io::ErrorKind::NotFound)?
+            .as_deref()
+            .map(toml::from_str)
+            .transpose()?)
     }
 }
 
-/// Returned by [`Project::discover`].
+/// Returned by [`Project::read_manifest`].
 #[derive(Debug, Error)]
-pub enum DiscoverError {
-    /// An error occurred while reading configs.
-    #[error("an error occurred while reading configs")]
-    Config(#[from] config::ReadError),
-
+pub enum ManifestError {
     /// An error occurred while parsing the project manifest.
-    #[error("an error occurred while reading the project manifest")]
-    Manifest(#[from] toml::de::Error),
-
-    /// An error occurred while reading configs.
-    #[error("an error occurred while reading configs")]
-    Suite(#[from] test::CollectSuiteError),
+    #[error("an error occurred while parsing the project manifest")]
+    Parse(#[from] toml::de::Error),
 
     /// An io error occurred.
     #[error("an io error occurred")]
