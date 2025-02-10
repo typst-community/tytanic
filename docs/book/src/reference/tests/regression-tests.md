@@ -35,14 +35,20 @@ The kind of a test is determined as follows:
 - If it contians a `ref.typ` script, it is considered an ephemeral test.
 - If it contains neither, it is considered compile only.
 
-Temporary directories are ignored within the VCS if one is detected, this is currently done by simply adding an ignore file within the directory which ignores all entries inside it.
-
-A test cannot contain other tests, if a test script is found `tytanic` will not search for any sub tests.
+Temporary directories are ignored within the VCS if one is detected, this is currently done by simply adding an ignore file within the test directory which ignores all temporary directories.
 
 Regression test are compiled with the project root as their typst root, such that they can easily access package internals with absolute paths.
 
+<div class="warning">
+
+A test cannot contain other tests, if a test script is found `tytanic` will not search for any sub tests, this was previously supported but is being phased out.
+Projects which have nested tests will receive a warning and the nested tests will be ignored.
+Such projects can migrate by running `tt util migrate`, which will guide the user through and automate such a migration process.
+
+</div>
+
 ## Comparison
-Ephemeral and persistent tests are curently compared using a simple deviation threshold which determines if two images should be considered the same or different.
+Ephemeral and persistent tests are currently compared using a simple deviation threshold which determines if two images should be considered the same or different.
 If the images have different dimensions consider them different.
 Given two images of equal dimensions, pair up each pixel and compare them, if any of the 3 channels (red, green, blue) differ by at least `min-delta` count it as a deviation.
 If there are more than `max-deviations` of such deviating pixels, consider the images different.
