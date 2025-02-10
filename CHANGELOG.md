@@ -9,7 +9,15 @@
 
 ---
 
+# [v0.1.3](https://github.com/tingerrr/tytanic/releases/tags/v0.1.3)
+## Fixed
+- fs: Don't delete persistent references
+
+---
+
 # [v0.1.2](https://github.com/tingerrr/tytanic/releases/tags/v0.1.2)
+**This release was yanked, see v0.1.3.**
+
 ## Added
 - cli: Add `--[no-]compare`
 - cli: Add `--[no-]fail-fast`

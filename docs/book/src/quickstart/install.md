@@ -1,6 +1,6 @@
 # Installation
 ## Versions
-You can either install a stable version or a nightly version, a stable version uses a version tag like `v0.1.2`, whereas nightly versions are simply whatever is currently pointed to by the `main` branch on the GitHub repository.
+You can either install a stable version or a nightly version, a stable version uses a version tag like `v0.1.3`, whereas nightly versions are simply whatever is currently pointed to by the `main` branch on the GitHub repository.
 
 Nightly has the newest features, but may have unfixed bugs or rough edges, use this with caution and backup your tests.
 
@@ -34,7 +34,7 @@ To install `tytanic` from source, you must have a Rust toolchain (Rust **v1.80.0
 
 #### Stable
 ```shell
-cargo install --locked tytanic@0.1.2
+cargo install --locked tytanic@0.1.3
 ```
 
 #### Nightly
@@ -47,7 +47,7 @@ This method usually doesn't require manually placing the `tt` binary in your `$P
 ### Nix Flake
 #### Stable
 ```shell
-nix run github:tingerrr/tytanic/v0.1.2
+nix run github:tingerrr/tytanic/v0.1.3
 ```
 
 #### Nightly
@@ -60,7 +60,7 @@ This method does't require any extraction or `$PATH` modifications.
 ### Using docker
 Every release is automatically added to the GitHub Container Registry `ghcr.io` and can be pulled like so:
 ```shell
-docker pull ghcr.io/tingerrr/tytanic:v0.1.2
+docker pull ghcr.io/tingerrr/tytanic:v0.1.3
 ```
 
 Check out the [package][docker] for platform specific builds.
