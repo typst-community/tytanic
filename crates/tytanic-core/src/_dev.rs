@@ -24,22 +24,12 @@ pub struct VirtualFile {
 
 impl VirtualFile {
     /// Create a new Typst source file with the given source code.
+    #[allow(dead_code)]
     pub fn new(id: FileId, source: &str) -> Self {
         Self {
             bytes: source.as_bytes().into(),
             source: Some(Source::new(id, source.to_owned())),
         }
-    }
-
-    /// Create a new virtual file from a [`typst_dev_assets`] entry, this will
-    /// have no `source` field set.
-    pub fn asset(id: FileId) -> Option<Self> {
-        typst_dev_assets::get(&id.vpath().as_rootless_path().to_string_lossy()).map(|content| {
-            Self {
-                source: None,
-                bytes: content.into(),
-            }
-        })
     }
 }
 
@@ -73,7 +63,6 @@ impl VirtualWorld {
     /// Creates a new test world with the given standard library.
     pub fn new(library: Library) -> Self {
         let fonts: Vec<_> = typst_assets::fonts()
-            .chain(typst_dev_assets::fonts())
             .flat_map(|data| Font::iter(Bytes::from_static(data)))
             .collect();
 

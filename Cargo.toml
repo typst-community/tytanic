@@ -52,7 +52,6 @@ tracing-tree = "0.3.0"
 toml = "0.8.19"
 typst = "0.12.0"
 typst-assets = "0.12.0"
-typst-dev-assets = { git = "https://github.com/typst/typst-dev-assets", rev = "ee8ae61" }
 typst-kit = "0.12.0"
 typst-render = "0.12.0"
 typst-syntax = "0.12.0"
