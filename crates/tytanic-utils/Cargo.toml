@@ -1,7 +1,7 @@
 [package]
 name = "tytanic-utils"
+description = "Helper functions, types and traits for the tytanic test runner."
 version.workspace = true
-description.workspace = true
 rust-version.workspace = true
 authors.workspace = true
 edition.workspace = true
