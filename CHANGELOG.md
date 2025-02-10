@@ -1,5 +1,16 @@
 # [unreleased](https://github.com/tingerrr/tytanic/releases/tags/)
 ## Added
+
+## Removed
+
+## Changed
+
+## Fixed
+
+---
+
+# [v0.1.2](https://github.com/tingerrr/tytanic/releases/tags/v0.1.2)
+## Added
 - cli: Add `--[no-]compare`
 - cli: Add `--[no-]fail-fast`
 - cli: Add `--[no-]skip` (renamed from `--no-implicit-skip`)
@@ -29,16 +40,15 @@
 - test: Make migration of nested tests optional
 
 ## Fixed
-- filter: Don't ignore single test argument (#97)
-- test: Update default test reference (#98)
-- vcs: fix detection of git repository
-- docs: fix some typos
-- cli: add: Don't add references for non-pereistent tests (#96)
-- test: Fix annotation parsing (#109)
-- test: Don't panic on lack of `tests` directory (#108)
-- runner: Don't ignore warnings (#117)
-- fs: Don't fail if manifest is invalid (#105)
-- filter: Ensure explicitly passed tests fail when a test is missing (#106)
+- filter: Don't ignore single test argument
+- test: Update default test reference
+- vcs: Fix detection of git repository
+- cli: add: Don't add references for non-pereistent tests
+- test: Fix annotation parsing
+- test: Don't panic on lack of `tests` directory
+- runner: Don't ignore warnings
+- fs: Don't fail if manifest is invalid
+- filter: Ensure explicitly passed tests fail when a test is missing
 
 ---
 
