@@ -44,7 +44,7 @@ You may notice that we're missing two tests, those marked as `skipped` above:
 - `features/foo1`
 - `regressions/issue-42`
 
-If you want to refer to these skipped tests, then you need to pass the `--no-implicit-skip` flag, otherwise the expression is wrapped in `(...) ~ skip()` by default.
+If you want to refer to these skipped tests, then you need to pass the `--no-skip` flag, otherwise the expression is wrapped in `(...) ~ skip()` by default.
 If you pass tests by name explicitly like `tt list features/foo1 regressions/issue-42`, then this flag is implied.
 
 Let's say you want to run all tests, which are either ephemeral or persistent, i.e. those which aren't compile-only, then you can use either `ephemeral() | persistent()` or `not compile-only()`.

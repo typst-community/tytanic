@@ -24,4 +24,4 @@ Be aware of precedence when combining different operators, higher precedence mea
 Binary operators are left associative, e.g. `a ~ b ~ c` is `(a ~ b) ~ c`, not `a ~ (b ~ c)`.
 When in doubt, use parentheses to force the precedence of expressions.
 
-[grammar]: https://github.com/tinger/tytanic/crates/tytanic/
+[grammar.pest]: https://github.com/tingerrr/tytanic/blob/main/crates/tytanic-filter/src/ast/grammar.pest
