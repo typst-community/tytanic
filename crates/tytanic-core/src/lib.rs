@@ -12,6 +12,9 @@ pub use project::Project;
 pub use suite::{FilteredSuite, Suite};
 pub use test::{Id, Test};
 
+#[cfg(test)]
+mod _dev;
+
 /// The tool name, this is used in various places like config file directories,
 /// manifest tool sections, and more.
 pub const TOOL_NAME: &str = "tytanic";

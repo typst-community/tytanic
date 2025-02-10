@@ -108,9 +108,9 @@ fn assert_panic(
 #[cfg(test)]
 mod tests {
     use typst::syntax::Source;
-    use tytanic_utils::typst::VirtualWorld;
 
     use super::*;
+    use crate::_dev::VirtualWorld;
     use crate::doc::compile::{self, Warnings};
 
     #[test]
