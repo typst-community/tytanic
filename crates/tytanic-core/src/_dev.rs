@@ -1,5 +1,4 @@
-//! Utilities for working with [`typst`] and creating test [`World`]
-//! implementations.
+//! Utilities for testing.
 
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -15,9 +14,6 @@ use typst::{Library, World};
 /// from disk.
 #[derive(Debug, Clone)]
 pub struct VirtualFile {
-    /// The file id of this slot.
-    pub id: FileId,
-
     /// The optional source of this file, this is only set when constructed
     /// through [`VirtualFile::new`].
     pub source: Option<Source>,
@@ -30,7 +26,6 @@ impl VirtualFile {
     /// Create a new Typst source file with the given source code.
     pub fn new(id: FileId, source: &str) -> Self {
         Self {
-            id,
             bytes: source.as_bytes().into(),
             source: Some(Source::new(id, source.to_owned())),
         }
@@ -41,7 +36,6 @@ impl VirtualFile {
     pub fn asset(id: FileId) -> Option<Self> {
         typst_dev_assets::get(&id.vpath().as_rootless_path().to_string_lossy()).map(|content| {
             Self {
-                id,
                 source: None,
                 bytes: content.into(),
             }

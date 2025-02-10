@@ -127,9 +127,8 @@ pub fn compile(
 
 #[cfg(test)]
 mod tests {
-    use tytanic_utils::typst::VirtualWorld;
-
     use super::*;
+    use crate::_dev::VirtualWorld;
 
     const TEST_PASS: &str = "Hello World";
     const TEST_WARN: &str = "#set text(font: \"foo\"); Hello World";
