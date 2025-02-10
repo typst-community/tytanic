@@ -223,9 +223,8 @@ impl Test {
 
     /// Creates the temporary directories of this test.
     pub fn create_temporary_directories(&self, paths: &Paths) -> io::Result<()> {
-        self.delete_temporary_directories(paths)?;
-
         if self.kind.is_ephemeral() {
+            tytanic_utils::fs::remove_dir(paths.test_ref_dir(&self.id), true)?;
             tytanic_utils::fs::create_dir(paths.test_ref_dir(&self.id), true)?;
         }
 
