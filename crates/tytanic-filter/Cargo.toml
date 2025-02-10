@@ -1,7 +1,7 @@
 [package]
 name = "tytanic-filter"
+description = "A generic filtlering DSL for the tytanic test runner."
 version.workspace = true
-description.workspace = true
 rust-version.workspace = true
 authors.workspace = true
 edition.workspace = true

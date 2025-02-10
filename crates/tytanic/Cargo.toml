@@ -1,7 +1,7 @@
 [package]
 name = "tytanic"
+description = "A test runner for typst projects."
 version.workspace = true
-description.workspace = true
 rust-version.workspace = true
 authors.workspace = true
 edition.workspace = true
