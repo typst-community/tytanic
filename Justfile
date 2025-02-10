@@ -37,9 +37,9 @@ book *args='--open':
 # run tests and checks similar to CI
 ci:
 	{{ CI-SET-ENV }} && {{ CARGO-1-80 }} fmt --all --check
-	{{ CI-SET-ENV }} && {{ CARGO-1-80 }} doc --workspace --no-deps
 	{{ CI-SET-ENV }} && {{ CARGO-1-80 }} clippy --workspace
 	{{ CI-SET-ENV }} && {{ CARGO-1-80 }} test --workspace
+	{{ CI-SET-ENV }} && {{ CARGO-1-80 }} doc --workspace --no-deps
 	@echo ""
 	@echo These checks are not exactly the same as CI, but should get you there most of the way.
 	@echo ""
