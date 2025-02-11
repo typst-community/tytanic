@@ -44,14 +44,15 @@ pub fn package_storage_from_args(args: &PackageOptions) -> PackageStorage {
 pub fn fonts_from_args(args: &FontOptions) -> Fonts {
     let _span = tracing::debug_span!(
         "searching for fonts",
-        paths = ?args.font_paths,
+        use_embedded_fonts = ?args.use_embedded_fonts,
         use_system_fonts = ?args.use_system_fonts,
+        paths = ?args.font_paths,
     );
 
     let mut searcher = FontSearcher::new();
 
     #[cfg(feature = "embed-fonts")]
-    searcher.include_embedded_fonts(true);
+    searcher.include_embedded_fonts(args.use_system_fonts.get_or_default());
     searcher.include_system_fonts(args.use_system_fonts.get_or_default());
 
     let fonts = searcher.search_with(args.font_paths.iter().map(PathBuf::as_path));
