@@ -5,18 +5,19 @@ use typst_kit::download::Downloader;
 use typst_kit::fonts::{FontSearcher, Fonts};
 use typst_kit::package::PackageStorage;
 
-use crate::cli::commands::{CompileOptions, FontOptions, PackageOptions, TypstOptions};
+use crate::cli::commands::{CompileOptions, FontOptions, PackageOptions, Switch};
 use crate::world::SystemWorld;
 
 pub fn world(
     project_root: PathBuf,
-    typst_options: &TypstOptions,
+    font_options: &FontOptions,
+    package_options: &PackageOptions,
     compile_options: &CompileOptions,
 ) -> eyre::Result<SystemWorld> {
     let world = SystemWorld::new(
         project_root,
-        fonts_from_args(&typst_options.font),
-        package_storage_from_args(&typst_options.package),
+        fonts_from_args(font_options),
+        package_storage_from_args(package_options),
         compile_options.timestamp,
     )?;
 
@@ -44,14 +45,14 @@ pub fn fonts_from_args(args: &FontOptions) -> Fonts {
     let _span = tracing::debug_span!(
         "searching for fonts",
         paths = ?args.font_paths,
-        include_system_fonts = ?!args.ignore_system_fonts,
+        use_system_fonts = ?args.use_system_fonts,
     );
 
     let mut searcher = FontSearcher::new();
 
     #[cfg(feature = "embed-fonts")]
     searcher.include_embedded_fonts(true);
-    searcher.include_system_fonts(!args.ignore_system_fonts);
+    searcher.include_system_fonts(args.use_system_fonts.get_or_default());
 
     let fonts = searcher.search_with(args.font_paths.iter().map(PathBuf::as_path));
 

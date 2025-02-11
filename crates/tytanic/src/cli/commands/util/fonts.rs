@@ -25,7 +25,7 @@ pub struct Args {
 }
 
 pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
-    let fonts = kit::fonts_from_args(&ctx.args.typst.font);
+    let fonts = kit::fonts_from_args(&ctx.args.font);
 
     let fonts = fonts
         .book

@@ -133,7 +133,7 @@ fn main_impl() -> eyre::Result<ExitCode> {
         )?;
     }
 
-    if let Some(jobs) = args.typst.jobs {
+    if let Some(jobs) = args.jobs {
         rayon::ThreadPoolBuilder::new()
             .num_threads(jobs)
             .build_global()
