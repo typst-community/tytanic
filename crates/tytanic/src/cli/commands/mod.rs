@@ -155,6 +155,16 @@ macro_rules! impl_switch {
 }
 
 impl_switch! {
+    /// The `--[no-]use-system-fonts` switch.
+    UseSystemFontsSwitch(false) {
+        /// Use system fonts
+        use_system_fonts,
+        /// Don't use system fonts (default)
+        no_use_system_fonts,
+    }
+}
+
+impl_switch! {
     /// The `--[no-]template` switch.
     TemplateSwitch(true) {
         /// Use the template (default)
@@ -255,18 +265,6 @@ pub struct CliArguments {
     #[command(subcommand)]
     pub cmd: Command,
 
-    #[command(flatten, next_help_heading = "Typst Options")]
-    pub typst: TypstOptions,
-
-    #[command(flatten, next_help_heading = "Output Options")]
-    pub output: OutputArgs,
-}
-
-/// Options which mirror those of the typst CLI.
-///
-/// These options are global.
-#[derive(Args, Debug, Clone)]
-pub struct TypstOptions {
     /// The project root directory
     ///
     /// If none is given, then the first ancestor with a `typst.toml` is used.
@@ -277,11 +275,14 @@ pub struct TypstOptions {
     #[arg(long, short, global = true)]
     pub jobs: Option<usize>,
 
-    #[command(flatten)]
+    #[command(flatten, next_help_heading = "Font Options")]
     pub font: FontOptions,
 
-    #[command(flatten)]
+    #[command(flatten, next_help_heading = "Package Options")]
     pub package: PackageOptions,
+
+    #[command(flatten, next_help_heading = "Output Options")]
+    pub output: OutputArgs,
 }
 
 /// Options for configuring how to load fonts.
@@ -289,9 +290,8 @@ pub struct TypstOptions {
 /// These options are global.
 #[derive(Args, Debug, Clone)]
 pub struct FontOptions {
-    /// Do not read system fonts
-    #[arg(long, global = true)]
-    pub ignore_system_fonts: bool,
+    #[command(flatten)]
+    pub use_system_fonts: UseSystemFontsSwitch,
 
     /// Add a directory to read fonts from (can be repeated)
     #[arg(

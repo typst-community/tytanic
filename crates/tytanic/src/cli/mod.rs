@@ -138,7 +138,7 @@ impl Context<'_> {
 impl Context<'_> {
     /// Resolve the current root.
     pub fn root(&self) -> eyre::Result<PathBuf> {
-        Ok(match &self.args.typst.root {
+        Ok(match &self.args.root {
             Some(root) => {
                 if !root.try_exists()? {
                     self.error_root_not_found(root)?;
@@ -155,7 +155,7 @@ impl Context<'_> {
     pub fn project(&self) -> eyre::Result<Project> {
         let root = self.root()?;
 
-        let Some(project) = Project::discover(root, self.args.typst.root.is_some())? else {
+        let Some(project) = Project::discover(root, self.args.root.is_some())? else {
             self.error_no_project()?;
             eyre::bail!(OperationFailure);
         };
@@ -218,7 +218,12 @@ impl Context<'_> {
 
     /// Create a SystemWorld from the given args.
     pub fn world(&self, compile_options: &CompileOptions) -> eyre::Result<SystemWorld> {
-        kit::world(self.root()?, &self.args.typst, compile_options)
+        kit::world(
+            self.root()?,
+            &self.args.font,
+            &self.args.package,
+            compile_options,
+        )
     }
 }
 

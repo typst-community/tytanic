@@ -1,8 +1,10 @@
 # [unreleased](https://github.com/tingerrr/tytanic/releases/tags/)
 ## Added
 - Added a Typst compatibility section to the book
+- Added `--[no-]use-system-fonts` defaulting to no
 
 ## Removed
+- Removed `--ignore-system-fonts` (renamed to `--[no-]use-system-fonts`)
 
 ## Changed
 - **BREAKING CHANGE:** Updated to typst 0.13.0-rc1
