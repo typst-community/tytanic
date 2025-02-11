@@ -6,7 +6,7 @@ use ecow::{eco_vec, EcoVec};
 use thiserror::Error;
 use typst::diag::{FileResult, Severity, SourceDiagnostic, Warned};
 use typst::foundations::{Bytes, Datetime};
-use typst::model::Document;
+use typst::layout::PagedDocument;
 use typst::syntax::{FileId, Source};
 use typst::text::{Font, FontBook};
 use typst::utils::LazyHash;
@@ -38,7 +38,7 @@ pub fn compile(
     source: Source,
     world: &dyn World,
     warnings: Warnings,
-) -> Warned<Result<Document, Error>> {
+) -> Warned<Result<PagedDocument, Error>> {
     struct TestWorldAdapter<'s, 'w> {
         source: &'s Source,
         global: &'w dyn World,
