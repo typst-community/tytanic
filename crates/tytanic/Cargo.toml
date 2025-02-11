@@ -29,7 +29,7 @@ tytanic-filter.workspace = true
 tytanic-utils.workspace = true
 
 chrono = { workspace = true, features = ["serde"] }
-clap = { workspace = true, features = ["derive", "env"] }
+clap = { workspace = true, features = ["derive", "env", "wrap_help"] }
 codespan-reporting.workspace = true
 color-eyre.workspace = true
 ctrlc.workspace = true
