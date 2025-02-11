@@ -110,22 +110,32 @@ macro_rules! impl_switch {
         }
     ) => {
         $(#[$switch_meta])*
-        #[derive(Args, Debug, Clone, Copy)]
+        #[derive(Args,  Clone, Copy)]
         pub struct $switch {
             $(#[$field_meta])*
-            #[arg(long, global = true)]
+            #[arg(
+                long,
+                hide_short_help = !$default,
+                global = true
+            )]
             $(#[arg(short = $field_short)])?
             $field: bool,
 
             $(#[$no_field_meta])*
             #[arg(
                 long,
-                hide_short_help = true,
+                hide_short_help = $default,
                 overrides_with = stringify!($field),
                 global = true,
             )]
             $(#[arg(short = $no_field_short)])?
             $no_field: bool,
+        }
+
+        impl std::fmt::Debug for $switch {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.debug_tuple(stringify!($switch)).field(&self.get_or_default()).finish()
+            }
         }
 
         impl Switch for $switch {
@@ -145,7 +155,7 @@ macro_rules! impl_switch {
 }
 
 impl_switch! {
-    /// The `--template`/`--no-template` option.
+    /// The `--[no-]template` switch.
     TemplateSwitch(true) {
         /// Use the template (default)
         template,
@@ -155,7 +165,7 @@ impl_switch! {
 }
 
 impl_switch! {
-    /// The `--compare`/`--no-compare` option.
+    /// The `--[no-]compare` switch.
     CompareSwitch(true) {
         /// Compare tests if they have references (default)
         compare,
@@ -165,7 +175,7 @@ impl_switch! {
 }
 
 impl_switch! {
-    /// The `--export-ephemeral`/`--no-export-ephemeral` option.
+    /// The `--[no-]export-ephemeral` switch.
     ExportEphemeralSwitch(true) {
         /// Export ephemeral documents (default)
         ///
@@ -178,7 +188,7 @@ impl_switch! {
 }
 
 impl_switch! {
-    /// The `--fail-fast`/`--no-fail-fast` option.
+    /// The `--[no-]fail-fast` switch.
     FailFastSwitch(true) {
         /// Abort after the first test failure (default)
         fail_fast = 'f',
@@ -188,7 +198,7 @@ impl_switch! {
 }
 
 impl_switch! {
-    /// The `--skip`/`--no-skip` option.
+    /// The `--[no-]skip` switch.
     SkipSwitch(true) {
         /// Automatically remove skipped tests (default)
         ///
@@ -201,7 +211,7 @@ impl_switch! {
 }
 
 impl_switch! {
-    /// The `--optimize-refs`/`--no-optimize-refs` option.
+    /// The `--[no-]optimize-refs` switch.
     OptimizeRefsSwitch(true) {
         /// Optimize persistent references (default)
         optimize_refs,
