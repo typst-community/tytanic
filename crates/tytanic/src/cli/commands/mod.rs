@@ -262,13 +262,6 @@ pub struct CliArguments {
     pub output: OutputArgs,
 }
 
-fn parse_source_date_epoch(raw: &str) -> Result<DateTime<Utc>, String> {
-    let timestamp: i64 = raw
-        .parse()
-        .map_err(|err| format!("timestamp must be decimal integer ({err})"))?;
-    DateTime::from_timestamp(timestamp, 0).ok_or_else(|| "timestamp out of range".to_string())
-}
-
 /// Options which mirror those of the typst CLI.
 ///
 /// These options are global.
@@ -283,19 +276,6 @@ pub struct TypstOptions {
     /// The number of threads to use for compilation
     #[arg(long, short, global = true)]
     pub jobs: Option<usize>,
-
-    /// The timestamp used for compilation.
-    ///
-    /// For more information, see
-    /// <https://reproducible-builds.org/specs/source-date-epoch/>.
-    #[arg(
-        long,
-        env = "SOURCE_DATE_EPOCH",
-        value_name = "UNIX_TIMESTAMP",
-        value_parser = parse_source_date_epoch,
-        global = true,
-    )]
-    pub creation_timestamp: Option<DateTime<Utc>>,
 
     #[command(flatten)]
     pub font: FontOptions,
@@ -370,9 +350,35 @@ pub struct FilterOptions {
     pub tests: Vec<Id>,
 }
 
-/// Options for document compilaiton.
+fn parse_source_date_epoch(raw: &str) -> Result<DateTime<Utc>, String> {
+    if raw.eq_ignore_ascii_case("now") {
+        return Ok(Utc::now());
+    }
+
+    let timestamp: i64 = raw.parse().map_err(|err| {
+        format!("timestamp must be decimal integer or the literal string `now` ({err})")
+    })?;
+
+    DateTime::from_timestamp(timestamp, 0).ok_or_else(|| "timestamp out of range".to_string())
+}
+
+/// Options for document compilation.
 #[derive(Args, Debug, Clone)]
 pub struct CompileOptions {
+    /// The timestamp used for compilation.
+    ///
+    /// For more information, see
+    /// <https://reproducible-builds.org/specs/source-date-epoch/>.
+    #[arg(
+        long,
+        env = "SOURCE_DATE_EPOCH",
+        value_name = "now|<UNIX_TIMESTAMP>",
+        default_value = "0",
+        value_parser = parse_source_date_epoch,
+        global = true,
+    )]
+    pub timestamp: DateTime<Utc>,
+
     /// How to handle warnings
     #[arg(long, default_value = "emit", value_name = "WHAT")]
     pub warnings: WarningsOption,

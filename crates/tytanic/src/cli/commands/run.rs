@@ -32,7 +32,7 @@ pub struct Args {
 pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
     let project = ctx.project()?;
     let suite = ctx.collect_tests_with_filter(&project, ctx.filter(&args.filter)?)?;
-    let world = ctx.world()?;
+    let world = ctx.world(&args.compile)?;
 
     let origin = match args.export.dir {
         Direction::Ltr => Origin::TopLeft,
