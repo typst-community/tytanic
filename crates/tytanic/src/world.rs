@@ -7,7 +7,7 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, OnceLock};
+use std::sync::Mutex;
 use std::{fs, io, mem};
 
 use chrono::{DateTime, Datelike, FixedOffset, Local, Utc};
@@ -38,10 +38,8 @@ pub struct SystemWorld {
     slots: Mutex<HashMap<FileId, FileSlot>>,
     /// Holds information about where packages are stored.
     package_storage: PackageStorage,
-    /// The current datetime if requested. This is stored here to ensure it is
-    /// always the same within one compilation.
-    /// Reset between compilations if not [`Now::Fixed`].
-    now: Now,
+    /// The current datetime if requested.
+    now: DateTime<Utc>,
 }
 
 impl SystemWorld {
@@ -50,13 +48,8 @@ impl SystemWorld {
         root: PathBuf,
         fonts: Fonts,
         package_storage: PackageStorage,
-        now: Option<DateTime<Utc>>,
+        now: DateTime<Utc>,
     ) -> io::Result<Self> {
-        let now = match now {
-            Some(time) => Now::Fixed(time),
-            None => Now::System(OnceLock::new()),
-        };
-
         Ok(Self {
             workdir: std::env::current_dir().ok(),
             root,
@@ -83,9 +76,6 @@ impl SystemWorld {
     pub fn reset(&mut self) {
         for slot in self.slots.get_mut().unwrap().values_mut() {
             slot.reset();
-        }
-        if let Now::System(time_lock) = &mut self.now {
-            time_lock.take();
         }
     }
 
@@ -123,17 +113,12 @@ impl World for SystemWorld {
     }
 
     fn today(&self, offset: Option<i64>) -> Option<Datetime> {
-        let now = match &self.now {
-            Now::Fixed(time) => time,
-            Now::System(time) => time.get_or_init(Utc::now),
-        };
-
         // The time with the specified UTC offset, or within the local time zone.
         let with_offset = match offset {
-            None => now.with_timezone(&Local).fixed_offset(),
+            None => self.now.with_timezone(&Local).fixed_offset(),
             Some(hours) => {
                 let seconds = i32::try_from(hours).ok()?.checked_mul(3600)?;
-                now.with_timezone(&FixedOffset::east_opt(seconds)?)
+                self.now.with_timezone(&FixedOffset::east_opt(seconds)?)
             }
         };
 
@@ -317,15 +302,6 @@ fn decode_utf8(buf: &[u8]) -> FileResult<&str> {
     Ok(std::str::from_utf8(
         buf.strip_prefix(b"\xef\xbb\xbf").unwrap_or(buf),
     )?)
-}
-
-/// The current date and time.
-enum Now {
-    /// The date and time if the environment `SOURCE_DATE_EPOCH` is set.
-    /// Used for reproducible builds.
-    Fixed(DateTime<Utc>),
-    /// The current date and time if the time is not externally fixed.
-    System(OnceLock<DateTime<Utc>>),
 }
 
 type CodespanResult<T> = Result<T, CodespanError>;

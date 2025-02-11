@@ -6,6 +6,7 @@
 
 ## Changed
 - **BREAKING CHANGE:** Updated to typst 0.13.0-rc1
+- **BREAKING CHANGE:** Renamed `--creation-timestamp` to `--timestamp` with `0` as the default
 - Updated book to use "Tytanic" instead of "`tytanic`"
 
 ## Fixed

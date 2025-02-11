@@ -6,6 +6,7 @@ use std::{env, io};
 
 use color_eyre::eyre;
 use color_eyre::eyre::WrapErr;
+use commands::CompileOptions;
 use termcolor::Color;
 use thiserror::Error;
 use tytanic_core::dsl;
@@ -216,8 +217,8 @@ impl Context<'_> {
     }
 
     /// Create a SystemWorld from the given args.
-    pub fn world(&self) -> eyre::Result<SystemWorld> {
-        kit::world(self.root()?, &self.args.typst)
+    pub fn world(&self, compile_options: &CompileOptions) -> eyre::Result<SystemWorld> {
+        kit::world(self.root()?, &self.args.typst, compile_options)
     }
 }
 

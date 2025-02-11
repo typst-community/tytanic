@@ -38,7 +38,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
     };
 
     let suite = ctx.collect_tests_with_filter(&project, filter)?;
-    let world = ctx.world()?;
+    let world = ctx.world(&args.compile)?;
 
     let origin = match args.export.dir {
         Direction::Ltr => Origin::TopLeft,
