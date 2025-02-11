@@ -2,6 +2,7 @@
 ## Added
 - Added a Typst compatibility section to the book
 - Added `--[no-]use-system-fonts` defaulting to no
+- Added `--[no-]use-embedded-fonts` defaulting to yes
 
 ## Removed
 - Removed `--ignore-system-fonts` (renamed to `--[no-]use-system-fonts`)

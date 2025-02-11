@@ -155,6 +155,18 @@ macro_rules! impl_switch {
 }
 
 impl_switch! {
+    /// The `--[no-]use-embedded-fonts` switch.
+    UseEmbeddedFontsSwitch(true) {
+        /// Use embedded fonts (default)
+        #[cfg_attr(not(feature = "embed-fonts"), clap(hide = true))]
+        use_embedded_fonts,
+        /// Don't use embedded fonts
+        #[cfg_attr(not(feature = "embed-fonts"), clap(hide = true))]
+        no_use_embedded_fonts,
+    }
+}
+
+impl_switch! {
     /// The `--[no-]use-system-fonts` switch.
     UseSystemFontsSwitch(false) {
         /// Use system fonts
@@ -290,6 +302,9 @@ pub struct CliArguments {
 /// These options are global.
 #[derive(Args, Debug, Clone)]
 pub struct FontOptions {
+    #[command(flatten)]
+    pub use_embedded_fonts: UseEmbeddedFontsSwitch,
+
     #[command(flatten)]
     pub use_system_fonts: UseSystemFontsSwitch,
 
