@@ -58,7 +58,7 @@ pub fn augmented_library(builder: impl FnOnce(LibraryBuilder) -> LibraryBuilder)
     let mut lib = builder(LibraryBuilder::default()).build();
     let scope = lib.global.scope_mut();
 
-    scope.define_module(test_module());
+    scope.define("test", test_module());
     define_prelude(scope);
 
     lib

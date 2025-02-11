@@ -4,6 +4,7 @@
 ## Removed
 
 ## Changed
+- **BREAKING CHANGE:** Updated to typst 0.13.0-rc1
 
 ## Fixed
 

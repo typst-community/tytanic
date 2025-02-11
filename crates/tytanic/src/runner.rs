@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use color_eyre::eyre::{self, ContextCompat, WrapErr};
 use typst::diag::Warned;
-use typst::model::Document as TypstDocument;
+use typst::layout::PagedDocument;
 use typst::syntax::Source;
 use tytanic_core::doc::compare::Strategy;
 use tytanic_core::doc::compile::Warnings;
@@ -315,7 +315,7 @@ impl TestRunner<'_, '_, '_> {
             })
     }
 
-    pub fn render_out_doc(&mut self, doc: TypstDocument) -> eyre::Result<Document> {
+    pub fn render_out_doc(&mut self, doc: PagedDocument) -> eyre::Result<Document> {
         tracing::trace!(test = ?self.test.id(), "rendering output document");
 
         Ok(Document::render(
@@ -324,7 +324,7 @@ impl TestRunner<'_, '_, '_> {
         ))
     }
 
-    pub fn render_ref_doc(&mut self, doc: TypstDocument) -> eyre::Result<Document> {
+    pub fn render_ref_doc(&mut self, doc: PagedDocument) -> eyre::Result<Document> {
         tracing::trace!(test = ?self.test.id(), "rendering reference document");
 
         if !self.test.kind().is_ephemeral() {
@@ -352,13 +352,13 @@ impl TestRunner<'_, '_, '_> {
         Ok(Document::render_diff(reference, output, origin))
     }
 
-    pub fn compile_out_doc(&mut self, output: Source) -> eyre::Result<TypstDocument> {
+    pub fn compile_out_doc(&mut self, output: Source) -> eyre::Result<PagedDocument> {
         tracing::trace!(test = ?self.test.id(), "compiling output document");
 
         self.compile_inner(output, false)
     }
 
-    pub fn compile_ref_doc(&mut self, reference: Source) -> eyre::Result<TypstDocument> {
+    pub fn compile_ref_doc(&mut self, reference: Source) -> eyre::Result<PagedDocument> {
         tracing::trace!(test = ?self.test.id(), "compiling reference document");
 
         if self.test.kind().is_compile_only() {
@@ -368,7 +368,7 @@ impl TestRunner<'_, '_, '_> {
         self.compile_inner(reference, true)
     }
 
-    fn compile_inner(&mut self, source: Source, is_reference: bool) -> eyre::Result<TypstDocument> {
+    fn compile_inner(&mut self, source: Source, is_reference: bool) -> eyre::Result<PagedDocument> {
         let Warned { output, warnings } = compile::compile(
             source,
             self.project_runner.world,

@@ -27,7 +27,7 @@ impl VirtualFile {
     #[allow(dead_code)]
     pub fn new(id: FileId, source: &str) -> Self {
         Self {
-            bytes: source.as_bytes().into(),
+            bytes: Bytes::new(source.as_bytes().to_vec()),
             source: Some(Source::new(id, source.to_owned())),
         }
     }
@@ -63,7 +63,7 @@ impl VirtualWorld {
     /// Creates a new test world with the given standard library.
     pub fn new(library: Library) -> Self {
         let fonts: Vec<_> = typst_assets::fonts()
-            .flat_map(|data| Font::iter(Bytes::from_static(data)))
+            .flat_map(|data| Font::iter(Bytes::new(data)))
             .collect();
 
         VirtualWorld {

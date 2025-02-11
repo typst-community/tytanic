@@ -11,7 +11,7 @@ use ecow::EcoVec;
 use thiserror::Error;
 use tiny_skia::Pixmap;
 use typst::diag::Warned;
-use typst::model::Document as TypstDocument;
+use typst::layout::PagedDocument;
 use typst::syntax::Source;
 use typst::World;
 
@@ -28,7 +28,7 @@ pub const PAGE_EXTENSION: &str = "png";
 /// A document that was rendered from an in-memory compilation, or loaded from disk.
 #[derive(Debug, Clone)]
 pub struct Document {
-    doc: Option<TypstDocument>,
+    doc: Option<PagedDocument>,
     buffers: EcoVec<Pixmap>,
 }
 
@@ -57,7 +57,7 @@ impl Document {
     }
 
     /// Creates a new rendered document from a compiled one.
-    pub fn render(doc: TypstDocument, pixel_per_pt: f32) -> Self {
+    pub fn render(doc: PagedDocument, pixel_per_pt: f32) -> Self {
         let buffers = doc
             .pages
             .iter()
@@ -184,8 +184,8 @@ impl Document {
 }
 
 impl Document {
-    /// The inner document if this was created from an in-mmeory compilation.
-    pub fn doc(&self) -> Option<&TypstDocument> {
+    /// The inner document if this was created from an in-memory compilation.
+    pub fn doc(&self) -> Option<&PagedDocument> {
         self.doc.as_ref()
     }
 
