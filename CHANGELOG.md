@@ -1,5 +1,6 @@
 # [unreleased](https://github.com/tingerrr/tytanic/releases/tags/)
 ## Added
+- Added a Typst compatibility section to the book
 
 ## Removed
 
