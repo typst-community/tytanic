@@ -7,7 +7,7 @@ There are three types of tests:
 
 <div class="warning">
 
-`tytanic` can currently only collect and operate on regression tests.
+Tytanic can currently only collect and operate on regression tests.
 
 In the future, template tests and doc tests will be added, see [#34] and [#49] respectively.
 

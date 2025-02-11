@@ -1,6 +1,6 @@
 # Setting Up CI
 Continuous integration can take a lot of manual work off of your shoulders.
-In this chapter we'll look at how to run `tytanic` in your GitHub CI to continuously test your code and catch bugs before they get merged into your project.
+In this chapter we'll look at how to run Tytanic in your GitHub CI to continuously test your code and catch bugs before they get merged into your project.
 
 <div class="warning">
 
@@ -44,8 +44,8 @@ jobs:
 
 This adds a single step to our job (called `tests`), which checks out the repository, making it available for the following steps.
 
-For now, we'll need `cargo` to download and install `tytanic`, so we install it and cache the installation with a package cache action.
-After this, we install `tytanic` version `0.1.0` straight from crates.io, this version targets typst `0.12.x`.
+For now, we'll need `cargo` to download and install Tytanic, so we install it and cache the installation with a package cache action.
+After this, we install Tytanic version `0.1.0` straight from crates.io, this version targets typst `0.12.x`.
 
 ```yml
 steps:
@@ -79,7 +79,7 @@ CI may fail for various reasons, such as
 - or otherwise hard-to-debug differences between the CI runner and your local machine.
 
 To make it easier for you to actually get a grasp at the problem you should make the results of the test run available.
-You can do this by using an upload action, however, if `tytanic` fails the step will cancel all regular steps after itself, so you need to ensure it runs regardless of test failure or success by using `if: always()`.
+You can do this by using an upload action, however, if Tytanic fails the step will cancel all regular steps after itself, so you need to ensure it runs regardless of test failure or success by using `if: always()`.
 The action then uploads all artifacts since some tests may produce both references and output on-the-fly and retains them for 5 days:
 
 ```yml

@@ -1,5 +1,5 @@
 # Annotations
-Test annotations are used to add information to a test for `tytanic` to pick up on.
+Test annotations are used to add information to a test for Tytanic to pick up on.
 
 Annotations may be placed on a leading doc comment block (indicated by `///`), such a doc comment block can be placed after initial empty or regular comment lines, but must come before any content.
 All annotations in such a block must be at the start, once non-annotation content is encountered parsing stops.
