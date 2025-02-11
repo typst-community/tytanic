@@ -41,7 +41,7 @@ Regression test are compiled with the project root as their typst root, such tha
 
 <div class="warning">
 
-A test cannot contain other tests, if a test script is found `tytanic` will not search for any sub tests, this was previously supported but is being phased out.
+A test cannot contain other tests, if a test script is found Tytanic will not search for any sub tests, this was previously supported but is being phased out.
 Projects which have nested tests will receive a warning and the nested tests will be ignored.
 Such projects can migrate by running `tt util migrate`, which will guide the user through and automate such a migration process.
 

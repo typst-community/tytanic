@@ -5,6 +5,7 @@
 
 ## Changed
 - **BREAKING CHANGE:** Updated to typst 0.13.0-rc1
+- Updated book to use "Tytanic" instead of "`tytanic`"
 
 ## Fixed
 
