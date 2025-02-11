@@ -11,6 +11,7 @@
 - **BREAKING CHANGE:** Updated to typst 0.13.0-rc1
 - **BREAKING CHANGE:** Renamed `--creation-timestamp` to `--timestamp` with `0` as the default
 - Updated book to use "Tytanic" instead of "`tytanic`"
+- The help message now wraps according to the terminal width
 
 ## Fixed
 
