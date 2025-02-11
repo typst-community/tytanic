@@ -12,6 +12,7 @@
 - [Setting Up CI](./guides/ci.md)
 
 # Reference
+- [Typst Compatibility](./reference/compat.md)
 - [Tests](./reference/tests/README.md)
   - [Regression tests](./reference/tests/regression-tests.md)
   - [Documentation tests]()
