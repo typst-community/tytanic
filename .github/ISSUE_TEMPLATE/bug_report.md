@@ -5,14 +5,15 @@ title: 'BUG: '
 labels:
   - 'C-bug'
   - 'S-needs-triage'
-assignees: ''
 ---
 
 <!--
-  Thank you for your report! Please describe your problem here. Feel free to
-  remove any of the sections below if they don't seem useful.
+  Thank you for your report! Please describe your problem here.
 
-  For questions, use the Typst community discord: https://discord.gg/2uDybryKPe.
+  Feel free to remove any of the sections below if they don't seem useful.
+
+  For questions, please use the Tytanic thread in the Universe channel on the
+  Typst community discord: https://discord.gg/2uDybryKPe
 -->
 
 ## Description
@@ -26,6 +27,6 @@ assignees: ''
 
 ## Actual Behavior
 
-## Context
+## Additional Context
 - Platform:
 - Version:
