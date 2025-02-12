@@ -45,7 +45,7 @@ jobs:
 This adds a single step to our job (called `tests`), which checks out the repository, making it available for the following steps.
 
 For now, we'll need `cargo` to download and install Tytanic, so we install it and cache the installation with a package cache action.
-After this, we install Tytanic version `0.1.0` straight from crates.io, this version targets typst `0.12.x`.
+After this, we install Tytanic version `0.1.3` straight from crates.io, this version targets typst `0.12.x`.
 
 ```yml
 steps:
@@ -60,7 +60,7 @@ steps:
     uses: baptiste0928/cargo-install@v3.0.0
     with:
       crate: tytanic
-      version: '0.1.0'
+      version: '0.1.3'
 
 ```
 
@@ -70,7 +70,7 @@ Then we're ready to run our tests, that's as simple as adding a step like so:
 steps:
   # ...
   - name: Run test suite
-    run: tt run
+    run: tt run --no-fail-fast
 ```
 
 CI may fail for various reasons, such as
@@ -126,7 +126,7 @@ And that's it, you can add this file to your repo, push it to a branch and open 
 >         uses: baptiste0928/cargo-install@v3.0.0
 >         with:
 >           crate: tytanic
->           version: '0.1.0'
+>           version: '0.1.3'
 >
 >       - name: Run test suite
 >         run: tt run
