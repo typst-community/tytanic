@@ -6,7 +6,8 @@ use ecow::eco_vec;
 use super::{Context, Error, TryFromValue, Type, Value};
 
 /// The backing implementation for a [`Func`].
-type FuncImpl<T> = Arc<dyn Fn(&Context<T>, &[Value<T>]) -> Result<Value<T>, Error>>;
+type FuncImpl<T> =
+    Arc<dyn Fn(&Context<T>, &[Value<T>]) -> Result<Value<T>, Error> + Send + Sync + 'static>;
 
 /// A function value, this can be called with a set of positional arguments to
 /// produce a value. This is most commonly used as a constructor for tests sets.
@@ -17,7 +18,7 @@ impl<T> Func<T> {
     /// Create a new function with the given implementation.
     pub fn new<F>(f: F) -> Self
     where
-        F: Fn(&Context<T>, &[Value<T>]) -> Result<Value<T>, Error> + 'static,
+        F: Fn(&Context<T>, &[Value<T>]) -> Result<Value<T>, Error> + Send + Sync + 'static,
     {
         Self(Arc::new(f) as _)
     }
@@ -129,6 +130,13 @@ impl<T> TryFromValue<T> for Func<T> {
             }
         })
     }
+}
+
+/// Ensure Func<T> is thread safe if T is.
+#[allow(dead_code)]
+fn assert_traits() {
+    tytanic_utils::assert::send::<Func<()>>();
+    tytanic_utils::assert::sync::<Func<()>>();
 }
 
 #[cfg(test)]

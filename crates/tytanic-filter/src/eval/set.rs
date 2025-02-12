@@ -7,7 +7,7 @@ use super::{Context, Error, Test, TryFromValue, Type, Value};
 use crate::ast::Pat;
 
 /// The backing implementation for a [`Set`].
-type SetImpl<T> = Arc<dyn Fn(&Context<T>, &T) -> Result<bool, Error> + 'static>;
+type SetImpl<T> = Arc<dyn Fn(&Context<T>, &T) -> Result<bool, Error> + Send + Sync + 'static>;
 
 /// A test set, this can be used to check if a test is contained in it and is
 /// expected to be the top level value in an [`ExpressionFilter`][filter].
@@ -20,7 +20,7 @@ impl<T> Set<T> {
     /// Create a new set with the given implementation.
     pub fn new<F>(f: F) -> Self
     where
-        F: Fn(&Context<T>, &T) -> Result<bool, Error> + 'static,
+        F: Fn(&Context<T>, &T) -> Result<bool, Error> + Send + Sync + 'static,
     {
         Self(Arc::new(f) as _)
     }
@@ -126,4 +126,11 @@ impl<T> TryFromValue<T> for Set<T> {
             }
         })
     }
+}
+
+/// Ensure Set<T> is thread safe if T is.
+#[allow(dead_code)]
+fn assert_traits() {
+    tytanic_utils::assert::send::<Set<()>>();
+    tytanic_utils::assert::sync::<Set<()>>();
 }

@@ -646,11 +646,8 @@ impl<W: WriteColor> CWrite for Indented<W> {
 /// Ensure Ui is thread safe.
 #[allow(dead_code)]
 fn assert_traits() {
-    fn assert_send<T: Send>() {}
-    fn assert_sync<T: Sync>() {}
-
-    assert_send::<Ui>();
-    assert_sync::<Ui>();
+    tytanic_utils::assert::send::<Ui>();
+    tytanic_utils::assert::sync::<Ui>();
 }
 
 #[cfg(test)]
