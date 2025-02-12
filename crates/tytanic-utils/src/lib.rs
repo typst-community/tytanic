@@ -3,6 +3,7 @@
 //! This library makes _*no stability guarantees*_ at the moment and likely
 //! won't ever.
 
+pub mod assert;
 pub mod fmt;
 pub mod fs;
 pub mod path;

@@ -167,3 +167,10 @@ impl Display for Error {
         }
     }
 }
+
+/// Ensure Context<T> is thread safe if T is.
+#[allow(dead_code)]
+fn assert_traits() {
+    tytanic_utils::assert::send::<Context<()>>();
+    tytanic_utils::assert::sync::<Context<()>>();
+}
