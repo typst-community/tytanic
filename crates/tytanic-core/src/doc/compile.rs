@@ -2,13 +2,15 @@
 
 use std::fmt::Debug;
 use std::sync::LazyLock;
+use std::sync::OnceLock;
 
-use ecow::{eco_vec, EcoVec};
+use ecow::{eco_format, eco_vec, EcoVec};
 use thiserror::Error;
 use typst::diag::{FileResult, Severity, SourceDiagnostic, Warned};
 use typst::foundations::{Bytes, Datetime};
 use typst::layout::PagedDocument;
-use typst::syntax::{FileId, Source};
+use typst::syntax::package::PackageSpec;
+use typst::syntax::{FileId, Source, Span};
 use typst::text::{Font, FontBook};
 use typst::utils::LazyHash;
 use typst::{Library, World};
@@ -40,19 +42,48 @@ pub enum Warnings {
 pub struct Error(pub EcoVec<SourceDiagnostic>);
 
 /// Compiles a source with the given global world.
+///
+/// This function compiles a test source by wrapping the provided [`World`]
+/// implementation in a short lived wrapper which exposes `source` as the
+/// compilation entrypoint. An optional package spec can be provided for
+/// re-routing package imports to the local root, this is primarily useful for
+/// template tests which access unreleased versions of a package.
 pub fn compile(
     source: Source,
     world: &dyn World,
     augment: bool,
+    reroute_to_self: Option<&PackageSpec>,
     warnings: Warnings,
 ) -> Warned<Result<PagedDocument, Error>> {
-    struct TestWorldAdapter<'s, 'w> {
+    struct TestWorldAdapter<'s, 'w, 'p> {
         source: &'s Source,
         global: &'w dyn World,
         augment: bool,
+        package: Option<&'p PackageSpec>,
+        accessed_old: OnceLock<(PackageSpec, PackageSpec)>,
     }
 
-    impl World for TestWorldAdapter<'_, '_> {
+    impl TestWorldAdapter<'_, '_, '_> {
+        fn transform_id(&self, id: FileId) -> FileId {
+            let Some(this) = self.package else {
+                return id;
+            };
+
+            match id.package() {
+                Some(pacakge) if pacakge == this => FileId::new(None, id.vpath().clone()),
+                Some(package) => {
+                    if package.namespace == this.namespace && package.name == this.name {
+                        _ = self.accessed_old.set((package.clone(), this.clone()));
+                    }
+
+                    id
+                }
+                None => id,
+            }
+        }
+    }
+
+    impl World for TestWorldAdapter<'_, '_, '_> {
         fn library(&self) -> &LazyHash<Library> {
             if self.augment {
                 &AUGMENTED_LIBRARY
@@ -70,6 +101,8 @@ pub fn compile(
         }
 
         fn source(&self, id: FileId) -> FileResult<Source> {
+            let id = self.transform_id(id);
+
             if id == self.source.id() {
                 Ok(self.source.clone())
             } else {
@@ -78,6 +111,8 @@ pub fn compile(
         }
 
         fn file(&self, id: FileId) -> FileResult<Bytes> {
+            let id = self.transform_id(id);
+
             self.global.file(id)
         }
 
@@ -90,14 +125,30 @@ pub fn compile(
         }
     }
 
-    let Warned {
-        output,
-        warnings: mut emitted,
-    } = typst::compile(&TestWorldAdapter {
+    let test_world = TestWorldAdapter {
         source: &source,
         global: world,
         augment,
-    });
+        package: reroute_to_self,
+        accessed_old: OnceLock::new(),
+    };
+
+    let Warned {
+        output,
+        warnings: mut emitted,
+    } = typst::compile(&test_world);
+
+    if let Some((old, new)) = test_world.accessed_old.into_inner() {
+        emitted.push(SourceDiagnostic {
+            severity: Severity::Warning,
+            span: Span::detached(),
+            message: eco_format!("Accessed {old} in tests for package {new}"),
+            trace: eco_vec![],
+            hints: eco_vec![eco_format!(
+                "Did you forget to update the package import in your template?"
+            )],
+        });
+    }
 
     match warnings {
         Warnings::Ignore => Warned {
@@ -152,7 +203,7 @@ mod tests {
         let world = VirtualWorld::default();
         let source = Source::detached(TEST_PASS);
 
-        let Warned { output, warnings } = compile(source, &world, false, Warnings::Ignore);
+        let Warned { output, warnings } = compile(source, &world, false, None, Warnings::Ignore);
         assert!(output.is_ok());
         assert!(warnings.is_empty());
     }
@@ -162,7 +213,7 @@ mod tests {
         let world = VirtualWorld::default();
         let source = Source::detached(TEST_PASS);
 
-        let Warned { output, warnings } = compile(source, &world, false, Warnings::Emit);
+        let Warned { output, warnings } = compile(source, &world, false, None, Warnings::Emit);
         assert!(output.is_ok());
         assert!(warnings.is_empty());
     }
@@ -172,7 +223,7 @@ mod tests {
         let world = VirtualWorld::default();
         let source = Source::detached(TEST_PASS);
 
-        let Warned { output, warnings } = compile(source, &world, false, Warnings::Promote);
+        let Warned { output, warnings } = compile(source, &world, false, None, Warnings::Promote);
         assert!(output.is_ok());
         assert!(warnings.is_empty());
     }
@@ -182,7 +233,7 @@ mod tests {
         let world = VirtualWorld::default();
         let source = Source::detached(TEST_WARN);
 
-        let Warned { output, warnings } = compile(source, &world, false, Warnings::Ignore);
+        let Warned { output, warnings } = compile(source, &world, false, None, Warnings::Ignore);
         assert!(output.is_ok());
         assert!(warnings.is_empty());
     }
@@ -192,7 +243,7 @@ mod tests {
         let world = VirtualWorld::default();
         let source = Source::detached(TEST_WARN);
 
-        let Warned { output, warnings } = compile(source, &world, false, Warnings::Emit);
+        let Warned { output, warnings } = compile(source, &world, false, None, Warnings::Emit);
         assert!(output.is_ok());
         assert_eq!(warnings.len(), 1);
     }
@@ -202,7 +253,7 @@ mod tests {
         let world = VirtualWorld::default();
         let source = Source::detached(TEST_WARN);
 
-        let Warned { output, warnings } = compile(source, &world, false, Warnings::Promote);
+        let Warned { output, warnings } = compile(source, &world, false, None, Warnings::Promote);
         assert_eq!(output.unwrap_err().0.len(), 1);
         assert!(warnings.is_empty());
     }
@@ -212,7 +263,7 @@ mod tests {
         let world = VirtualWorld::default();
         let source = Source::detached(TEST_FAIL);
 
-        let Warned { output, warnings } = compile(source, &world, false, Warnings::Ignore);
+        let Warned { output, warnings } = compile(source, &world, false, None, Warnings::Ignore);
         assert_eq!(output.unwrap_err().0.len(), 1);
         assert!(warnings.is_empty());
     }
@@ -222,7 +273,7 @@ mod tests {
         let world = VirtualWorld::default();
         let source = Source::detached(TEST_FAIL);
 
-        let Warned { output, warnings } = compile(source, &world, false, Warnings::Emit);
+        let Warned { output, warnings } = compile(source, &world, false, None, Warnings::Emit);
         assert_eq!(output.unwrap_err().0.len(), 1);
         assert_eq!(warnings.len(), 1);
     }
@@ -232,7 +283,7 @@ mod tests {
         let world = VirtualWorld::default();
         let source = Source::detached(TEST_FAIL);
 
-        let Warned { output, warnings } = compile(source, &world, false, Warnings::Promote);
+        let Warned { output, warnings } = compile(source, &world, false, None, Warnings::Promote);
         assert_eq!(output.unwrap_err().0.len(), 2);
         assert!(warnings.is_empty());
     }

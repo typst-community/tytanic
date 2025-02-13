@@ -2,6 +2,9 @@
 ## Highlights
 
 ## Changes
+- Added template tests.
+- Added `unit()` test set.
+- Added `template()` test set.
 
 ## Fixes
 

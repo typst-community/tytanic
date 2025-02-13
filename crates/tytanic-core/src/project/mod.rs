@@ -9,7 +9,7 @@ use std::{fs, io};
 use ecow::EcoString;
 use serde::Deserialize;
 use thiserror::Error;
-use typst::syntax::package::PackageManifest;
+use typst::syntax::package::{PackageManifest, PackageSpec};
 use tytanic_utils::result::{io_not_found, ResultEx};
 
 use crate::config::ProjectConfig;
@@ -256,6 +256,16 @@ impl Project {
         self.manifest.as_ref()
     }
 
+    /// A package spec for this package itself, this is used by template tests
+    /// refer to themselves without attempting to download the package.
+    pub fn package_spec(&self) -> Option<PackageSpec> {
+        self.manifest.as_ref().map(|m| PackageSpec {
+            namespace: "preview".into(),
+            name: m.package.name.clone(),
+            version: m.package.version,
+        })
+    }
+
     /// The fully parsed project config layer.
     pub fn config(&self) -> &ProjectConfig {
         &self.config
@@ -283,21 +293,29 @@ impl Project {
         self.root().join(&self.config.unit_tests_root)
     }
 
-    /// Returns the path to the unit test template, that is, the source template to
-    /// use when generating new unit tests.
-    ///
-    /// See [`Project::template_root`] for reading the template.
-    pub fn template_root(&self) -> Option<&Path> {
+    /// Returns the root path of the template directory.
+    pub fn template_root(&self) -> Option<PathBuf> {
         self.manifest
             .as_ref()
             .and_then(|m| m.template.as_ref())
-            .map(|t| Path::new(t.path.as_str()))
+            .map(|t| self.root().join(t.path.as_str()))
+    }
+
+    /// Returns the entrypoint script inside the template directory.
+    pub fn template_entrypoint(&self) -> Option<PathBuf> {
+        self.manifest
+            .as_ref()
+            .and_then(|m| m.template.as_ref())
+            .map(|t| {
+                let mut root = self.root().to_path_buf();
+                root.push(t.path.as_str());
+                root.push(t.entrypoint.as_str());
+                root
+            })
     }
 
     /// Returns the path to the unit test template, that is, the source template to
     /// use when generating new unit tests.
-    ///
-    /// See [`Project::template_root`] for reading the template.
     pub fn unit_test_template_file(&self) -> PathBuf {
         let mut dir = self.unit_tests_root();
         dir.push("template.typ");
@@ -488,6 +506,29 @@ mod tests {
     use tytanic_utils::typst::{PackageManifestBuilder, TemplateInfoBuilder};
 
     use super::*;
+
+    #[test]
+    fn test_template_paths() {
+        let project = Project::new("root").with_manifest(Some(
+            PackageManifestBuilder::new()
+                .template(
+                    TemplateInfoBuilder::new()
+                        .path("foo")
+                        .entrypoint("bar.typ")
+                        .build(),
+                )
+                .build(),
+        ));
+
+        assert_eq!(
+            project.template_root(),
+            Some(PathBuf::from_iter(["root", "foo"]))
+        );
+        assert_eq!(
+            project.template_entrypoint(),
+            Some(PathBuf::from_iter(["root", "foo", "bar.typ"]))
+        );
+    }
 
     #[test]
     fn test_unit_test_paths() {

@@ -12,6 +12,7 @@ use thiserror::Error;
 use tiny_skia::Pixmap;
 use typst::diag::Warned;
 use typst::layout::PagedDocument;
+use typst::syntax::package::PackageSpec;
 use typst::syntax::Source;
 use typst::World;
 
@@ -46,10 +47,12 @@ impl Document {
         source: Source,
         world: &dyn World,
         augment: bool,
+        package: Option<&PackageSpec>,
         pixel_per_pt: f32,
         warnings: Warnings,
     ) -> Warned<Result<Self, compile::Error>> {
-        let Warned { output, warnings } = compile::compile(source, world, augment, warnings);
+        let Warned { output, warnings } =
+            compile::compile(source, world, augment, package, warnings);
 
         Warned {
             output: output.map(|doc| Self::render(doc, pixel_per_pt)),
