@@ -5,9 +5,14 @@ use std::fmt::{self, Debug, Display};
 use std::ops::Deref;
 use std::path::{Component, Path, PathBuf};
 use std::str::FromStr;
+use std::sync::LazyLock;
 
 use ecow::EcoString;
 use thiserror::Error;
+
+// NOTE(tinger): The inner static in `Id::template()` cannot access the
+// assocaited `Id::TEMPLATE`.
+const _TEMPLATE: &str = "@template";
 
 /// A test id, this is the relative path from the test root directory, down to
 /// the folder containing the test script.
@@ -21,13 +26,24 @@ pub struct Id(EcoString);
 impl Id {
     /// The test component separator.
     pub const SEPARATOR: &'static str = "/";
+
+    /// The unique special template identifier.
+    pub const TEMPLATE: &'static str = _TEMPLATE;
 }
 
 impl Id {
+    /// Returns the unique template identifier.
+    pub fn template() -> Self {
+        static TEMPLATE: LazyLock<Id> = LazyLock::new(|| Id(_TEMPLATE.into()));
+
+        TEMPLATE.clone()
+    }
+
     /// Turns this string into an id.
     ///
     /// All components must start at least one ascii alphabetic letter and
     /// contain only ascii alphanumeric characters, underscores and minuses.
+    /// The only exception is the special template test identifier `@template`.
     ///
     /// # Examples
     /// ```
@@ -106,6 +122,7 @@ impl Id {
     /// assert!( Id::is_valid("a/b/c"));
     /// assert!( Id::is_valid("a/b"));
     /// assert!( Id::is_valid("a"));
+    /// assert!( Id::is_valid("@template"));
     /// assert!(!Id::is_valid("a//b"));  // empty component
     /// assert!(!Id::is_valid("a/"));    // empty component
     /// ```
@@ -114,6 +131,10 @@ impl Id {
     }
 
     fn validate<S: AsRef<str>>(string: S) -> Result<(), ParseIdError> {
+        if string.as_ref() == Self::TEMPLATE {
+            return Ok(());
+        }
+
         for fragment in string.as_ref().split(Self::SEPARATOR) {
             Self::validate_component(fragment)?;
         }

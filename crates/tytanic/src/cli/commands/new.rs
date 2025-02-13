@@ -7,7 +7,8 @@ use typst::diag::Warned;
 use typst_syntax::{FileId, Source, VirtualPath};
 use tytanic_core::doc::render::ppi_to_ppp;
 use tytanic_core::doc::Document;
-use tytanic_core::test::{self, Id, Kind, Reference, Test};
+use tytanic_core::test::unit::{Kind, Reference, DEFAULT_TEST_INPUT};
+use tytanic_core::test::{Id, UnitTest};
 
 use super::{
     CompileOptions, Context, ExportOptions, KindOption, OptionDelegate, Switch, TemplateSwitch,
@@ -49,10 +50,15 @@ pub struct Args {
 }
 
 pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
+    if args.test == Id::template() {
+        writeln!(ctx.ui.error()?, "Cannot create template test")?;
+        eyre::bail!(OperationFailure);
+    }
+
     let project = ctx.project()?;
     let suite = ctx.collect_tests(&project)?;
 
-    if suite.tests().contains_key(&args.test) {
+    if suite.contains(&args.test) {
         let mut w = ctx.ui.error()?;
 
         write!(w, "Test ")?;
@@ -77,7 +83,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
     let source = project
         .unit_test_template()
         .filter(|_| args.template.get_or_default())
-        .unwrap_or(test::DEFAULT_TEST_INPUT);
+        .unwrap_or(DEFAULT_TEST_INPUT);
 
     let reference = match kind {
         Kind::CompileOnly => None,
@@ -90,10 +96,14 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
                 .strip_prefix(project.root())
                 .expect("template is in project root");
 
+            // NOTE(tinger): We don't pass the package spec here because this is
+            // this is not a template test, this shouldn't access the current
+            // package.
             let Warned { output, warnings } = Document::compile(
                 Source::new(FileId::new(None, VirtualPath::new(path)), source.into()),
                 &world,
                 true,
+                None,
                 ppi_to_ppp(args.export.ppi.unwrap_or(project.config().defaults.ppi)),
                 args.compile.warnings.into_native(),
             );
@@ -133,7 +143,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
         }
     };
 
-    Test::create(&project, vcs, id, source, reference)?;
+    UnitTest::create(&project, vcs, id, source, reference)?;
 
     let mut w = ctx.ui.stderr();
 

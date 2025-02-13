@@ -169,14 +169,18 @@ The more your project grows
 -->
 
 ## Template tests
+Template packages automatically have an additional test for the configured template path called `@template`, this test cannot be created or removed.
+These tests don't get access to the augmented standard library unit tests get, but in turn get the ability to access an unreleased version of the current package.
 
-<div class="warning">
+If you have a template like so:
+```typst
+#import "@preview/foo-bar:0.1.0"
 
-In the future you'll be able to automatically test your templates too, but these are currently unsupported
+// ...
+```
 
-See [#49].
-
-</div>
+Even if `foo-bar:0.1.0` is not yet released, it can be accessed for this particular test.
+Template tests ensure that users can run `typst init @preview/foo-bar` without being stuck with a broken starting document.
 
 ## Documentation tests
 

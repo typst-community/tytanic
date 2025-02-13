@@ -38,11 +38,11 @@ pub enum ParseAnnotationError {
     Unknown(EcoString),
 
     /// The annotation expected no argument, but received one.
-    #[error("the annotation expected no argument, but received one")]
+    #[error("the annotation {0} expected no argument, but received one")]
     UnexpectedArg(&'static str),
 
     /// The annotation expected an argument, but received none.
-    #[error("the annotation expected an argument, but received none")]
+    #[error("the annotation {0} expected an argument, but received none")]
     MissingArg(&'static str),
 
     /// An error occured while parsing the annotation.
@@ -58,8 +58,7 @@ pub enum ParseAnnotationError {
 /// Each annotation is on its own line.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Annotation {
-    /// The ignored annotation, this can be used to exclude a test by virtue of
-    /// the `ignored` test set.
+    /// The skip annotation, this adds a test to the built in `skip` test set.
     Skip,
 
     /// The direction to use for diffing the documents.
@@ -118,7 +117,7 @@ impl FromStr for Annotation {
         match id.trim() {
             "skip" => {
                 if arg.is_some() {
-                    Err(ParseAnnotationError::UnexpectedArg("test"))
+                    Err(ParseAnnotationError::UnexpectedArg("skip"))
                 } else {
                     Ok(Annotation::Skip)
                 }
@@ -131,28 +130,28 @@ impl FromStr for Annotation {
                         format!("invalid direction {arg:?}, expected one of ltr or rtl").into(),
                     )),
                 },
-                None => Err(ParseAnnotationError::UnexpectedArg("test")),
+                None => Err(ParseAnnotationError::MissingArg("dir")),
             },
             "ppi" => match arg {
                 Some(arg) => match arg.trim().parse() {
                     Ok(arg) => Ok(Annotation::Ppi(arg)),
                     Err(err) => Err(ParseAnnotationError::Other(err.into())),
                 },
-                None => Err(ParseAnnotationError::UnexpectedArg("test")),
+                None => Err(ParseAnnotationError::MissingArg("ppi")),
             },
             "max-delta" => match arg {
                 Some(arg) => match arg.trim().parse() {
                     Ok(arg) => Ok(Annotation::MaxDelta(arg)),
                     Err(err) => Err(ParseAnnotationError::Other(err.into())),
                 },
-                None => Err(ParseAnnotationError::UnexpectedArg("test")),
+                None => Err(ParseAnnotationError::MissingArg("max-delta")),
             },
             "max-deviations" => match arg {
                 Some(arg) => match arg.trim().parse() {
                     Ok(arg) => Ok(Annotation::MaxDeviations(arg)),
                     Err(err) => Err(ParseAnnotationError::Other(err.into())),
                 },
-                None => Err(ParseAnnotationError::UnexpectedArg("test")),
+                None => Err(ParseAnnotationError::MissingArg("max-deviations")),
             },
             _ => Err(ParseAnnotationError::Unknown(id.into())),
         }

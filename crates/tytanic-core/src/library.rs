@@ -124,7 +124,7 @@ mod tests {
         "#,
         );
 
-        compile::compile(source, &world, true, Warnings::Emit)
+        compile::compile(source, &world, true, None, Warnings::Emit)
             .output
             .unwrap();
     }
@@ -140,7 +140,7 @@ mod tests {
         "#,
         );
 
-        compile::compile(source, &world, true, Warnings::Emit)
+        compile::compile(source, &world, true, None, Warnings::Emit)
             .output
             .unwrap();
     }
