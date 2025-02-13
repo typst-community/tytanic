@@ -406,7 +406,7 @@ impl TestRunner<'_, '_, '_> {
             self.project_runner
                 .project
                 .paths()
-                .test_ref_dir(self.test.id()),
+                .unit_test_ref_dir(self.test.id()),
             None,
         )?;
 
@@ -420,7 +420,7 @@ impl TestRunner<'_, '_, '_> {
             self.project_runner
                 .project
                 .paths()
-                .test_out_dir(self.test.id()),
+                .unit_test_out_dir(self.test.id()),
             None,
         )?;
 
@@ -438,7 +438,7 @@ impl TestRunner<'_, '_, '_> {
             self.project_runner
                 .project
                 .paths()
-                .test_diff_dir(self.test.id()),
+                .unit_test_diff_dir(self.test.id()),
             None,
         )?;
 

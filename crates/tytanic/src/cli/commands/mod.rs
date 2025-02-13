@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use chrono::{DateTime, Utc};
 use clap::{Args, ColorChoice, Parser, ValueEnum};
 use color_eyre::eyre;
-use tytanic_core::test::Kind;
-use tytanic_core::{doc::compile::Warnings, test::Id};
+use tytanic_core::doc::compile::Warnings;
+use tytanic_core::test::{Id, Kind};
 
 use super::Context;
 
@@ -33,7 +33,7 @@ pub trait OptionDelegate: Sized {
     fn into_native(self) -> Self::Native;
 }
 
-/// The kind of a regression test
+/// The kind of a unit test
 #[derive(clap::ValueEnum, Debug, Clone, Copy)]
 pub enum KindOption {
     /// Create a persistent test

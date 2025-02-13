@@ -84,7 +84,7 @@ impl Vcs {
     pub fn ignore(&self, paths: &Paths, test: &Test) -> io::Result<()> {
         let mut content = format!("{IGNORE_HEADER}\n\n");
 
-        let file = paths.test_dir(test.id()).join(match self.kind {
+        let file = paths.unit_test_dir(test.id()).join(match self.kind {
             Kind::Git => GITIGNORE_NAME,
             Kind::Mercurial => {
                 content.push_str("syntax: glob\n");
@@ -106,7 +106,7 @@ impl Vcs {
     }
 
     pub fn unignore(&self, paths: &Paths, test: &Test) -> io::Result<()> {
-        let file = paths.test_dir(test.id()).join(match self.kind {
+        let file = paths.unit_test_dir(test.id()).join(match self.kind {
             Kind::Git => GITIGNORE_NAME,
             Kind::Mercurial => HGIGNORE_NAME,
         });

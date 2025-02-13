@@ -135,14 +135,14 @@ fn migrate_test_part(
 }
 
 fn migrate_test(paths: &Paths, old: &Id, new: &Id) -> eyre::Result<()> {
-    let test_dir = paths.test_dir(new);
+    let test_dir = paths.unit_test_dir(new);
     tytanic_utils::fs::create_dir(&test_dir, true)?;
-    migrate_test_part(paths, old, new, Paths::test_script)?;
-    migrate_test_part(paths, old, new, Paths::test_ref_script)?;
-    migrate_test_part(paths, old, new, Paths::test_ref_dir)?;
-    let out_dir = paths.test_out_dir(old);
+    migrate_test_part(paths, old, new, Paths::unit_test_script)?;
+    migrate_test_part(paths, old, new, Paths::unit_test_ref_script)?;
+    migrate_test_part(paths, old, new, Paths::unit_test_ref_dir)?;
+    let out_dir = paths.unit_test_out_dir(old);
     tytanic_utils::fs::remove_dir(&out_dir, true)?;
-    let diff_dir = paths.test_diff_dir(old);
+    let diff_dir = paths.unit_test_diff_dir(old);
     tytanic_utils::fs::remove_dir(&diff_dir, true)?;
     Ok(())
 }

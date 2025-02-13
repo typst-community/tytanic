@@ -65,7 +65,7 @@ impl Suite {
                 }
             }
             Err(err) if err.kind() == io::ErrorKind::NotFound => {
-                tracing::debug!("regression test suite empty");
+                tracing::debug!("test suite empty");
             }
             Err(err) => return Err(err.into()),
         }

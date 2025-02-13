@@ -14,7 +14,7 @@
 # Reference
 - [Typst Compatibility](./reference/compat.md)
 - [Tests](./reference/tests/README.md)
-  - [Regression tests](./reference/tests/regression-tests.md)
+  - [Unit tests](./reference/tests/unit.md)
   - [Documentation tests]()
   - [Template]()
   - [Annotations](./reference/tests/annotations.md)

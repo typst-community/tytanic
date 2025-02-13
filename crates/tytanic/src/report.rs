@@ -324,7 +324,7 @@ impl Reporter<'_, '_> {
                     writeln!(
                         ui::hint(w)?,
                         "Diff images have been saved at '{}'",
-                        self.project.paths().test_diff_dir(test.id()).display()
+                        self.project.paths().unit_test_diff_dir(test.id()).display()
                     )?;
                 }
             }
