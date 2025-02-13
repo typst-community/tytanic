@@ -121,15 +121,15 @@ impl Test {
 
     /// Attempt to load a test, returns `None` if no test could be found.
     pub fn load(paths: &Paths, id: Id) -> Result<Option<Test>, LoadError> {
-        let test_script = paths.test_script(&id);
+        let test_script = paths.unit_test_script(&id);
 
         if !test_script.try_exists()? {
             return Ok(None);
         }
 
-        let kind = if paths.test_ref_script(&id).try_exists()? {
+        let kind = if paths.unit_test_ref_script(&id).try_exists()? {
             Kind::Ephemeral
-        } else if paths.test_ref_dir(&id).try_exists()? {
+        } else if paths.unit_test_ref_dir(&id).try_exists()? {
             Kind::Persistent
         } else {
             Kind::CompileOnly
@@ -177,13 +177,13 @@ impl Test {
         source: &str,
         reference: Option<Reference>,
     ) -> Result<Test, CreateError> {
-        let test_dir = paths.test_dir(&id);
+        let test_dir = paths.unit_test_dir(&id);
         tytanic_utils::fs::create_dir(test_dir, true)?;
 
         let mut file = File::options()
             .write(true)
             .create_new(true)
-            .open(paths.test_script(&id))?;
+            .open(paths.unit_test_script(&id))?;
 
         file.write_all(source.as_bytes())?;
 
@@ -224,12 +224,12 @@ impl Test {
     /// Creates the temporary directories of this test.
     pub fn create_temporary_directories(&self, paths: &Paths) -> io::Result<()> {
         if self.kind.is_ephemeral() {
-            tytanic_utils::fs::remove_dir(paths.test_ref_dir(&self.id), true)?;
-            tytanic_utils::fs::create_dir(paths.test_ref_dir(&self.id), true)?;
+            tytanic_utils::fs::remove_dir(paths.unit_test_ref_dir(&self.id), true)?;
+            tytanic_utils::fs::create_dir(paths.unit_test_ref_dir(&self.id), true)?;
         }
 
-        tytanic_utils::fs::create_dir(paths.test_out_dir(&self.id), true)?;
-        tytanic_utils::fs::create_dir(paths.test_diff_dir(&self.id), true)?;
+        tytanic_utils::fs::create_dir(paths.unit_test_out_dir(&self.id), true)?;
+        tytanic_utils::fs::create_dir(paths.unit_test_diff_dir(&self.id), true)?;
 
         Ok(())
     }
@@ -237,14 +237,14 @@ impl Test {
     /// Creates the test script of this test, this will truncate the file if it
     /// already exists.
     pub fn create_script(&self, paths: &Paths, source: &str) -> io::Result<()> {
-        std::fs::write(paths.test_script(&self.id), source)?;
+        std::fs::write(paths.unit_test_script(&self.id), source)?;
         Ok(())
     }
 
     /// Creates reference script of this test, this will truncate the file if it
     /// already exists.
     pub fn create_reference_script(&self, paths: &Paths, source: &str) -> io::Result<()> {
-        std::fs::write(paths.test_ref_script(&self.id), source)?;
+        std::fs::write(paths.unit_test_ref_script(&self.id), source)?;
         Ok(())
     }
 
@@ -260,7 +260,7 @@ impl Test {
         // a page count mismatch, so we clear them to be sure.
         self.delete_reference_document(paths)?;
 
-        let ref_dir = paths.test_ref_dir(&self.id);
+        let ref_dir = paths.unit_test_ref_dir(&self.id);
         tytanic_utils::fs::create_dir(&ref_dir, true)?;
         reference.save(&ref_dir, optimize_options)?;
 
@@ -273,8 +273,8 @@ impl Test {
         self.delete_reference_script(paths)?;
         self.delete_temporary_directories(paths)?;
 
-        tytanic_utils::fs::remove_file(paths.test_script(&self.id))?;
-        tytanic_utils::fs::remove_dir(paths.test_dir(&self.id), true)?;
+        tytanic_utils::fs::remove_file(paths.unit_test_script(&self.id))?;
+        tytanic_utils::fs::remove_dir(paths.unit_test_dir(&self.id), true)?;
 
         Ok(())
     }
@@ -282,29 +282,29 @@ impl Test {
     /// Deletes the temporary directories of this test.
     pub fn delete_temporary_directories(&self, paths: &Paths) -> io::Result<()> {
         if !self.kind.is_persistent() {
-            tytanic_utils::fs::remove_dir(paths.test_ref_dir(&self.id), true)?;
+            tytanic_utils::fs::remove_dir(paths.unit_test_ref_dir(&self.id), true)?;
         }
 
-        tytanic_utils::fs::remove_dir(paths.test_out_dir(&self.id), true)?;
-        tytanic_utils::fs::remove_dir(paths.test_diff_dir(&self.id), true)?;
+        tytanic_utils::fs::remove_dir(paths.unit_test_out_dir(&self.id), true)?;
+        tytanic_utils::fs::remove_dir(paths.unit_test_diff_dir(&self.id), true)?;
         Ok(())
     }
 
     /// Deletes the test script of of this test.
     pub fn delete_script(&self, paths: &Paths) -> io::Result<()> {
-        tytanic_utils::fs::remove_file(paths.test_script(&self.id))?;
+        tytanic_utils::fs::remove_file(paths.unit_test_script(&self.id))?;
         Ok(())
     }
 
     /// Deletes reference script of of this test.
     pub fn delete_reference_script(&self, paths: &Paths) -> io::Result<()> {
-        tytanic_utils::fs::remove_file(paths.test_ref_script(&self.id))?;
+        tytanic_utils::fs::remove_file(paths.unit_test_ref_script(&self.id))?;
         Ok(())
     }
 
     /// Deletes persistent reference document of this test.
     pub fn delete_reference_document(&self, paths: &Paths) -> io::Result<()> {
-        tytanic_utils::fs::remove_dir(paths.test_ref_dir(&self.id), true)?;
+        tytanic_utils::fs::remove_dir(paths.unit_test_ref_dir(&self.id), true)?;
         Ok(())
     }
 
@@ -322,7 +322,10 @@ impl Test {
         }
 
         // copy refernces after ignore file is updated
-        std::fs::copy(paths.test_script(&self.id), paths.test_ref_script(&self.id))?;
+        std::fs::copy(
+            paths.unit_test_script(&self.id),
+            paths.unit_test_ref_script(&self.id),
+        )?;
 
         Ok(())
     }
@@ -366,7 +369,7 @@ impl Test {
 
     /// Loads the test script source of this test.
     pub fn load_source(&self, paths: &Paths) -> io::Result<Source> {
-        let test_script = paths.test_script(&self.id);
+        let test_script = paths.unit_test_script(&self.id);
 
         Ok(Source::new(
             FileId::new(
@@ -388,7 +391,7 @@ impl Test {
             return Ok(None);
         }
 
-        let ref_script = paths.test_ref_script(&self.id);
+        let ref_script = paths.unit_test_ref_script(&self.id);
         Ok(Some(Source::new(
             FileId::new(
                 None,
@@ -404,12 +407,12 @@ impl Test {
 
     /// Loads the test document of this test.
     pub fn load_document(&self, paths: &Paths) -> Result<Document, doc::LoadError> {
-        Document::load(paths.test_out_dir(&self.id))
+        Document::load(paths.unit_test_out_dir(&self.id))
     }
 
     /// Loads the persistent reference document of this test.
     pub fn load_reference_document(&self, paths: &Paths) -> Result<Document, doc::LoadError> {
-        Document::load(paths.test_ref_dir(&self.id))
+        Document::load(paths.unit_test_ref_dir(&self.id))
     }
 }
 

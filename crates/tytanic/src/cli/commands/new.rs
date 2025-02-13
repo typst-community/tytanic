@@ -81,7 +81,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
         Kind::Ephemeral => Some(Reference::Ephemeral(source.into())),
         Kind::Persistent => {
             let world = ctx.world(&args.compile)?;
-            let path = project.paths().template();
+            let path = project.paths().unit_test_template();
 
             let path = path
                 .strip_prefix(project.paths().project_root())

@@ -7,7 +7,7 @@ It helps you worry less about regressions and speeds up your development.
 ## Bird's-Eye View
 Out of the box Tytanic supports the following features:
 - compile and compare tests
-- manage regression tests of various types
+- manage tests of various types
 - manage and update reference documents when tests change
 - filter tests effectively for concise test runs
 

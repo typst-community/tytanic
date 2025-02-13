@@ -60,16 +60,18 @@ impl Paths {
     }
 
     /// Returns the path to the test root. That is the path within the project
-    /// root where the regression test suite is located.
+    /// root where the test suite is located.
     ///
     /// The test root is used to resolve test identifiers.
     pub fn test_root(&self) -> PathBuf {
         self.project.join("tests")
     }
 
-    /// Returns the path to the test template, that is, the source template to
-    /// use when generating new tests, not a template test.
-    pub fn template(&self) -> PathBuf {
+    /// Returns the path to the unit test template, that is, the source template to
+    /// use when generating new unit tests.
+    ///
+    /// See [`Paths::template_dir`] for reading the template.
+    pub fn unit_test_template(&self) -> PathBuf {
         self.test_root().join("template.typ")
     }
 
@@ -83,43 +85,43 @@ impl Paths {
     }
 
     /// Create a path to the test directory for the given identifier.
-    pub fn test_dir(&self, id: &Id) -> PathBuf {
+    pub fn unit_test_dir(&self, id: &Id) -> PathBuf {
         let mut dir = self.test_root();
         dir.extend(id.components());
         dir
     }
 
     /// Create a path to the test script for the given identifier.
-    pub fn test_script(&self, id: &Id) -> PathBuf {
-        let mut dir = self.test_dir(id);
+    pub fn unit_test_script(&self, id: &Id) -> PathBuf {
+        let mut dir = self.unit_test_dir(id);
         dir.push("test.typ");
         dir
     }
 
     /// Create a path to the reference script for the given identifier.
-    pub fn test_ref_script(&self, id: &Id) -> PathBuf {
-        let mut dir = self.test_dir(id);
+    pub fn unit_test_ref_script(&self, id: &Id) -> PathBuf {
+        let mut dir = self.unit_test_dir(id);
         dir.push("ref.typ");
         dir
     }
 
     /// Create a path to the reference directory for the given identifier.
-    pub fn test_ref_dir(&self, id: &Id) -> PathBuf {
-        let mut dir = self.test_dir(id);
+    pub fn unit_test_ref_dir(&self, id: &Id) -> PathBuf {
+        let mut dir = self.unit_test_dir(id);
         dir.push("ref");
         dir
     }
 
     /// Create a path to the output directory for the given identifier.
-    pub fn test_out_dir(&self, id: &Id) -> PathBuf {
-        let mut dir = self.test_dir(id);
+    pub fn unit_test_out_dir(&self, id: &Id) -> PathBuf {
+        let mut dir = self.unit_test_dir(id);
         dir.push("out");
         dir
     }
 
     /// Create a path to the difference directory for the given identifier.
-    pub fn test_diff_dir(&self, id: &Id) -> PathBuf {
-        let mut dir = self.test_dir(id);
+    pub fn unit_test_diff_dir(&self, id: &Id) -> PathBuf {
+        let mut dir = self.unit_test_dir(id);
         dir.push("diff");
         dir
     }
@@ -236,32 +238,32 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_paths() {
+    fn test_unit_test_paths() {
         let paths = Paths::new("root", None);
         let id = Id::new("a/b").unwrap();
 
         assert_eq!(
-            paths.test_dir(&id),
+            paths.unit_test_dir(&id),
             PathBuf::from_iter(["root", "tests", "a", "b"])
         );
         assert_eq!(
-            paths.test_script(&id),
+            paths.unit_test_script(&id),
             PathBuf::from_iter(["root", "tests", "a", "b", "test.typ"])
         );
         assert_eq!(
-            paths.test_ref_script(&id),
+            paths.unit_test_ref_script(&id),
             PathBuf::from_iter(["root", "tests", "a", "b", "ref.typ"])
         );
         assert_eq!(
-            paths.test_ref_dir(&id),
+            paths.unit_test_ref_dir(&id),
             PathBuf::from_iter(["root", "tests", "a", "b", "ref"])
         );
         assert_eq!(
-            paths.test_out_dir(&id),
+            paths.unit_test_out_dir(&id),
             PathBuf::from_iter(["root", "tests", "a", "b", "out"])
         );
         assert_eq!(
-            paths.test_diff_dir(&id),
+            paths.unit_test_diff_dir(&id),
             PathBuf::from_iter(["root", "tests", "a", "b", "diff"])
         );
     }

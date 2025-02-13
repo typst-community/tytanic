@@ -10,6 +10,7 @@
 - Renamed `--creation-timestamp` to `--timestamp`
 - **BREAKING CHANGE**: `--timestamp` now defaults to `0`
 - Wraps the help message according to the terminal width
+- Renamed regressison tests to unit tests
 
 ## Fixes
 - Don't remove references of persistent tests on `tt util clean`
