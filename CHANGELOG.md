@@ -12,6 +12,7 @@
 - Wraps the help message according to the terminal width
 
 ## Fixes
+- Don't remove references of persistent tests on `tt util clean`
 
 ---
 

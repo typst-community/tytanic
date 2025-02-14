@@ -281,7 +281,7 @@ impl Test {
 
     /// Deletes the temporary directories of this test.
     pub fn delete_temporary_directories(&self, paths: &Paths) -> io::Result<()> {
-        if !self.kind.is_compile_only() {
+        if !self.kind.is_persistent() {
             tytanic_utils::fs::remove_dir(paths.test_ref_dir(&self.id), true)?;
         }
 
