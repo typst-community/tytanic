@@ -18,25 +18,16 @@ pub struct Args {
 
 pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
     let project = ctx.project()?;
-    let paths = project.paths();
     let suite = ctx.collect_tests(&project)?;
 
     let delim_open = " ┌ ";
     let delim_middle = " ├ ";
     let delim_close = " └ ";
 
-    let manifest = match project.read_manifest() {
-        Ok(m) => m,
-        Err(err) => {
-            writeln!(ctx.ui.warn()?, "Couldn't parse manifest:\n{err}")?;
-            None
-        }
-    };
-
     if args.json {
         serde_json::to_writer_pretty(
             ctx.ui.stdout(),
-            &ProjectJson::new(&project, manifest.as_ref(), &suite),
+            &ProjectJson::new(&project, project.manifest(), &suite),
         )?;
         return Ok(());
     }
@@ -49,7 +40,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
         .max()
         .unwrap();
 
-    if let Some(package) = manifest.as_ref().map(|p| &p.package) {
+    if let Some(package) = project.manifest().map(|p| &p.package) {
         write!(w, "{:>align$}{}", "Project", delim_open)?;
         cwrite!(bold_colored(w, Color::Cyan), "{}", package.name)?;
         write!(w, ":")?;
@@ -69,10 +60,10 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
     writeln!(w)?;
 
     write!(w, "{:>align$}{}", "Template", delim_middle)?;
-    if suite.template().is_some() {
-        let path = paths.template();
+    if project.unit_test_template().is_some() {
+        let path = project.unit_test_template_file();
         let path = path
-            .strip_prefix(paths.project_root())
+            .strip_prefix(project.root())
             .expect("template is in project root");
 
         cwrite!(bold_colored(w, Color::Cyan), "{}", path.display())?;

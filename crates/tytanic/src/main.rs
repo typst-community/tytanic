@@ -15,7 +15,6 @@ use tracing_subscriber::filter::Targets;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_tree::HierarchicalLayer;
-use tytanic_core::config::{Config, ConfigLayer};
 
 use crate::cli::commands::CliArguments;
 use crate::cli::{Context, OperationFailure, TestFailure};
@@ -139,9 +138,6 @@ fn main_impl() -> eyre::Result<ExitCode> {
             .build_global()
             .ok();
     }
-
-    let mut config = Config::new(None);
-    config.user = ConfigLayer::collect_user()?;
 
     let mut ctx = Context::new(&args, &ui);
 

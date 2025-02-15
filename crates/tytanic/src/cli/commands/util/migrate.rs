@@ -5,9 +5,9 @@ use std::path::PathBuf;
 
 use color_eyre::eyre;
 use termcolor::Color;
-use tytanic_core::project::Paths;
 use tytanic_core::suite::Suite;
 use tytanic_core::test::Id;
+use tytanic_core::Project;
 
 use crate::cli::Context;
 use crate::{cwrite, ui};
@@ -26,9 +26,8 @@ pub struct Args {
 
 pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
     let project = ctx.project()?;
-    let suite = Suite::collect(project.paths())?;
+    let suite = Suite::collect(&project)?;
 
-    let paths = project.paths();
     let mut w = ctx.ui.stderr();
 
     if suite.nested().is_empty() {
@@ -85,7 +84,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
                 continue;
             }
 
-            migrate_test(paths, old, new)?;
+            migrate_test(&project, old, new)?;
         }
     } else {
         writeln!(ctx.ui.warn()?, "Make sure to back up your code!")?;
@@ -119,13 +118,13 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
 // work, but renaming the ref directory works
 
 fn migrate_test_part(
-    paths: &Paths,
+    project: &Project,
     old: &Id,
     new: &Id,
-    f: fn(&Paths, &Id) -> PathBuf,
+    f: fn(&Project, &Id) -> PathBuf,
 ) -> eyre::Result<()> {
-    let old = f(paths, old);
-    let new = f(paths, new);
+    let old = f(project, old);
+    let new = f(project, new);
 
     if old.try_exists()? {
         fs::rename(&old, &new)?;
@@ -134,15 +133,15 @@ fn migrate_test_part(
     Ok(())
 }
 
-fn migrate_test(paths: &Paths, old: &Id, new: &Id) -> eyre::Result<()> {
-    let test_dir = paths.unit_test_dir(new);
+fn migrate_test(project: &Project, old: &Id, new: &Id) -> eyre::Result<()> {
+    let test_dir = project.unit_test_dir(new);
     tytanic_utils::fs::create_dir(&test_dir, true)?;
-    migrate_test_part(paths, old, new, Paths::unit_test_script)?;
-    migrate_test_part(paths, old, new, Paths::unit_test_ref_script)?;
-    migrate_test_part(paths, old, new, Paths::unit_test_ref_dir)?;
-    let out_dir = paths.unit_test_out_dir(old);
+    migrate_test_part(project, old, new, Project::unit_test_script)?;
+    migrate_test_part(project, old, new, Project::unit_test_ref_script)?;
+    migrate_test_part(project, old, new, Project::unit_test_ref_dir)?;
+    let out_dir = project.unit_test_out_dir(old);
     tytanic_utils::fs::remove_dir(&out_dir, true)?;
-    let diff_dir = paths.unit_test_diff_dir(old);
+    let diff_dir = project.unit_test_diff_dir(old);
     tytanic_utils::fs::remove_dir(&diff_dir, true)?;
     Ok(())
 }

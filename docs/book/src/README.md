@@ -26,5 +26,5 @@ The later sections of the book are a technical reference to Tytanic and its vari
 - [Typst Compatibility](./reference/compat.md) shows which versions of typst are currently supported and in which version of Tytanic.
 - [Tests](./reference/tests/index.md) explains all features of tests in-depth.
 - [Test Set Language](./reference/test-sets/index.md) explains the ins and outs of the test set language, listing its operators, built-in bindings and syntactic and semantic intricacies.
-<!-- - [Configuration Schema](./reference/config.md) lists all existing config options, their expected types and default values. -->
+- [Configuration Schema](./reference/config.md) lists all existing config options, their expected types and default values.
 

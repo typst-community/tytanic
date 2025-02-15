@@ -14,7 +14,7 @@ pub fn run(ctx: &mut Context) -> eyre::Result<()> {
     let len = suite.tests().len();
 
     for test in suite.tests().values() {
-        test.delete_temporary_directories(project.paths())?;
+        test.delete_temporary_directories(&project)?;
     }
 
     let mut w = ctx.ui.stderr();

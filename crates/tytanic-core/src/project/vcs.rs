@@ -9,8 +9,9 @@ use std::fmt::{self, Debug, Display};
 use std::path::{Path, PathBuf};
 use std::{fs, io};
 
-use super::Paths;
 use crate::test::Test;
+
+use super::Project;
 
 /// The name of the git ignore file.
 const GITIGNORE_NAME: &str = ".gitignore";
@@ -57,15 +58,18 @@ impl Vcs {
         }
     }
 
-    /// Checks the given directory for a Vcs, returning it a vcs is rooted here.
-    pub fn try_new(root: &Path) -> io::Result<Option<Self>> {
-        if root.join(".git").try_exists()? || root.join(".jj").try_exists()? {
-            Ok(Some(Self::new(root, Kind::Git)))
-        } else if root.join(".hg").try_exists()? {
-            Ok(Some(Self::new(root, Kind::Mercurial)))
-        } else {
-            Ok(None)
+    /// Checks the given directory for a VCS root, returning which kind was
+    /// found.
+    pub fn exists_at(dir: &Path) -> io::Result<Option<Kind>> {
+        if dir.join(".git").try_exists()? || dir.join(".jj").try_exists()? {
+            return Ok(Some(Kind::Git));
         }
+
+        if dir.join(".hg").try_exists()? {
+            return Ok(Some(Kind::Mercurial));
+        }
+
+        Ok(None)
     }
 }
 
@@ -81,10 +85,10 @@ impl Vcs {
     }
 
     /// Ignore all ephemeral files and directories of a test.
-    pub fn ignore(&self, paths: &Paths, test: &Test) -> io::Result<()> {
+    pub fn ignore(&self, project: &Project, test: &Test) -> io::Result<()> {
         let mut content = format!("{IGNORE_HEADER}\n\n");
 
-        let file = paths.unit_test_dir(test.id()).join(match self.kind {
+        let file = project.unit_test_dir(test.id()).join(match self.kind {
             Kind::Git => GITIGNORE_NAME,
             Kind::Mercurial => {
                 content.push_str("syntax: glob\n");
@@ -105,8 +109,8 @@ impl Vcs {
         Ok(())
     }
 
-    pub fn unignore(&self, paths: &Paths, test: &Test) -> io::Result<()> {
-        let file = paths.unit_test_dir(test.id()).join(match self.kind {
+    pub fn unignore(&self, project: &Project, test: &Test) -> io::Result<()> {
+        let file = project.unit_test_dir(test.id()).join(match self.kind {
             Kind::Git => GITIGNORE_NAME,
             Kind::Mercurial => HGIGNORE_NAME,
         });
@@ -129,7 +133,6 @@ mod tests {
     use tytanic_utils::fs::TempTestEnv;
 
     use super::*;
-    use crate::project::Paths;
     use crate::test::{Id, Kind as TestKind};
 
     fn test(kind: TestKind) -> Test {
@@ -141,10 +144,10 @@ mod tests {
         TempTestEnv::run(
             |root| root.setup_dir("tests/fancy"),
             |root| {
-                let paths = Paths::new(root, None);
+                let project = Project::new(root);
                 let vcs = Vcs::new(root, Kind::Git);
                 let test = test(TestKind::CompileOnly);
-                vcs.ignore(&paths, &test).unwrap();
+                vcs.ignore(&project, &test).unwrap();
             },
             |root| {
                 root.expect_dir("tests/fancy").expect_file_content(
@@ -160,10 +163,10 @@ mod tests {
         TempTestEnv::run(
             |root| root.setup_file("tests/fancy/.gitignore", "blah blah"),
             |root| {
-                let paths = Paths::new(root, None);
+                let project = Project::new(root);
                 let vcs = Vcs::new(root, Kind::Git);
                 let test = test(TestKind::CompileOnly);
-                vcs.ignore(&paths, &test).unwrap();
+                vcs.ignore(&project, &test).unwrap();
             },
             |root| {
                 root.expect_dir("tests/fancy").expect_file_content(
@@ -179,10 +182,10 @@ mod tests {
         TempTestEnv::run(
             |root| root.setup_file("tests/fancy/.gitignore", "blah blah"),
             |root| {
-                let paths = Paths::new(root, None);
+                let project = Project::new(root);
                 let vcs = Vcs::new(root, Kind::Git);
                 let test = test(TestKind::CompileOnly);
-                vcs.unignore(&paths, &test).unwrap();
+                vcs.unignore(&project, &test).unwrap();
             },
             |root| root.expect_dir("tests/fancy"),
         );

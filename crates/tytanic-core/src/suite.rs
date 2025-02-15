@@ -10,10 +10,9 @@ use std::{fs, io};
 use thiserror::Error;
 use tytanic_filter::{eval, ExpressionFilter};
 use tytanic_utils::fmt::Term;
-use tytanic_utils::result::ResultEx;
 use uuid::Uuid;
 
-use crate::project::Paths;
+use crate::project::Project;
 use crate::test::{Id, LoadError, ParseIdError, Test, TestResult};
 
 /// A suite of tests.
@@ -21,7 +20,6 @@ use crate::test::{Id, LoadError, ParseIdError, Test, TestResult};
 pub struct Suite {
     tests: BTreeMap<Id, Test>,
     nested: BTreeMap<Id, Test>,
-    template: Option<String>,
 }
 
 impl Suite {
@@ -30,23 +28,15 @@ impl Suite {
         Self {
             tests: BTreeMap::new(),
             nested: BTreeMap::new(),
-            template: None,
         }
     }
 
     /// Recursively collects entries in the given directory.
-    #[tracing::instrument(skip(paths), fields(test_root = ?paths.test_root()))]
-    pub fn collect(paths: &Paths) -> Result<Self, Error> {
-        let root = paths.test_root();
+    #[tracing::instrument(skip(project), fields(test_root = ?project.unit_tests_root()))]
+    pub fn collect(project: &Project) -> Result<Self, Error> {
+        let root = project.unit_tests_root();
 
         let mut this = Self::new();
-
-        tracing::debug!("loading test template");
-        if let Some(content) =
-            fs::read_to_string(paths.template()).ignore(|e| e.kind() == io::ErrorKind::NotFound)?
-        {
-            this.template = Some(content);
-        }
 
         match root.read_dir() {
             Ok(read_dir) => {
@@ -57,10 +47,10 @@ impl Suite {
                     if entry.metadata()?.is_dir() {
                         let abs = entry.path();
                         let rel = abs
-                            .strip_prefix(paths.test_root())
+                            .strip_prefix(project.unit_tests_root())
                             .expect("entry must be in full");
 
-                        this.collect_dir(paths, rel)?;
+                        this.collect_dir(project, rel)?;
                     }
                 }
             }
@@ -93,14 +83,14 @@ impl Suite {
     }
 
     /// Recursively collect tests in the given directory.
-    fn collect_dir(&mut self, paths: &Paths, dir: &Path) -> Result<(), Error> {
-        let abs = paths.test_root().join(dir);
+    fn collect_dir(&mut self, project: &Project, dir: &Path) -> Result<(), Error> {
+        let abs = project.unit_tests_root().join(dir);
 
         tracing::trace!(?dir, "collecting directory");
 
         let id = Id::new_from_path(dir)?;
 
-        if let Some(test) = Test::load(paths, id.clone())? {
+        if let Some(test) = Test::load(project, id.clone())? {
             tracing::debug!(id = %test.id(), "collected test");
             self.tests.insert(id, test);
         }
@@ -111,11 +101,11 @@ impl Suite {
             if entry.metadata()?.is_dir() {
                 let abs = entry.path();
                 let rel = abs
-                    .strip_prefix(paths.test_root())
+                    .strip_prefix(project.unit_tests_root())
                     .expect("entry must be in full");
 
                 tracing::trace!(path = ?rel, "reading directory entry");
-                self.collect_dir(paths, rel)?;
+                self.collect_dir(project, rel)?;
             }
         }
 
@@ -134,11 +124,6 @@ impl Suite {
     /// This is a temporary method and will be removed in a future release.
     pub fn nested(&self) -> &BTreeMap<Id, Test> {
         &self.nested
-    }
-
-    /// The template for new tests in this suite.
-    pub fn template(&self) -> Option<&str> {
-        self.template.as_deref()
     }
 }
 
@@ -434,8 +419,6 @@ mod tests {
         TempTestEnv::run_no_check(
             |root| {
                 root
-                    // template
-                    .setup_file("tests/template.typ", "Blah Blah")
                     // compile only
                     .setup_file("tests/compile-only/test.typ", "Hello World")
                     // regular ephemeral
@@ -454,8 +437,8 @@ mod tests {
                     .setup_file("tests/ignored/test.typ", "/// [skip]\nHello World")
             },
             |root| {
-                let paths = Paths::new(root, None);
-                let suite = Suite::collect(&paths).unwrap();
+                let project = Project::new(root);
+                let suite = Suite::collect(&project).unwrap();
 
                 let tests = [
                     ("compile-only", Kind::CompileOnly, eco_vec![]),
@@ -464,8 +447,6 @@ mod tests {
                     ("compare/persistent", Kind::Persistent, eco_vec![]),
                     ("ignored", Kind::CompileOnly, eco_vec![Annotation::Skip]),
                 ];
-
-                assert_eq!(suite.template, Some("Blah Blah".into()));
 
                 for (key, kind, annotations) in tests {
                     let test = &suite.tests[key];
