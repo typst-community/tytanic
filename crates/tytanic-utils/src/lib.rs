@@ -8,6 +8,7 @@ pub mod fmt;
 pub mod fs;
 pub mod path;
 pub mod result;
+pub mod typst;
 
 /// Re-exports of useful traits and types.
 pub mod prelude {

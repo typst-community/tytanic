@@ -11,6 +11,8 @@
 - **BREAKING CHANGE**: `--timestamp` now defaults to `0`
 - Wraps the help message according to the terminal width
 - Renamed regressison tests to unit tests
+- **BREAKING CHANGE**: broken manifests will cause a hard error again
+- Added `tool.tytanic.tests` manifest config option for configuring the unit test root
 
 ## Fixes
 - Don't remove references of persistent tests on `tt util clean`

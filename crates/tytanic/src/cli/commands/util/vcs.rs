@@ -29,7 +29,6 @@ impl Command {
         match self {
             Command::Ignore => {
                 let project = ctx.project()?;
-                let paths = project.paths();
                 let Some(vcs) = project.vcs() else {
                     writeln!(ctx.ui.warn()?, "no VCS detected")?;
                     eyre::bail!(OperationFailure);
@@ -40,7 +39,7 @@ impl Command {
                 let len = suite.tests().len();
 
                 for test in suite.tests().values() {
-                    vcs.ignore(paths, test)?;
+                    vcs.ignore(&project, test)?;
                 }
 
                 let mut w = ctx.ui.stderr();

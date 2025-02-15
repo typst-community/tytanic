@@ -23,4 +23,4 @@
   - [Grammar](./reference/test-sets/grammar.md)
   - [Evaluation](./reference/test-sets/eval.md)
   - [Built-in Test Sets](./reference/test-sets/built-in.md)
-- [Configuration Schema]()
+- [Configuration Schema](./reference/config.md)

@@ -39,7 +39,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
     }
 
     for test in suite.matched().values() {
-        test.delete(project.paths())?;
+        test.delete(&project)?;
     }
 
     let mut w = ctx.ui.stderr();

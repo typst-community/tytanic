@@ -155,8 +155,6 @@ impl TestRunner<'_, '_, '_> {
     fn run_inner(&mut self) -> eyre::Result<()> {
         // TODO(tinger): don't exit early if there are still exports possible
 
-        let paths = self.project_runner.project.paths();
-
         match self.project_runner.config.action {
             Action::Run {
                 strategy,
@@ -229,7 +227,7 @@ impl TestRunner<'_, '_, '_> {
                     let output = self.render_out_doc(output)?;
 
                     self.test.create_reference_document(
-                        paths,
+                        self.project_runner.project,
                         &output,
                         self.project_runner
                             .config
@@ -272,7 +270,7 @@ impl TestRunner<'_, '_, '_> {
         tracing::trace!(test = ?self.test.id(), "clearing temporary directories");
 
         self.test
-            .create_temporary_directories(self.project_runner.project.paths())?;
+            .create_temporary_directories(self.project_runner.project)?;
 
         Ok(())
     }
@@ -283,7 +281,7 @@ impl TestRunner<'_, '_, '_> {
 
     pub fn load_out_src(&mut self) -> eyre::Result<Source> {
         tracing::trace!(test = ?self.test.id(), "loading output source");
-        Ok(self.test.load_source(self.project_runner.project.paths())?)
+        Ok(self.test.load_source(self.project_runner.project)?)
     }
 
     pub fn load_ref_src(&mut self) -> eyre::Result<Source> {
@@ -294,7 +292,7 @@ impl TestRunner<'_, '_, '_> {
         }
 
         self.test
-            .load_reference_source(self.project_runner.project.paths())?
+            .load_reference_source(self.project_runner.project)?
             .wrap_err_with(|| format!("couldn't load reference source for test {}", self.test.id()))
     }
 
@@ -306,7 +304,7 @@ impl TestRunner<'_, '_, '_> {
         }
 
         self.test
-            .load_reference_document(self.project_runner.project.paths())
+            .load_reference_document(self.project_runner.project)
             .wrap_err_with(|| {
                 format!(
                     "couldn't load reference document for test {}",
@@ -405,7 +403,6 @@ impl TestRunner<'_, '_, '_> {
         reference.save(
             self.project_runner
                 .project
-                .paths()
                 .unit_test_ref_dir(self.test.id()),
             None,
         )?;
@@ -419,7 +416,6 @@ impl TestRunner<'_, '_, '_> {
         output.save(
             self.project_runner
                 .project
-                .paths()
                 .unit_test_out_dir(self.test.id()),
             None,
         )?;
@@ -437,7 +433,6 @@ impl TestRunner<'_, '_, '_> {
         doc.save(
             self.project_runner
                 .project
-                .paths()
                 .unit_test_diff_dir(self.test.id()),
             None,
         )?;

@@ -10,7 +10,7 @@ use commands::CompileOptions;
 use termcolor::Color;
 use thiserror::Error;
 use tytanic_core::dsl;
-use tytanic_core::project::Project;
+use tytanic_core::project::{ConfigError, LoadError, ManifestError, Project, ShallowProject};
 use tytanic_core::suite::{Filter, FilterError, FilteredSuite, Suite};
 use tytanic_core::test::Id;
 use tytanic_filter::{eval, Error as ExpressionFilterError, ExpressionFilter};
@@ -155,12 +155,25 @@ impl Context<'_> {
     pub fn project(&self) -> eyre::Result<Project> {
         let root = self.root()?;
 
-        let Some(project) = Project::discover(root, self.args.root.is_some())? else {
+        let Some(project) = ShallowProject::discover(root, self.args.root.is_some())? else {
             self.error_no_project()?;
             eyre::bail!(OperationFailure);
         };
 
-        Ok(project)
+        match project.load() {
+            Ok(project) => Ok(project),
+            Err(err) => match err {
+                LoadError::Manifest(ManifestError::Invalid(err)) => {
+                    writeln!(self.ui.error()?, "Failed validaiton of manifest {err:?}")?;
+                    eyre::bail!(OperationFailure);
+                }
+                LoadError::Config(ConfigError::Invalid(err)) => {
+                    writeln!(self.ui.error()?, "Failed validaiton of config {err:?}")?;
+                    eyre::bail!(OperationFailure);
+                }
+                err => eyre::bail!(err),
+            },
+        }
     }
 
     /// Create a new filter from given arguments.
@@ -207,7 +220,7 @@ impl Context<'_> {
 
     /// Collect all tests for the given project.
     pub fn collect_tests(&self, project: &Project) -> eyre::Result<Suite> {
-        let suite = Suite::collect(project.paths())?;
+        let suite = Suite::collect(project)?;
 
         if !suite.nested().is_empty() {
             self.warn_nested_tests()?;

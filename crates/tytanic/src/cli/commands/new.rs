@@ -57,7 +57,6 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
         eyre::bail!(OperationFailure);
     }
 
-    let paths = project.paths();
     let vcs = project.vcs();
     let id = args.test.clone();
 
@@ -71,8 +70,8 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
         args.kind.into_native()
     };
 
-    let source = suite
-        .template()
+    let source = project
+        .unit_test_template()
         .filter(|_| args.template.get_or_default())
         .unwrap_or(test::DEFAULT_TEST_INPUT);
 
@@ -81,10 +80,10 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
         Kind::Ephemeral => Some(Reference::Ephemeral(source.into())),
         Kind::Persistent => {
             let world = ctx.world(&args.compile)?;
-            let path = project.paths().unit_test_template();
+            let path = project.unit_test_template_file();
 
             let path = path
-                .strip_prefix(project.paths().project_root())
+                .strip_prefix(project.root())
                 .expect("template is in project root");
 
             let Warned { output, warnings } = Document::compile(
@@ -129,7 +128,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
         }
     };
 
-    Test::create(paths, vcs, id, source, reference)?;
+    Test::create(&project, vcs, id, source, reference)?;
 
     let mut w = ctx.ui.stderr();
 

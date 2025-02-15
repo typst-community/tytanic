@@ -1,18 +1,10 @@
 //! Reading and interpreting tytanic configuration.
 
-use std::collections::BTreeMap;
 use std::{fs, io};
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use typst::syntax::package::PackageManifest;
-use tytanic_utils::result::ResultEx;
-
-// TODO(tinger): add proper test set collecting and parsing, test sets should be
-// overridable in local configs but still fail on duplicate definitions.
-
-/// All valid keys for this config.
-pub static KEYS: &[&str] = &["test-set"];
+use tytanic_utils::result::{io_not_found, ResultEx};
 
 /// The key used to configure tytanic in the manifest tool config.
 pub const MANIFEST_TOOL_KEY: &str = crate::TOOL_NAME;
@@ -20,83 +12,54 @@ pub const MANIFEST_TOOL_KEY: &str = crate::TOOL_NAME;
 /// The directory name for in which the user config can be found.
 pub const CONFIG_SUB_DIRECTORY: &str = crate::TOOL_NAME;
 
-/// A set of config layers used to retrieve options, configs are looked up in
-/// the following order:
-/// - `override`: supplied at runtime from the command line, envars or other
-///   means
-/// - `project`: found in the typst.toml manifest
-/// - `user`: found in a user config directory
-///
-/// If none of these configs contain a setting the default is used.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
-pub struct Config {
-    /// The override config.
-    pub override_: Option<ConfigLayer>,
-
-    /// The project config.
-    pub project: Option<ConfigLayer>,
-
-    /// The user config.
-    pub user: Option<ConfigLayer>,
-}
-
-impl Config {
-    /// Create a new config with the given overrides.
-    pub fn new(override_: Option<ConfigLayer>) -> Self {
-        Self {
-            override_,
-            project: None,
-            user: None,
-        }
-    }
-}
-
-/// A single layer within all configs, a set of values which can be
-/// overridden by more granular configs.
+/// A system config, found in the user's `$XDG_CONFIG_HOME` or globally on the
+/// system.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "kebab-case")]
-pub struct ConfigLayer {
-    /// Custom test set definitions.
-    pub test_sets: Option<BTreeMap<String, String>>,
-}
+pub struct SystemConfig {}
 
-impl ConfigLayer {
+impl SystemConfig {
     /// Reads the user config at its predefined location.
     ///
     /// The location used is [`dirs::config_dir()`].
-    pub fn collect_user() -> Result<Option<Self>, ReadError> {
+    pub fn collect_user() -> Result<Option<Self>, Error> {
         let Some(config_dir) = dirs::config_dir() else {
             tracing::warn!("couldn't retrieve user config home");
             return Ok(None);
         };
 
         let config = config_dir.join(CONFIG_SUB_DIRECTORY).join("config.toml");
-        let Some(content) =
-            fs::read_to_string(config).ignore(|err| err.kind() == io::ErrorKind::NotFound)?
-        else {
+        let Some(content) = fs::read_to_string(config).ignore(io_not_found)? else {
             return Ok(None);
         };
 
         Ok(toml::from_str(&content)?)
     }
+}
 
-    /// Parses a config from the tool section of a manifest.
-    pub fn from_manifest(manifest: &PackageManifest) -> Result<Option<Self>, ReadError> {
-        let Some(section) = manifest.tool.sections.get(MANIFEST_TOOL_KEY) else {
-            return Ok(None);
-        };
+/// A project config, read from a project's manifest.
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "kebab-case")]
+pub struct ProjectConfig {
+    /// Custom test root directory.
+    #[serde(rename = "tests")]
+    pub unit_tests_root: Option<String>,
+}
 
-        Self::deserialize(section.clone())
-            .map(Some)
-            .map_err(ReadError::Toml)
+impl ProjectConfig {
+    /// Returns the unit test root from the given config, or `"tests"`.
+    pub fn unit_tests_root_or_default(config: Option<&Self>) -> &str {
+        config
+            .and_then(|c| c.unit_tests_root.as_deref())
+            .unwrap_or("tests")
     }
 }
 
-/// Returned by [`ConfigLayer::collect_user`] and
-/// [`ConfigLayer::from_manifest`].
+/// Returned by [`SystemConfig::collect_user`].
 #[derive(Debug, Error)]
-pub enum ReadError {
+pub enum Error {
     /// The given key is not valid or the config.
     #[error("a toml parsing error occurred")]
     Toml(#[from] toml::de::Error),

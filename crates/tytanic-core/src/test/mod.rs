@@ -12,7 +12,7 @@ use typst::syntax::{FileId, Source, VirtualPath};
 
 use crate::doc;
 use crate::doc::{compare, compile, Document, SaveError};
-use crate::project::{Paths, Vcs};
+use crate::project::{Project, Vcs};
 
 mod annotation;
 mod id;
@@ -120,16 +120,16 @@ impl Test {
     }
 
     /// Attempt to load a test, returns `None` if no test could be found.
-    pub fn load(paths: &Paths, id: Id) -> Result<Option<Test>, LoadError> {
-        let test_script = paths.unit_test_script(&id);
+    pub fn load(project: &Project, id: Id) -> Result<Option<Test>, LoadError> {
+        let test_script = project.unit_test_script(&id);
 
         if !test_script.try_exists()? {
             return Ok(None);
         }
 
-        let kind = if paths.unit_test_ref_script(&id).try_exists()? {
+        let kind = if project.unit_test_ref_script(&id).try_exists()? {
             Kind::Ephemeral
-        } else if paths.unit_test_ref_dir(&id).try_exists()? {
+        } else if project.unit_test_ref_dir(&id).try_exists()? {
             Kind::Persistent
         } else {
             Kind::CompileOnly
@@ -171,19 +171,19 @@ impl Test {
     /// Creates a new test on disk, the kind is inferred from the passed
     /// reference and annotations are parsed from the test script.
     pub fn create(
-        paths: &Paths,
+        project: &Project,
         vcs: Option<&Vcs>,
         id: Id,
         source: &str,
         reference: Option<Reference>,
     ) -> Result<Test, CreateError> {
-        let test_dir = paths.unit_test_dir(&id);
+        let test_dir = project.unit_test_dir(&id);
         tytanic_utils::fs::create_dir(test_dir, true)?;
 
         let mut file = File::options()
             .write(true)
             .create_new(true)
-            .open(paths.unit_test_script(&id))?;
+            .open(project.unit_test_script(&id))?;
 
         file.write_all(source.as_bytes())?;
 
@@ -202,18 +202,18 @@ impl Test {
 
         // ingore temporaries before creating any
         if let Some(vcs) = vcs {
-            vcs.ignore(paths, &this)?;
+            vcs.ignore(project, &this)?;
         }
 
         match reference {
             Some(Reference::Ephemeral(reference)) => {
-                this.create_reference_script(paths, reference.as_str())?;
+                this.create_reference_script(project, reference.as_str())?;
             }
             Some(Reference::Persistent {
                 doc: reference,
                 opt: options,
             }) => {
-                this.create_reference_document(paths, &reference, options.as_deref())?;
+                this.create_reference_document(project, &reference, options.as_deref())?;
             }
             None => {}
         }
@@ -222,45 +222,45 @@ impl Test {
     }
 
     /// Creates the temporary directories of this test.
-    pub fn create_temporary_directories(&self, paths: &Paths) -> io::Result<()> {
+    pub fn create_temporary_directories(&self, project: &Project) -> io::Result<()> {
         if self.kind.is_ephemeral() {
-            tytanic_utils::fs::remove_dir(paths.unit_test_ref_dir(&self.id), true)?;
-            tytanic_utils::fs::create_dir(paths.unit_test_ref_dir(&self.id), true)?;
+            tytanic_utils::fs::remove_dir(project.unit_test_ref_dir(&self.id), true)?;
+            tytanic_utils::fs::create_dir(project.unit_test_ref_dir(&self.id), true)?;
         }
 
-        tytanic_utils::fs::create_dir(paths.unit_test_out_dir(&self.id), true)?;
-        tytanic_utils::fs::create_dir(paths.unit_test_diff_dir(&self.id), true)?;
+        tytanic_utils::fs::create_dir(project.unit_test_out_dir(&self.id), true)?;
+        tytanic_utils::fs::create_dir(project.unit_test_diff_dir(&self.id), true)?;
 
         Ok(())
     }
 
     /// Creates the test script of this test, this will truncate the file if it
     /// already exists.
-    pub fn create_script(&self, paths: &Paths, source: &str) -> io::Result<()> {
-        std::fs::write(paths.unit_test_script(&self.id), source)?;
+    pub fn create_script(&self, project: &Project, source: &str) -> io::Result<()> {
+        std::fs::write(project.unit_test_script(&self.id), source)?;
         Ok(())
     }
 
     /// Creates reference script of this test, this will truncate the file if it
     /// already exists.
-    pub fn create_reference_script(&self, paths: &Paths, source: &str) -> io::Result<()> {
-        std::fs::write(paths.unit_test_ref_script(&self.id), source)?;
+    pub fn create_reference_script(&self, project: &Project, source: &str) -> io::Result<()> {
+        std::fs::write(project.unit_test_ref_script(&self.id), source)?;
         Ok(())
     }
 
     /// Creates the persistent reference document of this test.
     pub fn create_reference_document(
         &self,
-        paths: &Paths,
+        project: &Project,
         reference: &Document,
         optimize_options: Option<&oxipng::Options>,
     ) -> Result<(), SaveError> {
         // NOTE(tinger): if there are already more pages than we want to create,
         // the surplus pages would persist and make every comparison fail due to
         // a page count mismatch, so we clear them to be sure.
-        self.delete_reference_document(paths)?;
+        self.delete_reference_document(project)?;
 
-        let ref_dir = paths.unit_test_ref_dir(&self.id);
+        let ref_dir = project.unit_test_ref_dir(&self.id);
         tytanic_utils::fs::create_dir(&ref_dir, true)?;
         reference.save(&ref_dir, optimize_options)?;
 
@@ -268,63 +268,63 @@ impl Test {
     }
 
     /// Deletes all directories and scripts of this test.
-    pub fn delete(&self, paths: &Paths) -> io::Result<()> {
-        self.delete_reference_document(paths)?;
-        self.delete_reference_script(paths)?;
-        self.delete_temporary_directories(paths)?;
+    pub fn delete(&self, project: &Project) -> io::Result<()> {
+        self.delete_reference_document(project)?;
+        self.delete_reference_script(project)?;
+        self.delete_temporary_directories(project)?;
 
-        tytanic_utils::fs::remove_file(paths.unit_test_script(&self.id))?;
-        tytanic_utils::fs::remove_dir(paths.unit_test_dir(&self.id), true)?;
+        tytanic_utils::fs::remove_file(project.unit_test_script(&self.id))?;
+        tytanic_utils::fs::remove_dir(project.unit_test_dir(&self.id), true)?;
 
         Ok(())
     }
 
     /// Deletes the temporary directories of this test.
-    pub fn delete_temporary_directories(&self, paths: &Paths) -> io::Result<()> {
+    pub fn delete_temporary_directories(&self, project: &Project) -> io::Result<()> {
         if !self.kind.is_persistent() {
-            tytanic_utils::fs::remove_dir(paths.unit_test_ref_dir(&self.id), true)?;
+            tytanic_utils::fs::remove_dir(project.unit_test_ref_dir(&self.id), true)?;
         }
 
-        tytanic_utils::fs::remove_dir(paths.unit_test_out_dir(&self.id), true)?;
-        tytanic_utils::fs::remove_dir(paths.unit_test_diff_dir(&self.id), true)?;
+        tytanic_utils::fs::remove_dir(project.unit_test_out_dir(&self.id), true)?;
+        tytanic_utils::fs::remove_dir(project.unit_test_diff_dir(&self.id), true)?;
         Ok(())
     }
 
     /// Deletes the test script of of this test.
-    pub fn delete_script(&self, paths: &Paths) -> io::Result<()> {
-        tytanic_utils::fs::remove_file(paths.unit_test_script(&self.id))?;
+    pub fn delete_script(&self, project: &Project) -> io::Result<()> {
+        tytanic_utils::fs::remove_file(project.unit_test_script(&self.id))?;
         Ok(())
     }
 
     /// Deletes reference script of of this test.
-    pub fn delete_reference_script(&self, paths: &Paths) -> io::Result<()> {
-        tytanic_utils::fs::remove_file(paths.unit_test_ref_script(&self.id))?;
+    pub fn delete_reference_script(&self, project: &Project) -> io::Result<()> {
+        tytanic_utils::fs::remove_file(project.unit_test_ref_script(&self.id))?;
         Ok(())
     }
 
     /// Deletes persistent reference document of this test.
-    pub fn delete_reference_document(&self, paths: &Paths) -> io::Result<()> {
-        tytanic_utils::fs::remove_dir(paths.unit_test_ref_dir(&self.id), true)?;
+    pub fn delete_reference_document(&self, project: &Project) -> io::Result<()> {
+        tytanic_utils::fs::remove_dir(project.unit_test_ref_dir(&self.id), true)?;
         Ok(())
     }
 
     /// Removes any previous references, if they exist and creates a reference
     /// script by copying the test script.
-    pub fn make_ephemeral(&mut self, paths: &Paths, vcs: Option<&Vcs>) -> io::Result<()> {
+    pub fn make_ephemeral(&mut self, project: &Project, vcs: Option<&Vcs>) -> io::Result<()> {
         self.kind = Kind::Ephemeral;
 
         // ensure deletion is recorded before ignore file is updated
-        self.delete_reference_script(paths)?;
-        self.delete_reference_document(paths)?;
+        self.delete_reference_script(project)?;
+        self.delete_reference_document(project)?;
 
         if let Some(vcs) = vcs {
-            vcs.ignore(paths, self)?;
+            vcs.ignore(project, self)?;
         }
 
         // copy refernces after ignore file is updated
         std::fs::copy(
-            paths.unit_test_script(&self.id),
-            paths.unit_test_ref_script(&self.id),
+            project.unit_test_script(&self.id),
+            project.unit_test_ref_script(&self.id),
         )?;
 
         Ok(())
@@ -334,7 +334,7 @@ impl Test {
     /// references from the given pages.
     pub fn make_persistent(
         &mut self,
-        paths: &Paths,
+        project: &Project,
         vcs: Option<&Vcs>,
         reference: &Document,
         optimize_options: Option<&oxipng::Options>,
@@ -342,41 +342,41 @@ impl Test {
         self.kind = Kind::Persistent;
 
         // ensure deletion/creation is recorded before ignore file is updated
-        self.delete_reference_script(paths)?;
-        self.create_reference_document(paths, reference, optimize_options)?;
+        self.delete_reference_script(project)?;
+        self.create_reference_document(project, reference, optimize_options)?;
 
         if let Some(vcs) = vcs {
-            vcs.ignore(paths, self)?;
+            vcs.ignore(project, self)?;
         }
 
         Ok(())
     }
 
     /// Removes any previous references, if they exist.
-    pub fn make_compile_only(&mut self, paths: &Paths, vcs: Option<&Vcs>) -> io::Result<()> {
+    pub fn make_compile_only(&mut self, project: &Project, vcs: Option<&Vcs>) -> io::Result<()> {
         self.kind = Kind::CompileOnly;
 
         // ensure deletion is recorded before ignore file is updated
-        self.delete_reference_document(paths)?;
-        self.delete_reference_script(paths)?;
+        self.delete_reference_document(project)?;
+        self.delete_reference_script(project)?;
 
         if let Some(vcs) = vcs {
-            vcs.ignore(paths, self)?;
+            vcs.ignore(project, self)?;
         }
 
         Ok(())
     }
 
     /// Loads the test script source of this test.
-    pub fn load_source(&self, paths: &Paths) -> io::Result<Source> {
-        let test_script = paths.unit_test_script(&self.id);
+    pub fn load_source(&self, project: &Project) -> io::Result<Source> {
+        let test_script = project.unit_test_script(&self.id);
 
         Ok(Source::new(
             FileId::new(
                 None,
                 VirtualPath::new(
                     test_script
-                        .strip_prefix(paths.project_root())
+                        .strip_prefix(project.root())
                         .unwrap_or(&test_script),
                 ),
             ),
@@ -386,18 +386,18 @@ impl Test {
 
     /// Loads the reference test script source of this test, if this test is
     /// ephemeral.
-    pub fn load_reference_source(&self, paths: &Paths) -> io::Result<Option<Source>> {
+    pub fn load_reference_source(&self, project: &Project) -> io::Result<Option<Source>> {
         if !self.kind().is_ephemeral() {
             return Ok(None);
         }
 
-        let ref_script = paths.unit_test_ref_script(&self.id);
+        let ref_script = project.unit_test_ref_script(&self.id);
         Ok(Some(Source::new(
             FileId::new(
                 None,
                 VirtualPath::new(
                     ref_script
-                        .strip_prefix(paths.project_root())
+                        .strip_prefix(project.root())
                         .unwrap_or(&ref_script),
                 ),
             ),
@@ -406,13 +406,13 @@ impl Test {
     }
 
     /// Loads the test document of this test.
-    pub fn load_document(&self, paths: &Paths) -> Result<Document, doc::LoadError> {
-        Document::load(paths.unit_test_out_dir(&self.id))
+    pub fn load_document(&self, project: &Project) -> Result<Document, doc::LoadError> {
+        Document::load(project.unit_test_out_dir(&self.id))
     }
 
     /// Loads the persistent reference document of this test.
-    pub fn load_reference_document(&self, paths: &Paths) -> Result<Document, doc::LoadError> {
-        Document::load(paths.unit_test_ref_dir(&self.id))
+    pub fn load_reference_document(&self, project: &Project) -> Result<Document, doc::LoadError> {
+        Document::load(project.unit_test_ref_dir(&self.id))
     }
 }
 
@@ -654,11 +654,11 @@ mod tests {
         TempTestEnv::run(
             |root| root.setup_dir("tests"),
             |root| {
-                let paths = Paths::new(root, None);
-                Test::create(&paths, None, id("compile-only"), "Hello World", None).unwrap();
+                let project = Project::new(root);
+                Test::create(&project, None, id("compile-only"), "Hello World", None).unwrap();
 
                 Test::create(
-                    &paths,
+                    &project,
                     None,
                     id("ephemeral"),
                     "Hello World",
@@ -667,7 +667,7 @@ mod tests {
                 .unwrap();
 
                 Test::create(
-                    &paths,
+                    &project,
                     None,
                     id("persistent"),
                     "Hello World",
@@ -693,15 +693,15 @@ mod tests {
         TempTestEnv::run(
             setup_all,
             |root| {
-                let paths = Paths::new(root, None);
+                let project = Project::new(root);
                 test("compile-only", Kind::CompileOnly)
-                    .make_ephemeral(&paths, None)
+                    .make_ephemeral(&project, None)
                     .unwrap();
                 test("ephemeral", Kind::Ephemeral)
-                    .make_ephemeral(&paths, None)
+                    .make_ephemeral(&project, None)
                     .unwrap();
                 test("persistent", Kind::Persistent)
-                    .make_ephemeral(&paths, None)
+                    .make_ephemeral(&project, None)
                     .unwrap();
             },
             |root| {
@@ -720,17 +720,17 @@ mod tests {
         TempTestEnv::run(
             setup_all,
             |root| {
-                let paths = Paths::new(root, None);
+                let project = Project::new(root);
                 test("compile-only", Kind::CompileOnly)
-                    .make_persistent(&paths, None, &Document::new([]), None)
+                    .make_persistent(&project, None, &Document::new([]), None)
                     .unwrap();
 
                 test("ephemeral", Kind::Ephemeral)
-                    .make_persistent(&paths, None, &Document::new([]), None)
+                    .make_persistent(&project, None, &Document::new([]), None)
                     .unwrap();
 
                 test("persistent", Kind::Persistent)
-                    .make_persistent(&paths, None, &Document::new([]), None)
+                    .make_persistent(&project, None, &Document::new([]), None)
                     .unwrap();
             },
             |root| {
@@ -749,17 +749,17 @@ mod tests {
         TempTestEnv::run(
             setup_all,
             |root| {
-                let paths = Paths::new(root, None);
+                let project = Project::new(root);
                 test("compile-only", Kind::CompileOnly)
-                    .make_compile_only(&paths, None)
+                    .make_compile_only(&project, None)
                     .unwrap();
 
                 test("ephemeral", Kind::Ephemeral)
-                    .make_compile_only(&paths, None)
+                    .make_compile_only(&project, None)
                     .unwrap();
 
                 test("persistent", Kind::Persistent)
-                    .make_compile_only(&paths, None)
+                    .make_compile_only(&project, None)
                     .unwrap();
             },
             |root| {
@@ -778,13 +778,13 @@ mod tests {
                     .setup_file("tests/fancy/ref.typ", "Hello\nWorld")
             },
             |root| {
-                let paths = Paths::new(root, None);
+                let project = Project::new(root);
 
                 let mut test = test("fancy", Kind::Ephemeral);
                 test.kind = Kind::Ephemeral;
 
-                test.load_source(&paths).unwrap();
-                test.load_reference_source(&paths).unwrap().unwrap();
+                test.load_source(&project).unwrap();
+                test.load_reference_source(&project).unwrap().unwrap();
             },
         );
     }
@@ -794,11 +794,11 @@ mod tests {
         TempTestEnv::run_no_check(
             |root| root.setup_file_empty("tests/fancy/test.typ"),
             |root| {
-                let paths = Paths::new(root, None);
+                let project = Project::new(root);
 
                 let test = test("fancy", Kind::CompileOnly);
 
-                let source = test.load_source(&paths).unwrap();
+                let source = test.load_source(&project).unwrap();
                 assert_eq!(
                     source.id().vpath().resolve(root).unwrap(),
                     root.join("tests/fancy/test.typ")
