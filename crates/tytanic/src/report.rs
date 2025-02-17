@@ -4,7 +4,7 @@ use std::io::{self, Write};
 use std::time::Duration;
 
 use color_eyre::eyre;
-use termcolor::{Color, WriteColor};
+use termcolor::Color;
 use typst::diag::SourceDiagnostic;
 use tytanic_core::doc::compare::{self, PageError};
 use tytanic_core::project::Project;
@@ -336,14 +336,17 @@ impl Reporter<'_, '_> {
 }
 
 /// Writes a padded duration in human readable form
-fn write_duration(w: &mut dyn WriteColor, duration: Duration) -> io::Result<()> {
+fn write_duration(w: &mut dyn Write, duration: Duration) -> io::Result<()> {
     let s = duration.as_secs();
     let ms = duration.subsec_millis();
-    let us = duration.subsec_micros().saturating_sub(ms * 1000);
 
-    write!(w, "{s: >2}s")?;
+    if s > 0 {
+        write!(w, "{s: >2}s")?;
+    } else {
+        write!(w, "   ")?;
+    }
+
     write!(w, " {ms: >3}ms")?;
-    write!(w, " {us: >3}µs")?;
 
     Ok(())
 }
