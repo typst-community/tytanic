@@ -18,6 +18,7 @@
 
 ## Fixes
 - Don't remove references of persistent tests on `tt util clean`
+- Register `compile-only()` not `compile_only()`
 
 ---
 
