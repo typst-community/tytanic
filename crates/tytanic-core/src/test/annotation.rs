@@ -1,5 +1,4 @@
-//! Test annotations are used to add information to a test for `tytanic` to pick
-//! up on.
+//! Test annotations are used to override settings of a test.
 //!
 //! Annotations may be placed on a leading doc comment block (indicated by
 //! `///`), such a doc comment block can be placed after initial empty or
@@ -11,6 +10,7 @@
 //! // SPDX-License-Identifier: MIT
 //!
 //! /// [skip]
+//! /// [max-delta: 10]
 //! ///
 //! /// Synopsis:
 //! /// ...
@@ -35,9 +35,17 @@ pub enum ParseAnnotationError {
     #[error("unknown or invalid annotation identifier: {0:?}")]
     Unknown(EcoString),
 
-    /// The annotation was otherwise malformed.
-    #[error("the annotation was malformed")]
-    Other,
+    /// The annotation expected no argument, but received one.
+    #[error("the annotation expected no argument, but received one")]
+    UnexpectedArg(&'static str),
+
+    /// The annotation expected an argument, but received none.
+    #[error("the annotation expected an argument, but received none")]
+    MissingArg(&'static str),
+
+    /// An error occured while parsing the annotation.
+    #[error("an error occured while parsing the annotation")]
+    Other(#[source] Box<dyn std::error::Error + Sync + Send + 'static>),
 }
 
 /// A test annotation used to configure test specific behavior.
@@ -45,7 +53,7 @@ pub enum ParseAnnotationError {
 /// Test annotations are placed on doc comments at the top of a test's source
 /// file:
 ///
-/// Each annotation is on it's own line.
+/// Each annotation is on its own line.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Annotation {
     /// The ignored annotation, this can be used to exclude a test by virtue of
@@ -88,10 +96,19 @@ impl FromStr for Annotation {
             return Err(ParseAnnotationError::MissingDelimiter);
         };
 
-        let id = rest.trim();
+        let (id, arg) = match rest.split_once(':') {
+            Some((id, arg)) => (id, Some(arg.trim())),
+            None => (rest, None),
+        };
 
-        match id {
-            "skip" => Ok(Annotation::Skip),
+        match id.trim() {
+            "skip" => {
+                if arg.is_some() {
+                    Err(ParseAnnotationError::UnexpectedArg("test"))
+                } else {
+                    Ok(Annotation::Skip)
+                }
+            }
             _ => Err(ParseAnnotationError::Unknown(id.into())),
         }
     }
@@ -108,6 +125,12 @@ mod tests {
 
         assert!(Annotation::from_str("[ skip  ").is_err());
         assert!(Annotation::from_str("[unknown]").is_err());
+    }
+
+    #[test]
+    fn test_annotation_unexpected_arg() {
+        assert!(Annotation::from_str("[skip:]").is_err());
+        assert!(Annotation::from_str("[skip: 10]").is_err());
     }
 
     #[test]
