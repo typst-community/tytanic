@@ -1,6 +1,5 @@
-use std::collections::BTreeSet;
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::{env, io};
 
@@ -9,11 +8,11 @@ use color_eyre::eyre::WrapErr;
 use commands::CompileOptions;
 use termcolor::Color;
 use thiserror::Error;
-use tytanic_core::dsl;
 use tytanic_core::project::{ConfigError, LoadError, ManifestError, Project, ShallowProject};
 use tytanic_core::suite::{Filter, FilterError, FilteredSuite, Suite};
-use tytanic_core::test::Id;
-use tytanic_filter::{eval, Error as ExpressionFilterError, ExpressionFilter};
+use tytanic_core::test;
+use tytanic_core::{doc, dsl};
+use tytanic_filter::{eval, ExpressionFilter};
 
 use self::commands::{CliArguments, FilterOptions, Switch};
 use crate::ui::{self, Ui};
@@ -62,50 +61,8 @@ impl<'a> Context<'a> {
 }
 
 impl Context<'_> {
-    pub fn error_root_not_found(&self, root: &Path) -> io::Result<()> {
-        writeln!(self.ui.error()?, "Root '{}' not found", root.display())
-    }
-
-    pub fn error_no_project(&self) -> io::Result<()> {
-        writeln!(self.ui.error()?, "Must be in a typst project")?;
-
-        let mut w = self.ui.hint()?;
-        write!(w, "You can pass the project root using ")?;
-        cwrite!(colored(w, Color::Cyan), "--root <path>")?;
-        writeln!(w)
-    }
-
-    pub fn error_test_set(&self, error: ExpressionFilterError) -> io::Result<()> {
-        writeln!(
-            self.ui.error()?,
-            "Couldn't parse or evaluate test set expression:\n{error:?}",
-        )
-    }
-
-    pub fn error_test_already_exists(&self, id: &Id) -> io::Result<()> {
-        let mut w = self.ui.error()?;
-
-        write!(w, "Test ")?;
-        ui::write_test_id(&mut w, id)?;
-        writeln!(w, " already exists")
-    }
-
-    pub fn error_missing_tests(&self, missing: &BTreeSet<Id>) -> io::Result<()> {
-        let mut w = self.ui.error()?;
-
-        for id in missing {
-            write!(w, "Test ")?;
-            ui::write_test_id(&mut w, id)?;
-            writeln!(w, " not found")?;
-        }
-
-        Ok(())
-    }
-
-    pub fn warn_no_tests(&self) -> io::Result<()> {
-        writeln!(self.ui.warn()?, "Matched no tests")
-    }
-
+    /// Emit an error that the given expression evaluated to more than the
+    /// allowed number of tests for some operation.
     pub fn error_too_many_tests(&self, expr: &str) -> io::Result<()> {
         writeln!(self.ui.error()?, "Matched more than one test")?;
 
@@ -113,24 +70,6 @@ impl Context<'_> {
         write!(w, "use '")?;
         cwrite!(colored(w, Color::Cyan), "all:")?;
         writeln!(w, "{expr}' to confirm using all tests")
-    }
-
-    pub fn warn_nested_tests(&self) -> io::Result<()> {
-        writeln!(self.ui.warn()?, "Found nested tests")?;
-
-        writeln!(
-            self.ui.hint()?,
-            "This is no longer supported, these tests will be ignored"
-        )?;
-        writeln!(
-            self.ui.hint()?,
-            "This will become a hard error in a future version"
-        )?;
-
-        let mut w = self.ui.hint()?;
-        write!(w, "You can run ")?;
-        cwrite!(colored(w, Color::Cyan), "tt util migrate")?;
-        writeln!(w, " to automatically move the tests")
     }
 }
 
@@ -141,7 +80,7 @@ impl Context<'_> {
         Ok(match &self.args.root {
             Some(root) => {
                 if !root.try_exists()? {
-                    self.error_root_not_found(root)?;
+                    writeln!(self.ui.error()?, "Root '{}' not found", root.display())?;
                     eyre::bail!(OperationFailure);
                 }
 
@@ -156,19 +95,32 @@ impl Context<'_> {
         let root = self.root()?;
 
         let Some(project) = ShallowProject::discover(root, self.args.root.is_some())? else {
-            self.error_no_project()?;
+            writeln!(self.ui.error()?, "Must be in a typst project")?;
+
+            let mut w = self.ui.hint()?;
+            write!(w, "You can pass the project root using ")?;
+            cwrite!(colored(w, Color::Cyan), "--root <path>")?;
+            writeln!(w)?;
             eyre::bail!(OperationFailure);
         };
 
         match project.load() {
             Ok(project) => Ok(project),
             Err(err) => match err {
-                LoadError::Manifest(ManifestError::Invalid(err)) => {
-                    writeln!(self.ui.error()?, "Failed validaiton of manifest {err:?}")?;
+                LoadError::Manifest(ManifestError::Parse(error)) => {
+                    writeln!(self.ui.error()?, "Failed to parse manifest:\n{error}")?;
                     eyre::bail!(OperationFailure);
                 }
-                LoadError::Config(ConfigError::Invalid(err)) => {
-                    writeln!(self.ui.error()?, "Failed validaiton of config {err:?}")?;
+                LoadError::Manifest(ManifestError::Invalid(error)) => {
+                    writeln!(self.ui.error()?, "Failed to validate manifest:\n{error}")?;
+                    eyre::bail!(OperationFailure);
+                }
+                LoadError::Config(ConfigError::Parse(error)) => {
+                    writeln!(self.ui.error()?, "Failed to parse config:\n{error}")?;
+                    eyre::bail!(OperationFailure);
+                }
+                LoadError::Config(ConfigError::Invalid(error)) => {
+                    writeln!(self.ui.error()?, "Failed to validate config:\n{error}")?;
                     eyre::bail!(OperationFailure);
                 }
                 err => eyre::bail!(err),
@@ -184,8 +136,16 @@ impl Context<'_> {
             let ctx = dsl::context();
             let mut set = match ExpressionFilter::new(ctx, &filter.expression) {
                 Ok(set) => set,
-                Err(err) => {
-                    self.error_test_set(err)?;
+                Err(error) => {
+                    match error {
+                        tytanic_filter::Error::Parse(error) => {
+                            writeln!(self.ui.error()?, "Couldn't parse test set:\n{error}")?;
+                        }
+                        tytanic_filter::Error::Eval(error) => {
+                            writeln!(self.ui.error()?, "Couldn't evaluate test set:\n{error}")?;
+                        }
+                    }
+
                     eyre::bail!(OperationFailure);
                 }
             };
@@ -206,12 +166,28 @@ impl Context<'_> {
     ) -> eyre::Result<FilteredSuite> {
         let suite = self.collect_tests(project)?;
 
+        if suite.tests().is_empty() {
+            writeln!(self.ui.warn()?, "Suite is empty")?;
+        }
+
         match suite.filter(filter) {
-            Ok(suite) => Ok(suite),
+            Ok(suite) => {
+                if suite.matched().is_empty() {
+                    writeln!(self.ui.warn()?, "Test set matched no tests")?;
+                }
+                Ok(suite)
+            }
             Err(err) => match err {
                 FilterError::TestSet(err) => eyre::bail!(err),
                 FilterError::Missing(missing) => {
-                    self.error_missing_tests(&missing)?;
+                    let mut w = self.ui.error()?;
+
+                    for id in missing {
+                        write!(w, "Test ")?;
+                        ui::write_test_id(&mut w, &id)?;
+                        writeln!(w, " not found")?;
+                    }
+
                     eyre::bail!(OperationFailure);
                 }
             },
@@ -223,7 +199,21 @@ impl Context<'_> {
         let suite = Suite::collect(project)?;
 
         if !suite.nested().is_empty() {
-            self.warn_nested_tests()?;
+            writeln!(self.ui.warn()?, "Found nested tests")?;
+
+            writeln!(
+                self.ui.hint()?,
+                "This is no longer supported, these tests will be ignored"
+            )?;
+            writeln!(
+                self.ui.hint()?,
+                "This will become a hard error in a future version"
+            )?;
+
+            let mut w = self.ui.hint()?;
+            write!(w, "You can run ")?;
+            cwrite!(colored(w, Color::Cyan), "tt util migrate")?;
+            writeln!(w, " to automatically move the tests")?;
         }
 
         Ok(suite)
@@ -243,8 +233,32 @@ impl Context<'_> {
 impl Context<'_> {
     /// Run the parsed command and report errors as ui messages.
     pub fn run(&mut self) -> eyre::Result<()> {
-        // TODO(tinger): catch internal errors here and transform them into
-        // error messages
-        self.args.cmd.run(self)
+        let Err(error) = self.args.cmd.run(self) else {
+            return Ok(());
+        };
+
+        for error in error.chain() {
+            // TODO(tinger): attach test id
+            if let Some(doc::LoadError::MissingPages(pages)) = error.downcast_ref() {
+                if pages.is_empty() {
+                    writeln!(self.ui.error()?, "References had zero pages")?;
+                    eyre::bail!(OperationFailure);
+                } else {
+                    writeln!(
+                        self.ui.error()?,
+                        "References had missing pages, these pages were found: {pages:?}"
+                    )?;
+                    eyre::bail!(OperationFailure);
+                }
+            }
+
+            // TODO(tinger): attach test id
+            if let Some(error) = error.downcast_ref::<test::ParseAnnotationError>() {
+                writeln!(self.ui.error()?, "Couldn't parse annotations:\n{error}")?;
+                eyre::bail!(OperationFailure);
+            }
+        }
+
+        Ok(())
     }
 }

@@ -53,7 +53,11 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
     let suite = ctx.collect_tests(&project)?;
 
     if suite.tests().contains_key(&args.test) {
-        ctx.error_test_already_exists(&args.test)?;
+        let mut w = ctx.ui.error()?;
+
+        write!(w, "Test ")?;
+        ui::write_test_id(&mut w, &args.test)?;
+        writeln!(w, " already exists")?;
         eyre::bail!(OperationFailure);
     }
 
