@@ -102,7 +102,7 @@ impl Reference {
 }
 
 /// A standalone test script and its assocaited documents.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Test {
     id: Id,
     kind: Kind,
