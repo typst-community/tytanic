@@ -120,10 +120,6 @@
         devShells.default = craneLib.devShell {
           checks = self'.checks;
           inputsFrom = [ tytanic ];
-
-          # see justfile, this allows using cargo with `+1.80` outside the dev
-          # shell, but without it inside the dev shell
-          CARGO_1_80 = "cargo";
         };
       };
   };
