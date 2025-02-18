@@ -2,7 +2,18 @@
 ## Highlights
 
 ## Changes
-- Updated to Typst `0.13.0-rc1`
+
+## Fixes
+
+---
+
+# [v0.2.0](https://github.com/tingerrr/tytanic/releases/tags/v0.2.0)
+## Highlights
+This release bumps Typst to `0.13.0` and brings plenty of improvements like annotations and config options for various export and comparison settings.
+Among other things this release focuses on improved reproducibility by no longer reading system fonts by default.
+
+## Changes
+- Updated to Typst `0.13.0`
 - Added `--[no-]use-embedded-fonts`
 - Renamed `--ignore-system-fonts` to `--no-use-system-fonts`
 - Added `--use-system-fonts`
@@ -10,7 +21,7 @@
 - Renamed `--creation-timestamp` to `--timestamp`
 - **BREAKING CHANGE**: `--timestamp` now defaults to `0`
 - Wraps the help message according to the terminal width
-- Renamed regressison tests to unit tests
+- Renamed regression tests to unit tests
 - **BREAKING CHANGE**: broken manifests will cause a hard error again
 - Added `tool.tytanic.tests` manifest config option for configuring the unit test root
 - Added `tool.tytanic.default` manifest config section for configuring defaults, contains options for `ppi`, `dir`, `max-deviations` and `max-delta`.
