@@ -38,6 +38,7 @@ pub struct PackageJson<'p> {
 pub struct TestJson<'t> {
     pub id: &'t str,
     pub kind: &'static str,
+    pub is_skip: bool,
 }
 
 impl<'t> TestJson<'t> {
@@ -45,6 +46,7 @@ impl<'t> TestJson<'t> {
         Self {
             id: test.id().as_str(),
             kind: test.kind().as_str(),
+            is_skip: test.is_skip(),
         }
     }
 }
