@@ -16,6 +16,7 @@ The syntax for annotations may change if Typst adds first class annotation or do
 // SPDX-License-Identifier: MIT
 
 /// [skip]
+/// [max-delta: 5]
 ///
 /// Synopsis:
 /// ...
@@ -29,3 +30,7 @@ The following annotations are available:
 |Annotation|Description|
 |---|---|
 |`skip`|Marks the test as part of the `skip()` test set.|
+|`dir`|Sets the direction used for creating difference documents, expects either `ltr` or `rtl` as an argument.|
+|`ppi`|Sets the pixel per inch used for exporing and comparing documents, expects a floating point value as an argument.|
+|`max-delta`|Sets the maximum allowed per-pixel delta, expects an integer between 0 and 255 as an argument.|
+|`max-deviations`|Sets the maximum allwoed deviations, expects an integer as an argument.|

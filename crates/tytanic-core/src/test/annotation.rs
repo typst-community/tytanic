@@ -24,6 +24,8 @@ use std::str::FromStr;
 use ecow::{EcoString, EcoVec};
 use thiserror::Error;
 
+use crate::config::Direction;
+
 /// An error which may occur while parsing an annotation.
 #[derive(Debug, Error)]
 pub enum ParseAnnotationError {
@@ -54,11 +56,23 @@ pub enum ParseAnnotationError {
 /// file:
 ///
 /// Each annotation is on its own line.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Annotation {
     /// The ignored annotation, this can be used to exclude a test by virtue of
     /// the `ignored` test set.
     Skip,
+
+    /// The direction to use for diffing the documents.
+    Dir(Direction),
+
+    /// The pixel per inch to use for exporting the documents.
+    Ppi(f32),
+
+    /// The maximum allowed per pixel delta to use for comparsion.
+    MaxDelta(u8),
+
+    /// The maximum allowed amount of deviations to use fro comparison.
+    MaxDeviations(usize),
 }
 
 impl Annotation {
@@ -109,6 +123,37 @@ impl FromStr for Annotation {
                     Ok(Annotation::Skip)
                 }
             }
+            "dir" => match arg {
+                Some(arg) => match arg.trim() {
+                    "ltr" => Ok(Annotation::Dir(Direction::Ltr)),
+                    "rtl" => Ok(Annotation::Dir(Direction::Rtl)),
+                    _ => Err(ParseAnnotationError::Other(
+                        format!("invalid direction {arg:?}, expected one of ltr or rtl").into(),
+                    )),
+                },
+                None => Err(ParseAnnotationError::UnexpectedArg("test")),
+            },
+            "ppi" => match arg {
+                Some(arg) => match arg.trim().parse() {
+                    Ok(arg) => Ok(Annotation::Ppi(arg)),
+                    Err(err) => Err(ParseAnnotationError::Other(err.into())),
+                },
+                None => Err(ParseAnnotationError::UnexpectedArg("test")),
+            },
+            "max-delta" => match arg {
+                Some(arg) => match arg.trim().parse() {
+                    Ok(arg) => Ok(Annotation::MaxDelta(arg)),
+                    Err(err) => Err(ParseAnnotationError::Other(err.into())),
+                },
+                None => Err(ParseAnnotationError::UnexpectedArg("test")),
+            },
+            "max-deviations" => match arg {
+                Some(arg) => match arg.trim().parse() {
+                    Ok(arg) => Ok(Annotation::MaxDeviations(arg)),
+                    Err(err) => Err(ParseAnnotationError::Other(err.into())),
+                },
+                None => Err(ParseAnnotationError::UnexpectedArg("test")),
+            },
             _ => Err(ParseAnnotationError::Unknown(id.into())),
         }
     }
@@ -131,6 +176,24 @@ mod tests {
     fn test_annotation_unexpected_arg() {
         assert!(Annotation::from_str("[skip:]").is_err());
         assert!(Annotation::from_str("[skip: 10]").is_err());
+    }
+
+    #[test]
+    fn test_annotation_expected_arg() {
+        assert!(Annotation::from_str("[ppi]").is_err());
+        assert!(Annotation::from_str("[max-delta:]").is_err());
+    }
+
+    #[test]
+    fn test_annotation_arg() {
+        assert_eq!(
+            Annotation::from_str("[max-deviations: 20]").unwrap(),
+            Annotation::MaxDeviations(20)
+        );
+        assert_eq!(
+            Annotation::from_str("[ppi: 42.5]").unwrap(),
+            Annotation::Ppi(42.5)
+        );
     }
 
     #[test]

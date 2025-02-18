@@ -5,13 +5,14 @@ use color_eyre::eyre::{self, ContextCompat, WrapErr};
 use typst::diag::Warned;
 use typst::layout::PagedDocument;
 use typst::syntax::Source;
+use tytanic_core::config::Direction;
 use tytanic_core::doc::compare::Strategy;
 use tytanic_core::doc::compile::Warnings;
-use tytanic_core::doc::render::Origin;
+use tytanic_core::doc::render::{self, Origin};
 use tytanic_core::doc::{compile, Document};
 use tytanic_core::project::Project;
 use tytanic_core::suite::{FilteredSuite, SuiteResult};
-use tytanic_core::test::{Kind, Test, TestResult};
+use tytanic_core::test::{Annotation, Kind, Test, TestResult};
 
 use crate::cli::TestFailure;
 use crate::report::Reporter;
@@ -312,10 +313,14 @@ impl TestRunner<'_, '_, '_> {
     pub fn render_out_doc(&mut self, doc: PagedDocument) -> eyre::Result<Document> {
         tracing::trace!(test = ?self.test.id(), "rendering output document");
 
-        Ok(Document::render(
-            doc,
-            self.project_runner.config.pixel_per_pt,
-        ))
+        let mut pixel_per_pt = self.project_runner.config.pixel_per_pt;
+        for annot in self.test.annotations().iter() {
+            if let Annotation::Ppi(ppi) = annot {
+                pixel_per_pt = render::ppi_to_ppp(*ppi)
+            }
+        }
+
+        Ok(Document::render(doc, pixel_per_pt))
     }
 
     pub fn render_ref_doc(&mut self, doc: PagedDocument) -> eyre::Result<Document> {
@@ -325,22 +330,34 @@ impl TestRunner<'_, '_, '_> {
             eyre::bail!("attempted to render reference for non-ephemeral test");
         }
 
-        Ok(Document::render(
-            doc,
-            self.project_runner.config.pixel_per_pt,
-        ))
+        let mut pixel_per_pt = self.project_runner.config.pixel_per_pt;
+        for annot in self.test.annotations().iter() {
+            if let Annotation::Ppi(ppi) = annot {
+                pixel_per_pt = render::ppi_to_ppp(*ppi)
+            }
+        }
+
+        Ok(Document::render(doc, pixel_per_pt))
     }
 
     pub fn render_diff_doc(
         &mut self,
         output: &Document,
         reference: &Document,
-        origin: Origin,
+        mut origin: Origin,
     ) -> eyre::Result<Document> {
         tracing::trace!(test = ?self.test.id(), "rendering difference document");
 
         if self.test.kind().is_compile_only() {
             eyre::bail!("attempted to render difference document for compile-only test");
+        }
+
+        for annot in self.test.annotations().iter() {
+            match annot {
+                Annotation::Dir(Direction::Ltr) => origin = Origin::TopLeft,
+                Annotation::Dir(Direction::Rtl) => origin = Origin::TopRight,
+                _ => {}
+            }
         }
 
         Ok(Document::render_diff(reference, output, origin))
@@ -448,7 +465,27 @@ impl TestRunner<'_, '_, '_> {
             eyre::bail!("attempted to compare compile-only test");
         }
 
-        if let Err(error) = Document::compare(output, reference, strategy) {
+        let Strategy::Simple {
+            mut max_delta,
+            mut max_deviation,
+        } = strategy;
+
+        for annot in self.test.annotations().iter() {
+            match annot {
+                Annotation::MaxDelta(set) => max_delta = *set,
+                Annotation::MaxDeviations(set) => max_deviation = *set,
+                _ => {}
+            }
+        }
+
+        if let Err(error) = Document::compare(
+            output,
+            reference,
+            Strategy::Simple {
+                max_delta,
+                max_deviation,
+            },
+        ) {
             self.result.set_failed_comparison(error);
             eyre::bail!(TestFailure);
         }
