@@ -316,17 +316,17 @@ pub fn annotated<W: WriteColor>(
 
 /// Returns a writer for emitting a user-facing error.
 pub fn error<W: WriteColor>(w: W) -> io::Result<Indented<W>> {
-    annotated(w, "error:", Color::Red, 0)
+    annotated(w, "error:", Color::Red, None)
 }
 
 /// Returns a writer for emitting a user-facing warning.
 pub fn warn<W: WriteColor>(w: W) -> io::Result<Indented<W>> {
-    annotated(w, "warning:", Color::Yellow, 0)
+    annotated(w, "warning:", Color::Yellow, None)
 }
 
 /// Returns a writer for emitting a user-facing hint.
 pub fn hint<W: WriteColor>(w: W) -> io::Result<Indented<W>> {
-    annotated(w, "hint:", Color::Cyan, 0)
+    annotated(w, "hint:", Color::Cyan, None)
 }
 
 /// Write a test id.
