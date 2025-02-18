@@ -39,22 +39,98 @@ impl SystemConfig {
 }
 
 /// A project config, read from a project's manifest.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "kebab-case")]
 pub struct ProjectConfig {
     /// Custom test root directory.
-    #[serde(rename = "tests")]
-    pub unit_tests_root: Option<String>,
+    ///
+    /// Defaults to `"tests"`.
+    #[serde(rename = "tests", default = "default_unit_tests_root")]
+    pub unit_tests_root: String,
+
+    /// The project wide defaults.
+    #[serde(rename = "default")]
+    pub defaults: ProjectDefaults,
 }
 
-impl ProjectConfig {
-    /// Returns the unit test root from the given config, or `"tests"`.
-    pub fn unit_tests_root_or_default(config: Option<&Self>) -> &str {
-        config
-            .and_then(|c| c.unit_tests_root.as_deref())
-            .unwrap_or("tests")
+impl Default for ProjectConfig {
+    fn default() -> Self {
+        Self {
+            unit_tests_root: default_unit_tests_root(),
+            defaults: ProjectDefaults::default(),
+        }
     }
+}
+
+fn default_unit_tests_root() -> String {
+    String::from("tests")
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "kebab-case")]
+pub struct ProjectDefaults {
+    /// The default direction.
+    #[serde(rename = "dir", default = "default_direction")]
+    pub direction: Direction,
+
+    /// The default pixel per inch for exporting and comparing documents.
+    ///
+    /// Defaults to `144.0`.
+    #[serde(default = "default_ppi")]
+    pub ppi: f32,
+
+    /// The default maximum allowed delta per pixel.
+    ///
+    /// Defaults to `1`.
+    #[serde(default = "default_max_delta")]
+    pub max_delta: u8,
+
+    /// The default maximum allowed deviating pixels for a comparison.
+    ///
+    /// Defaults to `0`.
+    #[serde(default = "default_max_deviations")]
+    pub max_deviations: usize,
+}
+
+impl Default for ProjectDefaults {
+    fn default() -> Self {
+        Self {
+            direction: default_direction(),
+            ppi: default_ppi(),
+            max_delta: default_max_delta(),
+            max_deviations: default_max_deviations(),
+        }
+    }
+}
+
+fn default_direction() -> Direction {
+    Direction::Ltr
+}
+
+fn default_ppi() -> f32 {
+    144.0
+}
+
+fn default_max_delta() -> u8 {
+    1
+}
+
+fn default_max_deviations() -> usize {
+    0
+}
+
+/// The reading direction of a document.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Direction {
+    /// The documents are generated left-to-right.
+    #[default]
+    Ltr,
+
+    /// The documents are generated right-to-left.
+    Rtl,
 }
 
 /// Returned by [`SystemConfig::collect_user`].

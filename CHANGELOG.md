@@ -13,6 +13,7 @@
 - Renamed regressison tests to unit tests
 - **BREAKING CHANGE**: broken manifests will cause a hard error again
 - Added `tool.tytanic.tests` manifest config option for configuring the unit test root
+- Added `tool.tytanic.default` manifest config section for configuring defaults, contains options for `ppi`, `dir`, `max-deviations` and `max-delta`.
 
 ## Fixes
 - Don't remove references of persistent tests on `tt util clean`

@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use chrono::{DateTime, Utc};
 use clap::{Args, ColorChoice, Parser, ValueEnum};
 use color_eyre::eyre;
+use tytanic_core::config::Direction;
 use tytanic_core::doc::compile::Warnings;
 use tytanic_core::test::{Id, Kind};
 
@@ -29,7 +30,7 @@ pub trait OptionDelegate: Sized {
     /// The type this is an option for.
     type Native;
 
-    /// COnverit this into its native type.
+    /// Convert this into its native type.
     fn into_native(self) -> Self::Native;
 }
 
@@ -406,12 +407,16 @@ pub struct ExportOptions {
     ///
     /// This is used to correctly align images with different dimensions when
     /// generating diff images.
-    #[arg(long, default_value = "ltr")]
-    pub dir: Direction,
+    ///
+    /// Defaults to `ltr`, can be configured in the manifest.
+    #[arg(long)]
+    pub dir: Option<DirectionOption>,
 
     /// The pixel-per-inch value to use for export
-    #[arg(long, default_value_t = 144.0)]
-    pub ppi: f32,
+    ///
+    /// Defaults to `144.0`, can be configured in the manifest.
+    #[arg(long)]
+    pub ppi: Option<f32>,
 
     #[command(flatten)]
     pub export_ephemeral: ExportEphemeralSwitch,
@@ -422,12 +427,23 @@ pub struct ExportOptions {
 
 /// The reading direction of a document.
 #[derive(ValueEnum, Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Direction {
+pub enum DirectionOption {
     /// The document is read left-to-right.
     Ltr,
 
     /// The document is read right-to-left.
     Rtl,
+}
+
+impl OptionDelegate for DirectionOption {
+    type Native = Direction;
+
+    fn into_native(self) -> Self::Native {
+        match self {
+            DirectionOption::Ltr => Direction::Ltr,
+            DirectionOption::Rtl => Direction::Rtl,
+        }
+    }
 }
 
 /// Options for configuring how to compare output to references.
@@ -436,20 +452,24 @@ pub struct CompareOptions {
     #[command(flatten)]
     pub compare: CompareSwitch,
 
-    /// The maximum delta in each channel of a pixel
+    /// The maximum allowed delta per pixel
     ///
     /// If a single channel (red/green/blue/alpha component) of a pixel differs
-    /// by this much between reference and output the pixel is counted as a
-    /// deviation.
-    #[arg(long, default_value_t = 0)]
-    pub max_delta: u8,
-
-    /// The maximum deviations per reference
+    /// by more than this much between reference and output the pixel is counted
+    /// as a deviation.
     ///
-    /// If a reference and output image have more than the given deviations it's
-    /// counted as a failure.
-    #[arg(long, default_value_t = 0)]
-    pub max_deviations: usize,
+    /// Defaults to `1`, can be configured in the manifest.
+    #[arg(long)]
+    pub max_delta: Option<u8>,
+
+    /// The maximum allowed deviations per comparison
+    ///
+    /// If a reference and output image have more than the this, then it is
+    /// counted as a comparison failure.
+    ///
+    /// Defaults to `0`, can be configured in the manifest.
+    #[arg(long)]
+    pub max_deviations: Option<usize>,
 }
 
 /// Options for configuring the test runner.

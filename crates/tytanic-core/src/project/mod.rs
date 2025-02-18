@@ -99,9 +99,10 @@ impl ShallowProject {
             .as_ref()
             .map(|m| self.parse_config(m))
             .transpose()?
-            .flatten();
+            .flatten()
+            .unwrap_or_default();
 
-        let unit_test_template = self.read_unit_test_template(config.as_ref())?;
+        let unit_test_template = self.read_unit_test_template(&config)?;
 
         Ok(Project {
             base: self,
@@ -152,9 +153,9 @@ impl ShallowProject {
     /// no template was found.
     pub fn read_unit_test_template(
         &self,
-        config: Option<&ProjectConfig>,
+        config: &ProjectConfig,
     ) -> Result<Option<String>, io::Error> {
-        let root = Path::new(ProjectConfig::unit_tests_root_or_default(config));
+        let root = Path::new(&config.unit_tests_root);
         let template = root.join("template.typ");
 
         fs::read_to_string(template).ignore(io_not_found)
@@ -191,7 +192,7 @@ impl ShallowProject {
 pub struct Project {
     base: ShallowProject,
     manifest: Option<PackageManifest>,
-    config: Option<ProjectConfig>,
+    config: ProjectConfig,
     unit_test_template: Option<String>,
 }
 
@@ -204,7 +205,7 @@ impl Project {
                 vcs: None,
             },
             manifest: None,
-            config: None,
+            config: ProjectConfig::default(),
             unit_test_template: None,
         }
     }
@@ -222,7 +223,7 @@ impl Project {
     }
 
     /// Attach a parsed project config to this project.
-    pub fn with_config(mut self, config: Option<ProjectConfig>) -> Self {
+    pub fn with_config(mut self, config: ProjectConfig) -> Self {
         self.config = config;
         self
     }
@@ -256,8 +257,8 @@ impl Project {
     }
 
     /// The fully parsed project config layer.
-    pub fn config(&self) -> Option<&ProjectConfig> {
-        self.config.as_ref()
+    pub fn config(&self) -> &ProjectConfig {
+        &self.config
     }
 
     /// Returns the unit test template, that is, the source template to
@@ -279,8 +280,7 @@ impl Project {
     ///
     /// The test root is used to resolve test identifiers.
     pub fn unit_tests_root(&self) -> PathBuf {
-        self.root()
-            .join(ProjectConfig::unit_tests_root_or_default(self.config()))
+        self.root().join(&self.config.unit_tests_root)
     }
 
     /// Returns the path to the unit test template, that is, the source template to
@@ -392,17 +392,19 @@ fn validate_manifest(manifest: &PackageManifest) -> Result<(), ValidationError> 
 }
 
 fn validate_config(config: &ProjectConfig) -> Result<(), ValidationError> {
-    let ProjectConfig { unit_tests_root } = config;
+    let ProjectConfig {
+        unit_tests_root,
+        defaults: _,
+    } = config;
+
     let mut error = ValidationError {
         errors: BTreeMap::new(),
     };
 
-    if let Some(unit_tests_root) = unit_tests_root {
-        if !is_trivial_path(unit_tests_root.as_str()) {
-            error
-                .errors
-                .insert("tests".into(), ValidationErrorCause::NonTrivialPath);
-        }
+    if !is_trivial_path(unit_tests_root.as_str()) {
+        error
+            .errors
+            .insert("tests".into(), ValidationErrorCause::NonTrivialPath);
     }
 
     if !error.errors.is_empty() {
@@ -505,9 +507,10 @@ mod tests {
             PathBuf::from_iter(["root", "tests", "a", "b", "test.typ"])
         );
 
-        let project = Project::new("root").with_config(Some(ProjectConfig {
-            unit_tests_root: Some("foo".into()),
-        }));
+        let project = Project::new("root").with_config(ProjectConfig {
+            unit_tests_root: "foo".into(),
+            ..Default::default()
+        });
 
         assert_eq!(
             project.unit_test_ref_script(&id),
@@ -529,10 +532,7 @@ mod tests {
 
     #[test]
     fn test_validation_default() {
-        let config = ProjectConfig {
-            unit_tests_root: None,
-        };
-
+        let config = ProjectConfig::default();
         validate_config(&config).unwrap();
     }
 
@@ -548,7 +548,8 @@ mod tests {
             .build();
 
         let config = ProjectConfig {
-            unit_tests_root: Some("qux".into()),
+            unit_tests_root: "qux".into(),
+            ..Default::default()
         };
 
         validate_manifest(&manifest).unwrap();
@@ -562,7 +563,8 @@ mod tests {
             .build();
 
         let config = ProjectConfig {
-            unit_tests_root: Some("/.".into()),
+            unit_tests_root: "/.".into(),
+            ..Default::default()
         };
 
         let manifest = validate_manifest(&manifest).unwrap_err();

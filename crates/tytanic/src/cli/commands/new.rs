@@ -93,7 +93,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
             let Warned { output, warnings } = Document::compile(
                 Source::new(FileId::new(None, VirtualPath::new(path)), source.into()),
                 &world,
-                ppi_to_ppp(args.export.ppi),
+                ppi_to_ppp(args.export.ppi.unwrap_or(project.config().defaults.ppi)),
                 args.compile.warnings.into_native(),
             );
 

@@ -40,10 +40,17 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
     let suite = ctx.collect_tests_with_filter(&project, filter)?;
     let world = ctx.world(&args.compile)?;
 
-    let origin = match args.export.dir {
+    let origin = match args
+        .export
+        .dir
+        .map(OptionDelegate::into_native)
+        .unwrap_or(project.config().defaults.direction)
+    {
         Direction::Ltr => Origin::TopLeft,
         Direction::Rtl => Origin::TopRight,
     };
+
+    let pixel_per_pt = render::ppi_to_ppp(args.export.ppi.unwrap_or(project.config().defaults.ppi));
 
     let runner = Runner::new(
         &project,
@@ -53,7 +60,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
             warnings: args.compile.warnings.into_native(),
             optimize: args.export.optimize_refs.get_or_default(),
             fail_fast: args.runner.fail_fast.get_or_default(),
-            pixel_per_pt: render::ppi_to_ppp(args.export.ppi),
+            pixel_per_pt,
             action: Action::Update {
                 export_ephemeral: args.export.export_ephemeral.get_or_default(),
                 origin,
