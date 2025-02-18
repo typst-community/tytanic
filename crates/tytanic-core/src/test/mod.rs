@@ -473,6 +473,12 @@ pub enum Stage {
 
     /// The test passed compilation and comparison.
     PassedComparison,
+
+    /// The test passed compilation and updated its references.
+    Updated {
+        /// Whether the references were optimized.
+        optimized: bool,
+    },
 }
 
 /// The result of a single test run.
@@ -542,11 +548,11 @@ impl TestResult {
         matches!(&self.stage, Stage::Filtered)
     }
 
-    /// Whether the test passed compilation or comparison.
+    /// Whether the test passed compilation and/or comparison/update.
     pub fn is_pass(&self) -> bool {
         matches!(
             &self.stage,
-            Stage::PassedCompilation | Stage::PassedComparison
+            Stage::PassedCompilation | Stage::PassedComparison | Stage::Updated { .. }
         )
     }
 
@@ -610,6 +616,11 @@ impl TestResult {
     /// Sets the kind for this test to a comparison failure.
     pub fn set_failed_comparison(&mut self, error: compare::Error) {
         self.stage = Stage::FailedComparison(error);
+    }
+
+    /// Sets the kind for this test to a test update.
+    pub fn set_updated(&mut self, optimized: bool) {
+        self.stage = Stage::Updated { optimized };
     }
 
     /// Sets the warnings for this test.

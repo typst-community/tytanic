@@ -64,7 +64,6 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
 
     let reporter = Reporter::new(
         ctx.ui,
-        &project,
         &world,
         ctx.ui.can_live_report() && ctx.args.output.verbose == 0,
     );

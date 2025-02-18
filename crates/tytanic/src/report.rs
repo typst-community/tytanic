@@ -5,9 +5,7 @@ use std::time::Duration;
 
 use color_eyre::eyre;
 use termcolor::Color;
-use typst::diag::SourceDiagnostic;
 use tytanic_core::doc::compare::{self, PageError};
-use tytanic_core::project::Project;
 use tytanic_core::suite::SuiteResult;
 use tytanic_core::test::{Stage, Test, TestResult};
 use tytanic_utils::fmt::Term;
@@ -22,20 +20,14 @@ const RUN_ANNOT_PADDING: usize = 10;
 /// A reporter for test output and test run status reporting.
 pub struct Reporter<'ui, 'p> {
     ui: &'ui Ui,
-    project: &'p Project,
     world: &'p SystemWorld,
 
     live: bool,
 }
 
 impl<'ui, 'p> Reporter<'ui, 'p> {
-    pub fn new(ui: &'ui Ui, project: &'p Project, world: &'p SystemWorld, live: bool) -> Self {
-        Self {
-            ui,
-            project,
-            world,
-            live,
-        }
+    pub fn new(ui: &'ui Ui, world: &'p SystemWorld, live: bool) -> Self {
+        Self { ui, world, live }
     }
 }
 
@@ -213,44 +205,18 @@ impl Reporter<'_, '_> {
         Ok(())
     }
 
-    /// Report that a test has passed.
-    pub fn report_test_pass(
-        &self,
-        test: &Test,
-        duration: Duration,
-        warnings: &[SourceDiagnostic],
-    ) -> eyre::Result<()> {
-        let mut w = ui::annotated(self.ui.stderr(), "pass", Color::Green, RUN_ANNOT_PADDING)?;
+    /// Report a test result and show supplementary information.
+    pub fn report_test_result(&self, test: &Test, result: &TestResult) -> eyre::Result<()> {
+        let (annot, color) = match result.stage() {
+            Stage::Skipped => ("skip", Color::Yellow),
+            Stage::Filtered => ("filter", Color::Yellow),
+            Stage::FailedCompilation { .. } | Stage::FailedComparison(_) => ("fail", Color::Red),
+            Stage::PassedCompilation => ("compile", Color::Green),
+            Stage::PassedComparison => ("pass", Color::Green),
+            Stage::Updated { .. } => ("update", Color::Green),
+        };
 
-        write!(w, "[")?;
-        {
-            let mut w = ui::colored(&mut w, duration_color(duration))?;
-            write_duration(&mut w, duration)?;
-            w.finish()?;
-        }
-        write!(w, "] ")?;
-        ui::write_test_id(&mut w, test.id())?;
-        writeln!(w)?;
-
-        ui::write_diagnostics(
-            &mut w,
-            self.ui.diagnostic_config(),
-            self.world,
-            warnings,
-            &[],
-        )?;
-
-        Ok(())
-    }
-
-    /// Report that a test has failed and show its output and failure reason.
-    pub fn report_test_fail(
-        &self,
-        test: &Test,
-        result: &TestResult,
-        diff_hint: bool,
-    ) -> eyre::Result<()> {
-        let mut w = ui::annotated(self.ui.stderr(), "fail", Color::Red, RUN_ANNOT_PADDING)?;
+        let mut w = ui::annotated(self.ui.stderr(), annot, color, RUN_ANNOT_PADDING)?;
 
         write!(w, "[")?;
         {
@@ -262,20 +228,21 @@ impl Reporter<'_, '_> {
         ui::write_test_id(&mut w, test.id())?;
         writeln!(w)?;
 
+        ui::write_diagnostics(
+            &mut w,
+            self.ui.diagnostic_config(),
+            self.world,
+            result.warnings(),
+            result.errors().unwrap_or_default(),
+        )?;
+
         match result.stage() {
-            Stage::FailedCompilation { error, reference } => {
+            Stage::PassedCompilation | Stage::PassedComparison => {}
+            Stage::FailedCompilation { reference, .. } => {
                 writeln!(
                     w,
                     "Compilation of {} failed",
                     if *reference { "reference" } else { "test" },
-                )?;
-
-                ui::write_diagnostics(
-                    &mut w,
-                    self.ui.diagnostic_config(),
-                    self.world,
-                    result.warnings(),
-                    &error.0,
                 )?;
             }
             Stage::FailedComparison(compare::Error {
@@ -283,14 +250,6 @@ impl Reporter<'_, '_> {
                 reference,
                 pages,
             }) => {
-                ui::write_diagnostics(
-                    &mut w,
-                    self.ui.diagnostic_config(),
-                    self.world,
-                    result.warnings(),
-                    &[],
-                )?;
-
                 if output != reference {
                     writeln!(
                         w,
@@ -298,36 +257,29 @@ impl Reporter<'_, '_> {
                         Term::simple("page").with(*reference),
                         Term::simple("page").with(*output),
                     )?;
-                }
-
-                for (p, e) in pages {
-                    let p = p + 1;
-                    match e {
-                        PageError::Dimensions { output, reference } => {
-                            writeln!(w, "Page {p} had different dimensions")?;
-                            w.write_with(2, |w| {
-                                writeln!(w, "Output: {}", output)?;
-                                writeln!(w, "Reference: {}", reference)
-                            })?;
-                        }
-                        PageError::SimpleDeviations { deviations } => {
-                            writeln!(
-                                w,
-                                "Page {p} had {deviations} {}",
-                                Term::simple("deviation").with(*deviations),
-                            )?;
+                } else {
+                    for (p, e) in pages {
+                        let p = p + 1;
+                        match e {
+                            PageError::Dimensions { output, reference } => {
+                                writeln!(w, "Page {p} had different dimensions")?;
+                                w.write_with(2, |w| {
+                                    writeln!(w, "Output: {}", output)?;
+                                    writeln!(w, "Reference: {}", reference)
+                                })?;
+                            }
+                            PageError::SimpleDeviations { deviations } => {
+                                writeln!(
+                                    w,
+                                    "Page {p} had {deviations} {}",
+                                    Term::simple("deviation").with(*deviations),
+                                )?;
+                            }
                         }
                     }
                 }
-
-                if diff_hint {
-                    writeln!(
-                        ui::hint(w)?,
-                        "Diff images have been saved at '{}'",
-                        self.project.unit_test_diff_dir(test.id()).display()
-                    )?;
-                }
             }
+            Stage::Updated { .. } => {}
             _ => unreachable!(),
         }
 
