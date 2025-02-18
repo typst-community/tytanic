@@ -49,15 +49,11 @@ pat = _{ pat_inner }
     pat_kind = @{
         pat_kind_glob
         | pat_kind_regex
-        | pat_kind_contains
         | pat_kind_exact
-        | pat_kind_path
     }
         pat_kind_glob = { "glob" | "g" }
         pat_kind_regex =  { "regex" | "r" }
-        pat_kind_contains =  { "contains" | "c" }
         pat_kind_exact  = { "exact" | "e" }
-        pat_kind_path = { "path" | "p" }
     pat_pat = _{ str | pat_raw_lit }
     pat_raw_lit = { !(str_single_delim | str_double_delim) ~ (!WHITESPACE ~ ANY)+ }
     pat_sep = { ":" }
