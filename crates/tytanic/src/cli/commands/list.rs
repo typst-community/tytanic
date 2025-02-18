@@ -6,7 +6,7 @@ use tytanic_core::test::Kind as TestKind;
 
 use super::{Context, FilterOptions};
 use crate::json::TestJson;
-use crate::{cwriteln, ui};
+use crate::{cwrite, ui};
 
 #[derive(clap::Args, Debug, Clone)]
 #[group(id = "list-args")]
@@ -55,11 +55,20 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
             write!(w, "{: >pad$} ", "")?;
         }
         let color = match test.kind() {
-            TestKind::Ephemeral => Color::Yellow,
+            TestKind::Ephemeral => Color::Green,
             TestKind::Persistent => Color::Green,
             TestKind::CompileOnly => Color::Yellow,
         };
-        cwriteln!(bold_colored(w, color), "{}", test.kind().as_str())?;
+
+        // pad by 12 for `compile-only`
+        cwrite!(bold_colored(w, color), "{: <12}", test.kind().as_str())?;
+
+        if test.is_skip() {
+            write!(w, " ")?;
+            cwrite!(bold_colored(w, Color::Cyan), "skip")?;
+        }
+
+        writeln!(w)?;
     }
 
     Ok(())
