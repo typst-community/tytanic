@@ -31,5 +31,6 @@ The following table describes all Tytanic and Typst verions and how they corresp
 |---|---|---|
 |`<= v0.11.1`|none|unsupported|
 |`== v0.12.0`|`v0.1.0 .. v0.1.3`|
-|`>= v0.13.0-rc1`|`main` (nightly)|
+|`== v0.13.0-rc1`|`v0.2.0-rc1`|
+|`>= v0.13.0`|unsupported|
 

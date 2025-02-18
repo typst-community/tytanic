@@ -2,6 +2,13 @@
 ## Highlights
 
 ## Changes
+
+## Fixes
+
+---
+
+# [v0.2.0-rc1](https://github.com/tingerrr/tytanic/releases/tags/v0.2.0-rc1)
+## Changes
 - Updated to Typst `0.13.0-rc1`
 - Added `--[no-]use-embedded-fonts`
 - Renamed `--ignore-system-fonts` to `--no-use-system-fonts`
