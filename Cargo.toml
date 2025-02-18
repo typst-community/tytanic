@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/*"]
 
 [workspace.package]
-version = "0.2.0-rc1"
+version = "0.2.0"
 # must match ci.yml
 rust-version = "1.80"
 authors = ["tingerrr <tinger@tinger.dev>"]
@@ -16,9 +16,9 @@ keywords = ["typst", "test"]
 readme = "README.md"
 
 [workspace.dependencies]
-tytanic-core = { version = "0.2.0-rc1", path = "crates/tytanic-core" }
-tytanic-filter = { version = "0.2.0-rc1", path = "crates/tytanic-filter" }
-tytanic-utils = { version = "0.2.0-rc1", path = "crates/tytanic-utils" }
+tytanic-core = { version = "0.2.0", path = "crates/tytanic-core" }
+tytanic-filter = { version = "0.2.0", path = "crates/tytanic-filter" }
+tytanic-utils = { version = "0.2.0", path = "crates/tytanic-utils" }
 
 chrono = "0.4.38"
 clap = "4.4.12"

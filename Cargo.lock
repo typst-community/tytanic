@@ -3221,7 +3221,7 @@ dependencies = [
 
 [[package]]
 name = "tytanic"
-version = "0.2.0-rc1"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "clap",
@@ -3251,7 +3251,7 @@ dependencies = [
 
 [[package]]
 name = "tytanic-core"
-version = "0.2.0-rc1"
+version = "0.2.0"
 dependencies = [
  "bytemuck",
  "comemo",
@@ -3275,7 +3275,7 @@ dependencies = [
 
 [[package]]
 name = "tytanic-filter"
-version = "0.2.0-rc1"
+version = "0.2.0"
 dependencies = [
  "ecow",
  "glob",
@@ -3290,7 +3290,7 @@ dependencies = [
 
 [[package]]
 name = "tytanic-utils"
-version = "0.2.0-rc1"
+version = "0.2.0"
 dependencies = [
  "ecow",
  "tempdir",
