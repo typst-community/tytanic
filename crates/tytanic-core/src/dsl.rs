@@ -27,7 +27,7 @@ pub fn context() -> Context<Test> {
         ("all", built_in::all_ctor as FuncPtr),
         ("none", built_in::none_ctor),
         ("skip", built_in::skip_ctor),
-        ("compile_only", built_in::compile_only_ctor),
+        ("compile-only", built_in::compile_only_ctor),
         ("ephemeral", built_in::ephemeral_ctor),
         ("persistent", built_in::persistent_ctor),
     ];
