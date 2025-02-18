@@ -11,7 +11,7 @@ use tytanic_core::doc::render::Origin;
 use tytanic_core::doc::{compile, Document};
 use tytanic_core::project::Project;
 use tytanic_core::suite::{FilteredSuite, SuiteResult};
-use tytanic_core::test::{Kind, Stage as TestResultKind, Test, TestResult};
+use tytanic_core::test::{Kind, Test, TestResult};
 
 use crate::cli::TestFailure;
 use crate::report::Reporter;
@@ -107,21 +107,15 @@ impl<'c, 'p> Runner<'c, 'p> {
             let result = self.test(test).run()?;
 
             reporter.clear_status()?;
-            match result.stage() {
-                TestResultKind::FailedCompilation { .. } | TestResultKind::FailedComparison(..) => {
-                    // TODO(tinger): retrieve export var from action
-                    reporter.report_test_fail(test, &result, true)?;
 
-                    if self.config.fail_fast {
-                        self.result.set_test_result(id.clone(), result);
-                        return Ok(());
-                    }
-                }
-                TestResultKind::PassedCompilation | TestResultKind::PassedComparison => {
-                    reporter.report_test_pass(test, result.duration(), result.warnings())?;
-                }
-                _ => unreachable!(),
+            // TODO(tinger): retrieve export var from action
+            reporter.report_test_result(test, &result)?;
+
+            if result.is_fail() && self.config.fail_fast {
+                self.result.set_test_result(id.clone(), result);
+                return Ok(());
             }
+
             reporter.report_status(&self.result)?;
 
             self.result.set_test_result(id.clone(), result);
@@ -234,6 +228,8 @@ impl TestRunner<'_, '_, '_> {
                             .optimize
                             .then_some(&*DEFAULT_OPTIMIZE_OPTIONS),
                     )?;
+
+                    self.result.set_updated(self.project_runner.config.optimize);
 
                     if export {
                         let reference = self.load_ref_doc()?;
