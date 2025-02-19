@@ -2,6 +2,7 @@
 ## Highlights
 
 ## Changes
+- Raw patterns in test set expressions no longer parse `,`, `(` or `)`
 
 ## Fixes
 

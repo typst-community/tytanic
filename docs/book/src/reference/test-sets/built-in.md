@@ -28,16 +28,14 @@ The following functions are available, they can be written out in place of any e
 ## Patterns
 Patterns are special types which are checked against identifiers and automatically turned into test sets.
 A pattern starts with a pattern type before a colon `:` and is either followed by a raw pattern or a string literal.
-Raw patterns don't have any delimiters and parse anything that's not whitespace.
-String patterns are pattern prefixes directly followed by literal strings, they can be used to avoid parsing other tokens as part of a pattern, like when nesting pattern literals in expression groups or in function arguments.
+Raw patterns don't have any delimiters and parse anything that's not whitespace, a literal comma `,` or literal parenthesis `(`/`)`.
+String patterns are pattern prefixes directly followed by literal strings, they can be used to clearly denote the start and end of a pattern.
+Because parenthesis `(`/`)` are not parsed as raw patterns, regex patterns require quoting if capture groups are used.
 
 The following pattern types exist:
 
 |Type|Example|Explanation|
 |---|---|---|
 |`e`/`exact`|`exact:mod/name`|Matches by comparing the identifier exactly to the given term.|
-|`c`/`contains`|`c:plot`|Matches by checking if the given term is contained in the identifier.|
 |`r`/`regex`|`regex:mod-[234]/.*`|Matches using the given regex.|
 |`g`/`glob`|`g:foo/**/bar`|Matches using the given glob pattern.|
-|`p`/`path`|`p:foo`|Matches using the given glob pattern.|
-

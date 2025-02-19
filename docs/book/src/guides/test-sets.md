@@ -116,8 +116,9 @@ Note that patterns come in two forms:
 - string patterns: A generalization which allows for whitespace and usage in nested expressions.
 
 This distinction is useful for scripting and some interactive use cases.
-For example, a raw pattern would keep parsing any non whitespace character, when nesting patterns like `(... | regex:foo-.*) & ...` the parser would therefor swallow the closing parenthesis and not close the group.
-String patterns have delimiters with which this can be avoided: `(... | regex:"foo-.*") & ...` will parse correctly and close the group before the `&`.
+For example, a raw pattern would not parse parenthesis (requried for capture groups in regex patterns).
+This means that `(... | regex:foo(-\w+)+) & ...` would stop parsing after `foo` and fail.
+String patterns have delimiters with which this can be avoided: `(... | regex:"foo(-\w+)+") & ...` will correctly parse the whole pattern.
 
 ## Scripting
 If you build up test set expressions programmatically, consider taking a look at the built-in test set functions.

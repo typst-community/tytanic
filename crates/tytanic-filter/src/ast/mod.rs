@@ -248,6 +248,27 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_pattern_in_args() {
+        assert_eq!(
+            parse("func(e:foo)").unwrap(),
+            Expr::Func(Func {
+                id: Id("func".into()),
+                args: eco_vec![Expr::Atom(Atom::Pat(Pat::Exact(Str("foo".into()))))],
+            })
+        );
+        assert_eq!(
+            parse("func(e:foo, bar)").unwrap(),
+            Expr::Func(Func {
+                id: Id("func".into()),
+                args: eco_vec![
+                    Expr::Atom(Atom::Pat(Pat::Exact(Str("foo".into())))),
+                    Expr::Atom(Atom::Id(Id("bar".into()))),
+                ],
+            })
+        );
+    }
+
+    #[test]
     fn test_parse_func_no_args() {
         assert_eq!(
             parse("func()").unwrap(),

@@ -55,7 +55,17 @@ pat = _{ pat_inner }
         pat_kind_regex =  { "regex" | "r" }
         pat_kind_exact  = { "exact" | "e" }
     pat_pat = _{ str | pat_raw_lit }
-    pat_raw_lit = { !(str_single_delim | str_double_delim) ~ (!WHITESPACE ~ ANY)+ }
+    pat_raw_lit = { !(str_single_delim | str_double_delim) ~ pat_raw_char+ }
+    pat_raw_char = {
+        !(
+            WHITESPACE
+            | str_single_delim
+            | str_double_delim
+            | ","
+            | "("
+            | ")"
+        ) ~ ANY
+    }
     pat_sep = { ":" }
 
 // strings
