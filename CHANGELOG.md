@@ -2,14 +2,6 @@
 ## Highlights
 
 ## Changes
-- Raw patterns in test set expressions no longer parse `,`, `(` or `)`
-
-## Fixes
-
----
-
-# [v0.2.0-rc1](https://github.com/tingerrr/tytanic/releases/tags/v0.2.0-rc1)
-## Changes
 - Updated to Typst `0.13.0-rc1`
 - Added `--[no-]use-embedded-fonts`
 - Renamed `--ignore-system-fonts` to `--no-use-system-fonts`
@@ -23,6 +15,7 @@
 - Added `tool.tytanic.tests` manifest config option for configuring the unit test root
 - Added `tool.tytanic.default` manifest config section for configuring defaults, contains options for `ppi`, `dir`, `max-deviations` and `max-delta`.
 - Added `ppi`, `dir`, `max-deviations` and `max-delta` annotations.
+- Raw patterns in test set expressions no longer parse `,`, `(` or `)`
 
 ## Fixes
 - Don't remove references of persistent tests on `tt util clean`
