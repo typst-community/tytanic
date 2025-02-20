@@ -166,23 +166,17 @@ fn main_impl() -> eyre::Result<ExitCode> {
                 break 'err cli::EXIT_OK;
             }
 
+            writeln!(ctx.ui.error()?, "{err:?}")?;
+            let mut w = ctx.ui.hint()?;
             writeln!(
-                ctx.ui.error()?,
-                "tytanic ran into an unexpected error, this is most likely a bug"
+                w,
+                "Tytanic ran into an unexpected error, this is most likely a bug"
             )?;
             writeln!(
-                ctx.ui.hint()?,
-                "Please consider reporting this at {}/issues/new",
+                w,
+                "Please consider reporting this at {}/issues/new?template=bug_report.md",
                 std::env!("CARGO_PKG_REPOSITORY")
             )?;
-
-            if !std::env::var("RUST_BACKTRACE").is_ok_and(|var| var == "full") {
-                writeln!(
-                    ctx.ui.hint()?,
-                    "consider running with the environment variable RUST_BACKTRACE set to 'full' when reporting issues\n",
-                )?;
-            }
-            writeln!(ctx.ui.error()?, "{err:?}")?;
 
             cli::EXIT_OPERATION_FAILURE
         }
