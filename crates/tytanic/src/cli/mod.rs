@@ -8,9 +8,9 @@ use color_eyre::eyre::WrapErr;
 use commands::CompileOptions;
 use termcolor::Color;
 use thiserror::Error;
-use tytanic_core::project::{ConfigError, LoadError, ManifestError, Project, ShallowProject};
+use tytanic_core::project::{ConfigError, ManifestError, Project, ShallowProject};
 use tytanic_core::suite::{Filter, FilterError, FilteredSuite, Suite};
-use tytanic_core::test;
+use tytanic_core::test::{self, ParseIdError};
 use tytanic_core::{doc, dsl};
 use tytanic_filter::{eval, ExpressionFilter};
 
@@ -104,28 +104,7 @@ impl Context<'_> {
             eyre::bail!(OperationFailure);
         };
 
-        match project.load() {
-            Ok(project) => Ok(project),
-            Err(err) => match err {
-                LoadError::Manifest(ManifestError::Parse(error)) => {
-                    writeln!(self.ui.error()?, "Failed to parse manifest:\n{error}")?;
-                    eyre::bail!(OperationFailure);
-                }
-                LoadError::Manifest(ManifestError::Invalid(error)) => {
-                    writeln!(self.ui.error()?, "Failed to validate manifest:\n{error}")?;
-                    eyre::bail!(OperationFailure);
-                }
-                LoadError::Config(ConfigError::Parse(error)) => {
-                    writeln!(self.ui.error()?, "Failed to parse config:\n{error}")?;
-                    eyre::bail!(OperationFailure);
-                }
-                LoadError::Config(ConfigError::Invalid(error)) => {
-                    writeln!(self.ui.error()?, "Failed to validate config:\n{error}")?;
-                    eyre::bail!(OperationFailure);
-                }
-                err => eyre::bail!(err),
-            },
-        }
+        Ok(project.load()?)
     }
 
     /// Create a new filter from given arguments.
@@ -134,21 +113,7 @@ impl Context<'_> {
             Ok(Filter::Explicit(filter.tests.iter().cloned().collect()))
         } else {
             let ctx = dsl::context();
-            let mut set = match ExpressionFilter::new(ctx, &filter.expression) {
-                Ok(set) => set,
-                Err(error) => {
-                    match error {
-                        tytanic_filter::Error::Parse(error) => {
-                            writeln!(self.ui.error()?, "Couldn't parse test set:\n{error}")?;
-                        }
-                        tytanic_filter::Error::Eval(error) => {
-                            writeln!(self.ui.error()?, "Couldn't evaluate test set:\n{error}")?;
-                        }
-                    }
-
-                    eyre::bail!(OperationFailure);
-                }
-            };
+            let mut set = ExpressionFilter::new(ctx, &filter.expression)?;
 
             if filter.skip.get_or_default() {
                 set = set.map(|set| eval::Set::expr_diff(set, dsl::built_in::skip()));
@@ -170,28 +135,13 @@ impl Context<'_> {
             writeln!(self.ui.warn()?, "Suite is empty")?;
         }
 
-        match suite.filter(filter) {
-            Ok(suite) => {
-                if suite.matched().is_empty() {
-                    writeln!(self.ui.warn()?, "Test set matched no tests")?;
-                }
-                Ok(suite)
-            }
-            Err(err) => match err {
-                FilterError::TestSet(err) => eyre::bail!(err),
-                FilterError::Missing(missing) => {
-                    let mut w = self.ui.error()?;
+        let suite = suite.filter(filter)?;
 
-                    for id in missing {
-                        write!(w, "Test ")?;
-                        ui::write_test_id(&mut w, &id)?;
-                        writeln!(w, " not found")?;
-                    }
-
-                    eyre::bail!(OperationFailure);
-                }
-            },
+        if suite.matched().is_empty() {
+            writeln!(self.ui.warn()?, "Test set matched no tests")?;
         }
+
+        Ok(suite)
     }
 
     /// Collect all tests for the given project.
@@ -242,14 +192,28 @@ impl Context<'_> {
             if let Some(doc::LoadError::MissingPages(pages)) = error.downcast_ref() {
                 if pages.is_empty() {
                     writeln!(self.ui.error()?, "References had zero pages")?;
-                    eyre::bail!(OperationFailure);
                 } else {
                     writeln!(
                         self.ui.error()?,
                         "References had missing pages, these pages were found: {pages:?}"
                     )?;
-                    eyre::bail!(OperationFailure);
                 }
+
+                eyre::bail!(OperationFailure);
+            }
+
+            // TODO(tinger): attach test id
+            if let Some(error) = error.downcast_ref::<ParseIdError>() {
+                match error {
+                    ParseIdError::InvalidFragment => {
+                        writeln!(self.ui.error()?, "A test identifier must not contain other characters than non-alphanumeric, hyphens and underscores")?;
+                    }
+                    ParseIdError::Empty => {
+                        writeln!(self.ui.error()?, "A test identifier must not be empty")?;
+                    }
+                }
+
+                eyre::bail!(OperationFailure);
             }
 
             // TODO(tinger): attach test id
@@ -257,8 +221,68 @@ impl Context<'_> {
                 writeln!(self.ui.error()?, "Couldn't parse annotations:\n{error}")?;
                 eyre::bail!(OperationFailure);
             }
+
+            if let Some(error) = error.downcast_ref::<ManifestError>() {
+                match error {
+                    ManifestError::Parse(error) => {
+                        writeln!(self.ui.error()?, "Failed to parse manifest:\n{error}")?;
+                        eyre::bail!(OperationFailure);
+                    }
+                    ManifestError::Invalid(error) => {
+                        writeln!(self.ui.error()?, "Failed to validate manifest:\n{error}")?;
+                        eyre::bail!(OperationFailure);
+                    }
+                    _ => {}
+                }
+            }
+
+            if let Some(error) = error.downcast_ref::<ConfigError>() {
+                match error {
+                    ConfigError::Parse(error) => {
+                        writeln!(self.ui.error()?, "Failed to parse config:\n{error}")?;
+                        eyre::bail!(OperationFailure);
+                    }
+                    ConfigError::Invalid(error) => {
+                        writeln!(self.ui.error()?, "Failed to validate config:\n{error}")?;
+                        eyre::bail!(OperationFailure);
+                    }
+                    _ => {}
+                }
+            }
+
+            if let Some(error) = error.downcast_ref::<tytanic_filter::Error>() {
+                match error {
+                    tytanic_filter::Error::Parse(error) => {
+                        writeln!(self.ui.error()?, "Couldn't parse test set:\n{error}")?;
+                    }
+                    tytanic_filter::Error::Eval(error) => {
+                        writeln!(self.ui.error()?, "Couldn't evaluate test set:\n{error}")?;
+                    }
+                }
+
+                eyre::bail!(OperationFailure);
+            }
+
+            if let Some(error) = error.downcast_ref::<FilterError>() {
+                match error {
+                    FilterError::TestSet(error) => {
+                        writeln!(self.ui.error()?, "Couldn't evaluate test set:\n{error}")?;
+                    }
+                    FilterError::Missing(missing) => {
+                        let mut w = self.ui.error()?;
+
+                        for id in missing {
+                            write!(w, "Test ")?;
+                            ui::write_test_id(&mut w, id)?;
+                            writeln!(w, " not found")?;
+                        }
+                    }
+                }
+
+                eyre::bail!(OperationFailure);
+            }
         }
 
-        Ok(())
+        eyre::bail!(error);
     }
 }
