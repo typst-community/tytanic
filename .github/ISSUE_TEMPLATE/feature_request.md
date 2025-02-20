@@ -1,6 +1,6 @@
 ---
-name: Feature request
-about: Request a feature or change in behavior
+name: Proposal or feature request
+about: Propose new a feature or change in behavior
 title: 'FR: '
 labels:
   - 'C-feature'
@@ -11,9 +11,6 @@ labels:
   Thank you for your feature request! Please describe your request here.
 
   Feel free to remove any of the sections below if they don't seem useful.
-
-  For questions, please use the Tytanic thread in the Universe channel on the
-  Typst community discord: https://discord.gg/2uDybryKPe
 -->
 
 ## Description
