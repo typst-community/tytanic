@@ -11,9 +11,6 @@ Out of the box `tytanic` supports the following features:
 
 [![An asciicast showing tytanic running the full cetz test suite.][demo-thumb]][demo]
 
-## Stability & Typst version
-`tytanic` currently targets Typst `0.12.0` only, the CLI will remain stable across patch versions, but may change across.
-
 ## Documentation
 To see how to get started with `tytanic`, check out the [book].
 

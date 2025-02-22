@@ -7,10 +7,19 @@
 
 ---
 
+# [v0.2.1](https://github.com/tingerrr/tytanic/releases/tags/v0.2.1)
+## Fixes
+- Do not ignore critical error paths
+
+---
+
 # [v0.2.0](https://github.com/tingerrr/tytanic/releases/tags/v0.2.0)
 ## Highlights
 This release bumps Typst to `0.13.0` and brings plenty of improvements like annotations and config options for various export and comparison settings.
 Among other things this release focuses on improved reproducibility by no longer reading system fonts by default.
+
+> [!important]
+> This release was yanked, see v0.2.1.
 
 ## Changes
 - Updated to Typst `0.13.0`
