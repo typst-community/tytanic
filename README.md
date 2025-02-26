@@ -20,8 +20,8 @@ To see how to get started with `tytanic`, check out the [book].
 ## Changelog
 The changelog can be found [here][changelog].
 
-[contrib]: ./CONTRIBUTING.md
-[changelog]: ./CHANGELOG.md
+[contrib]: ./docs/CONTRIBUTING.md
+[changelog]: ./docs/CHANGELOG.md
 
 [workaround]: https://tingerrr.github.io/tytanic/guides/watching.html
 [Typst]: https://typst.app
