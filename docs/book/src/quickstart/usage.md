@@ -34,4 +34,4 @@ entrypoint = "src/lib.typ"
 Once you have a project root to work with you can run various commands like `tt new` or `tt run`.
 Check out the [tests guide][guide] to find out how you can test your code.
 
-[guide]: ./guides/tests.md
+[guide]: ../guides/tests.md
