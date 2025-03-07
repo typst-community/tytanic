@@ -414,7 +414,7 @@ impl<'id> Iterator for Components<'id> {
     }
 }
 
-impl<'id> DoubleEndedIterator for Components<'id> {
+impl DoubleEndedIterator for Components<'_> {
     fn next_back(&mut self) -> Option<Self::Item> {
         if self.rest.is_empty() {
             return None;

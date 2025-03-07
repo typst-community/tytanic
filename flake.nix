@@ -13,7 +13,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     rust-manifest = {
-      url = "https://static.rust-lang.org/dist/channel-rust-1.80.toml";
+      url = "https://static.rust-lang.org/dist/channel-rust-1.84.toml";
       flake = false;
     };
   };
