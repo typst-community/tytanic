@@ -3,6 +3,7 @@
 
 ## Changes
 - Update MSRV to `1.84`
+- Update dependencies
 
 ## Fixes
 
