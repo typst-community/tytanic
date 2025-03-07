@@ -4,6 +4,7 @@
 ## Changes
 - Update MSRV to `1.84`
 - Update dependencies
+- Update Typst to `0.13.1`
 
 ## Fixes
 
