@@ -66,7 +66,7 @@ jobs:
       run: |
         directory=tytanic-${{ matrix.target }}
         mkdir $directory
-        cp README.md CHANGELOG.md LICENSE $directory
+        cp README.md docs/CHANGELOG.md LICENSE $directory
         if [ -f target/${{ matrix.target }}/release/tt.exe ]; then
           cp target/${{ matrix.target }}/release/tt.exe $directory
           7z a -r $directory.zip $directory

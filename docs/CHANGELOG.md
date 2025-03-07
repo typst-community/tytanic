@@ -2,11 +2,16 @@
 ## Highlights
 
 ## Changes
+
+## Fixes
+
+---
+
+# [v0.2.2](https://github.com/tingerrr/tytanic/releases/tag/v0.2.2)
+## Changes
 - Update MSRV to `1.84`
 - Update dependencies
 - Update Typst to `0.13.1`
-
-## Fixes
 
 ---
 
