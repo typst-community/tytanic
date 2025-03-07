@@ -28,7 +28,7 @@ pub const PAGE_EXTENSION: &str = "png";
 /// A document that was rendered from an in-memory compilation, or loaded from disk.
 #[derive(Debug, Clone)]
 pub struct Document {
-    doc: Option<PagedDocument>,
+    doc: Option<Box<PagedDocument>>,
     buffers: EcoVec<Pixmap>,
 }
 
@@ -57,7 +57,9 @@ impl Document {
     }
 
     /// Creates a new rendered document from a compiled one.
-    pub fn render(doc: PagedDocument, pixel_per_pt: f32) -> Self {
+    pub fn render<D: Into<Box<PagedDocument>>>(doc: D, pixel_per_pt: f32) -> Self {
+        let doc = doc.into();
+
         let buffers = doc
             .pages
             .iter()
@@ -186,7 +188,7 @@ impl Document {
 impl Document {
     /// The inner document if this was created from an in-memory compilation.
     pub fn doc(&self) -> Option<&PagedDocument> {
-        self.doc.as_ref()
+        self.doc.as_deref()
     }
 
     /// The pixel buffers of the rendered pages in this document.
