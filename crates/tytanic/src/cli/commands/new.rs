@@ -96,16 +96,14 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
                 .strip_prefix(project.root())
                 .expect("template is in project root");
 
-            // NOTE(tinger): We don't pass the package spec here because this is
-            // this is not a template test, this shouldn't access the current
-            // package.
             let Warned { output, warnings } = Document::compile(
                 Source::new(FileId::new(None, VirtualPath::new(path)), source.into()),
                 &world,
-                true,
-                None,
                 ppi_to_ppp(args.export.ppi.unwrap_or(project.config().defaults.ppi)),
                 args.compile.warnings.into_native(),
+                // NOTE(tinger): We only use augmentation here because package
+                // rerouting should not happen for unit tests.
+                |w| w.augment_standard_library(true),
             );
 
             let doc = match output {

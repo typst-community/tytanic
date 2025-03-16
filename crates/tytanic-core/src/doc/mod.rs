@@ -6,13 +6,12 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::{fs, io, iter};
 
-use compile::Warnings;
+use compile::{TestWorldAdapter, Warnings};
 use ecow::EcoVec;
 use thiserror::Error;
 use tiny_skia::Pixmap;
 use typst::diag::Warned;
 use typst::layout::PagedDocument;
-use typst::syntax::package::PackageSpec;
 use typst::syntax::Source;
 use typst::World;
 
@@ -43,16 +42,17 @@ impl Document {
     }
 
     /// Compiles and renders a new document from the given source.
-    pub fn compile(
+    pub fn compile<'w, F>(
         source: Source,
-        world: &dyn World,
-        augment: bool,
-        package: Option<&PackageSpec>,
+        world: &'w dyn World,
         pixel_per_pt: f32,
         warnings: Warnings,
-    ) -> Warned<Result<Self, compile::Error>> {
-        let Warned { output, warnings } =
-            compile::compile(source, world, augment, package, warnings);
+        f: F,
+    ) -> Warned<Result<Self, compile::Error>>
+    where
+        F: for<'a> FnOnce(&'a mut TestWorldAdapter<'w>) -> &'a mut TestWorldAdapter<'w>,
+    {
+        let Warned { output, warnings } = compile::compile(source, world, warnings, f);
 
         Warned {
             output: output.map(|doc| Self::render(doc, pixel_per_pt)),

@@ -124,9 +124,11 @@ mod tests {
         "#,
         );
 
-        compile::compile(source, &world, true, None, Warnings::Emit)
-            .output
-            .unwrap();
+        compile::compile(source, &world, Warnings::Emit, |w| {
+            w.augment_standard_library(true)
+        })
+        .output
+        .unwrap();
     }
 
     #[test]
@@ -140,8 +142,10 @@ mod tests {
         "#,
         );
 
-        compile::compile(source, &world, true, None, Warnings::Emit)
-            .output
-            .unwrap();
+        compile::compile(source, &world, Warnings::Emit, |w| {
+            w.augment_standard_library(true)
+        })
+        .output
+        .unwrap();
     }
 }
