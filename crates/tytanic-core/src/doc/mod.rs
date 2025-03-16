@@ -45,10 +45,11 @@ impl Document {
     pub fn compile(
         source: Source,
         world: &dyn World,
+        augment: bool,
         pixel_per_pt: f32,
         warnings: Warnings,
     ) -> Warned<Result<Self, compile::Error>> {
-        let Warned { output, warnings } = compile::compile(source, world, warnings);
+        let Warned { output, warnings } = compile::compile(source, world, augment, warnings);
 
         Warned {
             output: output.map(|doc| Self::render(doc, pixel_per_pt)),

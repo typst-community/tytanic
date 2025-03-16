@@ -20,7 +20,6 @@ use typst::{Library, World};
 use typst_kit::download::ProgressSink;
 use typst_kit::fonts::{FontSlot, Fonts};
 use typst_kit::package::PackageStorage;
-use tytanic_core::library::augmented_default_library;
 
 /// A world that provides access to the operating system.
 pub struct SystemWorld {
@@ -53,7 +52,7 @@ impl SystemWorld {
         Ok(Self {
             workdir: std::env::current_dir().ok(),
             root,
-            library: LazyHash::new(augmented_default_library()),
+            library: LazyHash::default(),
             book: LazyHash::new(fonts.book),
             fonts: fonts.fonts,
             slots: Mutex::new(HashMap::new()),

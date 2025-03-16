@@ -383,6 +383,7 @@ impl TestRunner<'_, '_, '_> {
         let Warned { output, warnings } = compile::compile(
             source,
             self.project_runner.world,
+            true,
             self.project_runner.config.warnings,
         );
 

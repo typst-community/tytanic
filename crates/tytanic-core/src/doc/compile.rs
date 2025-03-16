@@ -1,6 +1,7 @@
 //! Test document compilation and diagnostics handling.
 
 use std::fmt::Debug;
+use std::sync::LazyLock;
 
 use ecow::{eco_vec, EcoVec};
 use thiserror::Error;
@@ -12,6 +13,11 @@ use typst::text::{Font, FontBook};
 use typst::utils::LazyHash;
 use typst::{Library, World};
 use tytanic_utils::fmt::Term;
+
+use crate::library::augmented_default_library;
+
+static AUGMENTED_LIBRARY: LazyLock<LazyHash<Library>> =
+    LazyLock::new(|| LazyHash::new(augmented_default_library()));
 
 /// How to handle warnings during compilation.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -37,16 +43,22 @@ pub struct Error(pub EcoVec<SourceDiagnostic>);
 pub fn compile(
     source: Source,
     world: &dyn World,
+    augment: bool,
     warnings: Warnings,
 ) -> Warned<Result<PagedDocument, Error>> {
     struct TestWorldAdapter<'s, 'w> {
         source: &'s Source,
         global: &'w dyn World,
+        augment: bool,
     }
 
     impl World for TestWorldAdapter<'_, '_> {
         fn library(&self) -> &LazyHash<Library> {
-            self.global.library()
+            if self.augment {
+                &AUGMENTED_LIBRARY
+            } else {
+                self.global.library()
+            }
         }
 
         fn book(&self) -> &LazyHash<FontBook> {
@@ -84,6 +96,7 @@ pub fn compile(
     } = typst::compile(&TestWorldAdapter {
         source: &source,
         global: world,
+        augment,
     });
 
     match warnings {
@@ -139,7 +152,7 @@ mod tests {
         let world = VirtualWorld::default();
         let source = Source::detached(TEST_PASS);
 
-        let Warned { output, warnings } = compile(source, &world, Warnings::Ignore);
+        let Warned { output, warnings } = compile(source, &world, false, Warnings::Ignore);
         assert!(output.is_ok());
         assert!(warnings.is_empty());
     }
@@ -149,7 +162,7 @@ mod tests {
         let world = VirtualWorld::default();
         let source = Source::detached(TEST_PASS);
 
-        let Warned { output, warnings } = compile(source, &world, Warnings::Emit);
+        let Warned { output, warnings } = compile(source, &world, false, Warnings::Emit);
         assert!(output.is_ok());
         assert!(warnings.is_empty());
     }
@@ -159,7 +172,7 @@ mod tests {
         let world = VirtualWorld::default();
         let source = Source::detached(TEST_PASS);
 
-        let Warned { output, warnings } = compile(source, &world, Warnings::Promote);
+        let Warned { output, warnings } = compile(source, &world, false, Warnings::Promote);
         assert!(output.is_ok());
         assert!(warnings.is_empty());
     }
@@ -169,7 +182,7 @@ mod tests {
         let world = VirtualWorld::default();
         let source = Source::detached(TEST_WARN);
 
-        let Warned { output, warnings } = compile(source, &world, Warnings::Ignore);
+        let Warned { output, warnings } = compile(source, &world, false, Warnings::Ignore);
         assert!(output.is_ok());
         assert!(warnings.is_empty());
     }
@@ -179,7 +192,7 @@ mod tests {
         let world = VirtualWorld::default();
         let source = Source::detached(TEST_WARN);
 
-        let Warned { output, warnings } = compile(source, &world, Warnings::Emit);
+        let Warned { output, warnings } = compile(source, &world, false, Warnings::Emit);
         assert!(output.is_ok());
         assert_eq!(warnings.len(), 1);
     }
@@ -189,7 +202,7 @@ mod tests {
         let world = VirtualWorld::default();
         let source = Source::detached(TEST_WARN);
 
-        let Warned { output, warnings } = compile(source, &world, Warnings::Promote);
+        let Warned { output, warnings } = compile(source, &world, false, Warnings::Promote);
         assert_eq!(output.unwrap_err().0.len(), 1);
         assert!(warnings.is_empty());
     }
@@ -199,7 +212,7 @@ mod tests {
         let world = VirtualWorld::default();
         let source = Source::detached(TEST_FAIL);
 
-        let Warned { output, warnings } = compile(source, &world, Warnings::Ignore);
+        let Warned { output, warnings } = compile(source, &world, false, Warnings::Ignore);
         assert_eq!(output.unwrap_err().0.len(), 1);
         assert!(warnings.is_empty());
     }
@@ -209,7 +222,7 @@ mod tests {
         let world = VirtualWorld::default();
         let source = Source::detached(TEST_FAIL);
 
-        let Warned { output, warnings } = compile(source, &world, Warnings::Emit);
+        let Warned { output, warnings } = compile(source, &world, false, Warnings::Emit);
         assert_eq!(output.unwrap_err().0.len(), 1);
         assert_eq!(warnings.len(), 1);
     }
@@ -219,7 +232,7 @@ mod tests {
         let world = VirtualWorld::default();
         let source = Source::detached(TEST_FAIL);
 
-        let Warned { output, warnings } = compile(source, &world, Warnings::Promote);
+        let Warned { output, warnings } = compile(source, &world, false, Warnings::Promote);
         assert_eq!(output.unwrap_err().0.len(), 2);
         assert!(warnings.is_empty());
     }
