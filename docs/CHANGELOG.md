@@ -7,6 +7,7 @@
 - Added `template()` test set.
 
 ## Fixes
+- Don't panic when trying to update non-persistent tests
 
 ---
 

@@ -13,6 +13,7 @@ use super::{
 use crate::cli::{OperationFailure, TestFailure, CANCELLED};
 use crate::report::Reporter;
 use crate::runner::{Action, Runner, RunnerConfig};
+use crate::ui;
 
 #[derive(clap::Args, Debug, Clone)]
 #[group(id = "update-args")]
@@ -47,6 +48,27 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
     };
 
     let suite = ctx.collect_tests_with_filter(&project, filter)?;
+
+    let mut illegal_tests = vec![];
+    for test in suite.matched() {
+        if !test
+            .as_unit_test()
+            .is_some_and(|t| t.kind().is_persistent())
+        {
+            illegal_tests.push(test);
+        }
+    }
+
+    if !illegal_tests.is_empty() {
+        let mut w = ctx.ui.error()?;
+        writeln!(w, "Cannot update tests:")?;
+        for test in illegal_tests {
+            ui::write_test_id(&mut w, test.id())?;
+            writeln!(w)?;
+        }
+        eyre::bail!(OperationFailure);
+    }
+
     let world = ctx.world(&args.compile)?;
 
     let origin = match args
