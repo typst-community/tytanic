@@ -2,8 +2,7 @@
 //! fields for test templates, custom test set bindings and other information
 //! necessary for managing, filtering and running tests.
 
-use std::collections::btree_map;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{btree_map, BTreeMap, BTreeSet};
 use std::path::Path;
 use std::time::{Duration, Instant};
 use std::{fs, io};
@@ -38,8 +37,6 @@ impl Suite {
     /// Recursively collects entries in the given directory.
     #[tracing::instrument(skip_all)]
     pub fn collect(project: &Project) -> Result<Self, Error> {
-        let root = project.unit_tests_root();
-
         let mut this = Self::new();
 
         if let Some(test) = TemplateTest::load(project) {
@@ -47,6 +44,7 @@ impl Suite {
             this.tests.insert(test.id().clone(), Test::Template(test));
         }
 
+        let root = project.unit_tests_root();
         let Some(read_dir) = root.read_dir().ignore(io_not_found)? else {
             tracing::debug!(?root, "test root not found, ignoring");
             return Ok(this);
@@ -81,7 +79,7 @@ impl Suite {
 
         for id in all.intersection(&without_leafs) {
             if let Some((id, test)) = this.tests.remove_entry(id.as_str()) {
-                this.tests.insert(id, test);
+                this.nested.insert(id, test);
             }
         }
 
@@ -571,6 +569,28 @@ mod tests {
                     assert_eq!(test.annotations(), &annotations[..]);
                     assert_eq!(test.kind(), kind);
                 }
+            },
+        );
+    }
+
+    #[test]
+    fn test_collect_nested() {
+        TempTestEnv::run_no_check(
+            |root| {
+                root.setup_file("tests/foo/test.typ", "Hello World")
+                    .setup_file("tests/foo/bar/test.typ", "Hello World")
+                    .setup_file("tests/qux/test.typ", "Hello World")
+                    .setup_file("tests/qux/quux/quz/test.typ", "Hello World")
+            },
+            |root| {
+                let project = Project::new(root);
+                let suite = Suite::collect(&project).unwrap();
+
+                assert!(suite.nested.contains_key("foo"));
+                assert!(suite.nested.contains_key("qux"));
+
+                assert!(suite.tests.contains_key("foo/bar"));
+                assert!(suite.tests.contains_key("qux/quux/quz"));
             },
         );
     }

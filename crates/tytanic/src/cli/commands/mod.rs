@@ -341,7 +341,7 @@ pub struct FilterOptions {
     #[allow(rustdoc::bare_urls)]
     /// A test set expression for filtering tests
     ///
-    /// See the language reference and guide a
+    /// See the language reference and guide at
     /// https://tingerrr.github.io/tytanic/index.html
     /// for more info.
     #[arg(short, long, default_value = "all()", value_name = "EXPR")]
