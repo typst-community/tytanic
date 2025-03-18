@@ -11,7 +11,6 @@ use std::{fs, io};
 use thiserror::Error;
 use tytanic_filter::{eval, ExpressionFilter};
 use tytanic_utils::fmt::Term;
-use tytanic_utils::result::{io_not_found, ResultEx};
 use uuid::Uuid;
 
 use crate::project::Project;
@@ -46,23 +45,26 @@ impl Suite {
             this.tests.insert(test.id().clone(), Test::Template(test));
         }
 
-        let Some(read_dir) = root.read_dir().ignore(io_not_found)? else {
-            tracing::warn!(?root, "unit tests root not found");
-            return Ok(this);
-        };
+        match root.read_dir() {
+            Ok(read_dir) => {
+                tracing::debug!("collecting from test root directory");
+                for entry in read_dir {
+                    let entry = entry?;
 
-        tracing::debug!("collecting from test root directory");
-        for entry in read_dir {
-            let entry = entry?;
+                    if entry.metadata()?.is_dir() {
+                        let abs = entry.path();
+                        let rel = abs
+                            .strip_prefix(project.unit_tests_root())
+                            .expect("entry must be in full");
 
-            if entry.metadata()?.is_dir() {
-                let abs = entry.path();
-                let rel = abs
-                    .strip_prefix(project.unit_tests_root())
-                    .expect("entry must be in full");
-
-                this.collect_dir(project, rel)?;
+                        this.collect_dir(project, rel)?;
+                    }
+                }
             }
+            Err(err) if err.kind() == io::ErrorKind::NotFound => {
+                tracing::debug!("test suite empty");
+            }
+            Err(err) => return Err(err.into()),
         }
 
         let without_leafs: BTreeSet<_> = this
