@@ -36,7 +36,7 @@ impl Suite {
     }
 
     /// Recursively collects entries in the given directory.
-    #[tracing::instrument(skip_all)]
+    #[tracing::instrument(skip(project), fields(test_root = ?project.unit_tests_root()))]
     pub fn collect(project: &Project) -> Result<Self, Error> {
         let root = project.unit_tests_root();
 
@@ -84,10 +84,6 @@ impl Suite {
             }
         }
 
-        if !this.nested.is_empty() {
-            tracing::warn!("found {} nested tests", this.nested.len());
-        }
-
         Ok(this)
     }
 
@@ -95,15 +91,15 @@ impl Suite {
     fn collect_dir(&mut self, project: &Project, dir: &Path) -> Result<(), Error> {
         let abs = project.unit_tests_root().join(dir);
 
+        tracing::trace!(?dir, "collecting directory");
+
         let id = Id::new_from_path(dir)?;
 
-        tracing::trace!(?dir, "checking for test");
         if let Some(test) = UnitTest::load(project, id.clone())? {
             tracing::debug!(id = %test.id(), "collected test");
             self.tests.insert(id, Test::Unit(test));
         }
 
-        tracing::trace!(?dir, "collecting sub directories");
         for entry in fs::read_dir(&abs)? {
             let entry = entry?;
 
@@ -113,6 +109,7 @@ impl Suite {
                     .strip_prefix(project.unit_tests_root())
                     .expect("entry must be in full");
 
+                tracing::trace!(path = ?rel, "reading directory entry");
                 self.collect_dir(project, rel)?;
             }
         }
@@ -174,11 +171,6 @@ impl Suite {
 impl Suite {
     /// Apply a filter to a suite.
     pub fn filter(self, filter: Filter) -> Result<FilteredSuite, FilterError> {
-        tracing::warn!(
-            "ignoring {} nested tests while filtering",
-            self.nested.len()
-        );
-
         let mut filtered = Suite::new();
         let mut matched = Suite::new();
 
