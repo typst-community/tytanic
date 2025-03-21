@@ -13,6 +13,7 @@
 
 ## Fixes
 - Don't panic when trying to update non-persistent tests
+- Don't report old version of typst in `util about`
 
 ---
 
