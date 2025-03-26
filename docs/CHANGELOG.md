@@ -5,6 +5,9 @@
 - Added template tests.
 - Added `unit()` test set.
 - Added `template()` test set.
+- Added absolute paths to unit tests in `--json` outout
+- Added `template_test` to `status --json`
+- Removed `is_template` form `status --json`
 
 ## Fixes
 - Don't panic when trying to update non-persistent tests

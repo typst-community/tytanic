@@ -1,5 +1,7 @@
 //! Common report PODs for stable JSON representation of internal entities.
 
+use std::path::PathBuf;
+
 use serde::Serialize;
 use typst_syntax::package::{PackageManifest, PackageVersion};
 use tytanic_core::project::Project;
@@ -12,7 +14,7 @@ pub struct ProjectJson<'m, 's> {
     pub package: Option<PackageJson<'m>>,
     pub vcs: Option<String>,
     pub tests: Vec<UnitTestJson<'s>>,
-    pub is_template: bool,
+    pub template_test: Option<TemplateTestJson<'s>>,
 }
 
 impl<'m, 's> ProjectJson<'m, 's> {
@@ -23,8 +25,13 @@ impl<'m, 's> ProjectJson<'m, 's> {
                 version: &m.package.version,
             }),
             vcs: project.vcs().map(|vcs| vcs.to_string()),
-            tests: suite.unit_tests().map(UnitTestJson::new).collect(),
-            is_template: manifest.and_then(|m| m.template.as_ref()).is_some(),
+            tests: suite
+                .unit_tests()
+                .map(|test| UnitTestJson::new(project, test))
+                .collect(),
+            template_test: suite
+                .template_test()
+                .map(|test| TemplateTestJson::new(project, test)),
         }
     }
 }
@@ -46,10 +53,10 @@ pub enum TestJson<'t> {
 }
 
 impl<'t> TestJson<'t> {
-    pub fn new(test: &'t Test) -> Self {
+    pub fn new(project: &Project, test: &'t Test) -> Self {
         match test {
-            Test::Unit(test) => Self::Unit(UnitTestJson::new(test)),
-            Test::Template(test) => Self::Template(TemplateTestJson::new(test)),
+            Test::Unit(test) => Self::Unit(UnitTestJson::new(project, test)),
+            Test::Template(test) => Self::Template(TemplateTestJson::new(project, test)),
         }
     }
 }
@@ -59,14 +66,16 @@ pub struct UnitTestJson<'t> {
     pub id: &'t str,
     pub kind: &'static str,
     pub is_skip: bool,
+    pub path: PathBuf,
 }
 
 impl<'t> UnitTestJson<'t> {
-    pub fn new(test: &'t UnitTest) -> Self {
+    pub fn new(project: &Project, test: &'t UnitTest) -> Self {
         Self {
             id: test.id().as_str(),
             kind: test.kind().as_str(),
             is_skip: test.is_skip(),
+            path: project.unit_test_dir(test.id()),
         }
     }
 }
@@ -74,12 +83,14 @@ impl<'t> UnitTestJson<'t> {
 #[derive(Debug, Serialize)]
 pub struct TemplateTestJson<'t> {
     pub id: &'t str,
+    pub path: PathBuf,
 }
 
 impl<'t> TemplateTestJson<'t> {
-    pub fn new(test: &'t TemplateTest) -> Self {
+    pub fn new(project: &Project, test: &'t TemplateTest) -> Self {
         Self {
             id: test.id().as_str(),
+            path: project.template_root().unwrap(),
         }
     }
 }
