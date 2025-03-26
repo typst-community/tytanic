@@ -8,6 +8,8 @@
 - Added absolute paths to unit tests in `--json` outout
 - Added `template_test` to `status --json`
 - Removed `is_template` form `status --json`
+- `update` no longer updates all matching test, but only those which fail
+- Added `--force` flag to `update` to foce updating all matching tests
 
 ## Fixes
 - Don't panic when trying to update non-persistent tests

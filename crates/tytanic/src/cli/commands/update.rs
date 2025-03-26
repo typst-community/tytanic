@@ -1,14 +1,15 @@
 use std::io::Write;
 
 use color_eyre::eyre;
+use tytanic_core::doc::compare::Strategy;
 use tytanic_core::doc::render::{self, Origin};
 use tytanic_core::suite::Filter;
 use tytanic_core::{dsl, Id};
 use tytanic_filter::eval;
 
 use super::{
-    CompileOptions, Context, Direction, ExportOptions, FilterOptions, OptionDelegate,
-    RunnerOptions, Switch,
+    CompareOptions, CompileOptions, Context, Direction, ExportOptions, FilterOptions,
+    OptionDelegate, RunnerOptions, Switch,
 };
 use crate::cli::{OperationFailure, TestFailure, CANCELLED};
 use crate::report::Reporter;
@@ -22,6 +23,9 @@ pub struct Args {
     pub compile: CompileOptions,
 
     #[command(flatten)]
+    pub compare: CompareOptions,
+
+    #[command(flatten)]
     pub export: ExportOptions,
 
     #[command(flatten)]
@@ -29,6 +33,10 @@ pub struct Args {
 
     #[command(flatten)]
     pub filter: FilterOptions,
+
+    /// Update all included tests, even if they didn't fail
+    #[arg(long)]
+    pub force: bool,
 }
 
 pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
@@ -83,6 +91,16 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
 
     let pixel_per_pt = render::ppi_to_ppp(args.export.ppi.unwrap_or(project.config().defaults.ppi));
 
+    let max_delta = args
+        .compare
+        .max_delta
+        .unwrap_or(project.config().defaults.max_delta);
+
+    let max_deviation = args
+        .compare
+        .max_deviations
+        .unwrap_or(project.config().defaults.max_deviations);
+
     let runner = Runner::new(
         &project,
         &suite,
@@ -93,7 +111,16 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
             fail_fast: args.runner.fail_fast.get_or_default(),
             pixel_per_pt,
             action: Action::Update {
+                strategy: args
+                    .compare
+                    .compare
+                    .get_or_default()
+                    .then_some(Strategy::Simple {
+                        max_delta,
+                        max_deviation,
+                    }),
                 export_ephemeral: args.export.export_ephemeral.get_or_default(),
+                force: args.force,
                 origin,
             },
             cancellation: &CANCELLED,
