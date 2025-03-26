@@ -37,8 +37,14 @@ pub enum Action {
 
     /// Compile and update test references.
     Update {
+        /// The strategy to use when comparing documents.
+        strategy: Option<Strategy>,
+
         /// Whether to export ephemeral output.
         export_ephemeral: bool,
+
+        /// Whether to update passing tests.
+        force: bool,
 
         /// The origin at which to render diff images of different dimensions.
         origin: Origin,
@@ -218,7 +224,9 @@ impl UnitTestRunner<'_, '_, '_> {
                 }
             }
             Action::Update {
+                strategy,
                 export_ephemeral: export,
+                force,
                 origin,
             } => match self.test.kind() {
                 Kind::Ephemeral => eyre::bail!("attempted to update ephemeral test"),
@@ -227,16 +235,24 @@ impl UnitTestRunner<'_, '_, '_> {
                     let output = self.compile_out_doc(output)?;
                     let output = self.render_out_doc(output)?;
 
-                    self.test.create_reference_document(
-                        self.project_runner.project,
-                        &output,
-                        self.project_runner
-                            .config
-                            .optimize
-                            .then_some(&*DEFAULT_OPTIMIZE_OPTIONS),
-                    )?;
+                    let needs_update = force || {
+                        let reference = self.load_ref_doc()?;
+                        let strategy = strategy.unwrap_or_default();
+                        self.compare(&output, &reference, strategy).is_err()
+                    };
 
-                    self.result.set_updated(self.project_runner.config.optimize);
+                    if needs_update {
+                        self.test.create_reference_document(
+                            self.project_runner.project,
+                            &output,
+                            self.project_runner
+                                .config
+                                .optimize
+                                .then_some(&*DEFAULT_OPTIMIZE_OPTIONS),
+                        )?;
+
+                        self.result.set_updated(self.project_runner.config.optimize);
+                    }
 
                     if export {
                         let reference = self.load_ref_doc()?;
