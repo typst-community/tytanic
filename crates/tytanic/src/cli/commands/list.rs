@@ -30,7 +30,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
             &suite
                 .matched()
                 .tests()
-                .map(TestJson::new)
+                .map(|test| TestJson::new(&project, test))
                 .collect::<Vec<_>>(),
         )?;
 
