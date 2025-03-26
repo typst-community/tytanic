@@ -221,15 +221,7 @@ impl UnitTestRunner<'_, '_, '_> {
                 export_ephemeral: export,
                 origin,
             } => match self.test.kind() {
-                Kind::Ephemeral => {
-                    let output = self.load_out_src()?;
-                    let output = self.compile_out_doc(output)?;
-                    let output = self.render_out_doc(output)?;
-
-                    if export {
-                        self.export_out_doc(&output)?;
-                    }
-                }
+                Kind::Ephemeral => eyre::bail!("attempted to update ephemeral test"),
                 Kind::Persistent => {
                     let output = self.load_out_src()?;
                     let output = self.compile_out_doc(output)?;
