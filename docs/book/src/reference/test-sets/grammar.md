@@ -6,7 +6,7 @@ It supports
 - groups for precedence (`(...)`),
 - binary and unary operators (`and`, `not`, `!`, etc.),
 - functions (`func(a, b, c)`),
-- patterns (`r:^foo`),
+- patterns (`r:^foo`, `r:"foo,?"`),
 - and basic data types like strings (`"..."`, `'...'`) and numbers (`1`, `1_000`).
 
 # Operators
