@@ -15,6 +15,7 @@
 - Unhid non-default switches on short help
 - Added `--include-persistent-references` to `util clean` sub command
 - Added filter options to `util clean` sub command
+- Added support for delimiters in testset raw patterns
 
 ## Fixes
 - Don't panic when trying to update non-persistent tests

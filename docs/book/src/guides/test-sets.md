@@ -113,12 +113,10 @@ If you update or remove tests and the test set evaluates to more than one test, 
 ## Patterns
 Note that patterns come in two forms:
 - raw patterns: They are provided for convenience, they have been used in the examples above and are simply the pattern kind followed by a colon and any non-whitespace characters.
-- string patterns: A generalization which allows for whitespace and usage in nested expressions.
+- string patterns: A generalization which allows for whitespace and other ambiguous cases.
 
 This distinction is useful for scripting and some interactive use cases.
-For example, a raw pattern would not parse parenthesis (requried for capture groups in regex patterns).
-This means that `(... | regex:foo(-\w+)+) & ...` would stop parsing after `foo` and fail.
-String patterns have delimiters with which this can be avoided: `(... | regex:"foo(-\w+)+") & ...` will correctly parse the whole pattern.
+String patterns have delimiters with which any ambiguties can be avoided, but they require more careful consideration of shell interpolation rules.
 
 ## Scripting
 If you build up test set expressions programmatically, consider taking a look at the built-in test set functions.
