@@ -39,7 +39,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 ```
 
 This adds a single step to our job (called `tests`), which checks out the repository, making it available for the following steps.
@@ -57,7 +57,7 @@ steps:
       version: 1.0
 
   - name: Install tytanic from crates.io
-    uses: baptiste0928/cargo-install@v3.0.0
+    uses: baptiste0928/cargo-install@v3.3.0
     with:
       crate: tytanic
       version: '0.2.1'
@@ -114,7 +114,7 @@ And that's it, you can add this file to your repo, push it to a branch and open 
 >     runs-on: ubuntu-latest
 >     steps:
 >       - name: Checkout
->         uses: actions/checkout@v3
+>         uses: actions/checkout@v4
 >
 >       - name: Probe runner package cache
 >         uses: awalsh128/cache-apt-pkgs-action@latest
@@ -123,7 +123,7 @@ And that's it, you can add this file to your repo, push it to a branch and open 
 >           version: 1.0
 >
 >       - name: Install tytanic from crates.io
->         uses: baptiste0928/cargo-install@v3.0.0
+>         uses: baptiste0928/cargo-install@v3.3.0
 >         with:
 >           crate: tytanic
 >           version: '0.2.1'

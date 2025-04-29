@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Probe runner package cache
         uses: awalsh128/cache-apt-pkgs-action@latest
@@ -24,7 +24,7 @@ jobs:
           version: 1.0
 
       - name: Install tytanic from crates.io
-        uses: baptiste0928/cargo-install@v2.2.0
+        uses: baptiste0928/cargo-install@v3.3.0
         with:
           crate: tytanic
           version: 0.2.3
