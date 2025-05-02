@@ -24,30 +24,12 @@ use crate::DEFAULT_OPTIMIZE_OPTIONS;
 #[derive(Debug, Clone)]
 pub enum Action {
     /// Compile and optionally compare tests.
-    Run {
-        /// The strategy to use when comparing documents.
-        strategy: Option<Strategy>,
-
-        /// Whether to export ephemeral output.
-        export_ephemeral: bool,
-
-        /// The origin at which to render diff images of different dimensions.
-        origin: Origin,
-    },
+    Run,
 
     /// Compile and update test references.
     Update {
-        /// The strategy to use when comparing documents.
-        strategy: Option<Strategy>,
-
-        /// Whether to export ephemeral output.
-        export_ephemeral: bool,
-
         /// Whether to update passing tests.
         force: bool,
-
-        /// The origin at which to render diff images of different dimensions.
-        origin: Origin,
     },
 }
 
@@ -64,6 +46,15 @@ pub struct RunnerConfig<'c> {
 
     /// The pixel-per-pt to use when rendering documents.
     pub pixel_per_pt: f32,
+
+    /// The strategy to use when comparing documents.
+    pub strategy: Option<Strategy>,
+
+    /// Whether to export ephemeral output.
+    pub export_ephemeral: bool,
+
+    /// The origin at which to render diff images of different dimensions.
+    pub origin: Origin,
 
     /// The action to take for the test.
     pub action: Action,
@@ -168,14 +159,14 @@ pub struct UnitTestRunner<'c, 's, 'p> {
 
 impl UnitTestRunner<'_, '_, '_> {
     fn run_inner(&mut self) -> eyre::Result<()> {
+        let export = self.project_runner.config.export_ephemeral;
+        let strategy = self.project_runner.config.strategy;
+        let origin = self.project_runner.config.origin;
+
         // TODO(tinger): don't exit early if there are still exports possible
 
         match self.project_runner.config.action {
-            Action::Run {
-                strategy,
-                export_ephemeral: export,
-                origin,
-            } => {
+            Action::Run => {
                 let output = self.load_out_src()?;
                 let output = self.compile_out_doc(output)?;
                 let output = self.render_out_doc(output)?;
@@ -223,12 +214,7 @@ impl UnitTestRunner<'_, '_, '_> {
                     Kind::CompileOnly => {}
                 }
             }
-            Action::Update {
-                strategy,
-                export_ephemeral: export,
-                force,
-                origin,
-            } => match self.test.kind() {
+            Action::Update { force } => match self.test.kind() {
                 Kind::Ephemeral => eyre::bail!("attempted to update ephemeral test"),
                 Kind::Persistent => {
                     let output = self.load_out_src()?;
