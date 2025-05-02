@@ -31,6 +31,7 @@ tytanic-utils.workspace = true
 chrono = { workspace = true, features = ["serde"] }
 clap = { workspace = true, features = ["derive", "env", "wrap_help"] }
 clap_complete.workspace = true
+clap_mangen.workspace = true
 codespan-reporting.workspace = true
 color-eyre.workspace = true
 ctrlc.workspace = true

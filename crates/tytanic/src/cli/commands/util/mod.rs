@@ -6,6 +6,7 @@ pub mod about;
 pub mod clean;
 pub mod completion;
 pub mod fonts;
+pub mod manpage;
 pub mod migrate;
 pub mod vcs;
 
@@ -31,6 +32,10 @@ pub enum Command {
     #[command()]
     Completion(completion::Args),
 
+    /// Generate a man page for tytanic
+    #[command()]
+    Manpage(manpage::Args),
+
     /// List all available fonts
     #[command()]
     Fonts(fonts::Args),
@@ -50,6 +55,7 @@ impl Command {
             Command::About => about::run(ctx),
             Command::Clean => clean::run(ctx),
             Command::Completion(args) => completion::run(ctx, args),
+            Command::Manpage(args) => manpage::run(ctx, args),
             Command::Fonts(args) => fonts::run(ctx, args),
             Command::Migrate(args) => migrate::run(ctx, args),
             Command::Vcs(args) => args.cmd.run(ctx),
