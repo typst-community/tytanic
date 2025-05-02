@@ -17,6 +17,8 @@ pub fn run(_ctx: &mut Context, args: &Args) -> eyre::Result<()> {
     let mut cmd = crate::CliArguments::command();
     cmd.set_bin_name(std::env!("CARGO_BIN_NAME"));
 
+    tytanic_utils::fs::create_dir(&args.dir, true)?;
+
     clap_mangen::generate_to(cmd, &args.dir)?;
 
     Ok(())
