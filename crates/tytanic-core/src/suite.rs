@@ -96,6 +96,15 @@ impl Suite {
     fn collect_dir(&mut self, project: &Project, dir: &Path) -> Result<(), Error> {
         let abs = project.unit_tests_root().join(dir);
 
+        if dir
+            .file_name()
+            .and_then(|p| p.to_str())
+            .is_some_and(|p| p.starts_with('.'))
+        {
+            tracing::debug!(?dir, "skipping hidden directory");
+            return Ok(());
+        }
+
         let id = Id::new_from_path(dir)?;
 
         tracing::trace!(?dir, "checking for test");
@@ -519,6 +528,7 @@ mod tests {
             |root| {
                 root
                     // compile only
+                    .setup_file("tests/.hidden/test.typ", "Not loaded")
                     .setup_file("tests/compile-only/test.typ", "Hello World")
                     // regular ephemeral
                     .setup_file("tests/compare/ephemeral/test.typ", "Hello World")
