@@ -275,8 +275,10 @@ impl UnitTestRunner<'_, '_, '_> {
     pub fn prepare(&mut self) -> eyre::Result<()> {
         tracing::trace!(test = ?self.test.id(), "clearing temporary directories");
 
-        self.test
-            .create_temporary_directories(self.project_runner.project)?;
+        if self.project_runner.config.export_ephemeral {
+            self.test
+                .create_temporary_directories(self.project_runner.project)?;
+        }
 
         Ok(())
     }
