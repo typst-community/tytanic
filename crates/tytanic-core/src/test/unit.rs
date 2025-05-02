@@ -231,8 +231,10 @@ impl Test {
             tytanic_utils::fs::create_dir(project.unit_test_ref_dir(&self.id), true)?;
         }
 
-        tytanic_utils::fs::create_dir(project.unit_test_out_dir(&self.id), true)?;
-        tytanic_utils::fs::create_dir(project.unit_test_diff_dir(&self.id), true)?;
+        if !self.kind.is_compile_only() {
+            tytanic_utils::fs::create_dir(project.unit_test_out_dir(&self.id), true)?;
+            tytanic_utils::fs::create_dir(project.unit_test_diff_dir(&self.id), true)?;
+        }
 
         Ok(())
     }
