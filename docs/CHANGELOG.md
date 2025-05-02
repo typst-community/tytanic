@@ -12,6 +12,7 @@
 - Added `--force` flag to `update` to foce updating all matching tests
 - Added `util completion` sub command for generating completions
 - Added `util manpage` sub command for generating man pages
+- Unhid non-default switches on short help
 
 ## Fixes
 - Don't panic when trying to update non-persistent tests

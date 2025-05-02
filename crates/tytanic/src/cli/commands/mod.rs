@@ -115,21 +115,12 @@ macro_rules! impl_switch {
         #[derive(Args,  Clone, Copy)]
         pub struct $switch {
             $(#[$field_meta])*
-            #[arg(
-                long,
-                hide_short_help = !$default,
-                global = true
-            )]
+            #[arg(long, global = true)]
             $(#[arg(short = $field_short)])?
             $field: bool,
 
             $(#[$no_field_meta])*
-            #[arg(
-                long,
-                hide_short_help = $default,
-                overrides_with = stringify!($field),
-                global = true,
-            )]
+            #[arg(long, overrides_with = stringify!($field), global = true)]
             $(#[arg(short = $no_field_short)])?
             $no_field: bool,
         }
