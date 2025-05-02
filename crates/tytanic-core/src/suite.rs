@@ -105,7 +105,13 @@ impl Suite {
             return Ok(());
         }
 
-        let id = Id::new_from_path(dir)?;
+        let id = match Id::new_from_path(dir) {
+            Ok(id) => id,
+            Err(err) => {
+                tracing::error!(?dir, ?err, "ignoring test with invalid id");
+                return Ok(());
+            }
+        };
 
         tracing::trace!(?dir, "checking for test");
         if let Some(test) = UnitTest::load(project, id.clone())? {
@@ -529,6 +535,7 @@ mod tests {
                 root
                     // compile only
                     .setup_file("tests/.hidden/test.typ", "Not loaded")
+                    .setup_file("tests/ignored!/test.typ", "Ignored")
                     .setup_file("tests/compile-only/test.typ", "Hello World")
                     // regular ephemeral
                     .setup_file("tests/compare/ephemeral/test.typ", "Hello World")
