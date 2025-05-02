@@ -23,6 +23,7 @@ tytanic-utils = { version = "0.2.2", path = "crates/tytanic-utils" }
 chrono = "0.4.38"
 clap = "4.4.12"
 clap_complete = "4.5.48"
+clap_mangen = "0.2.26"
 codespan-reporting = "0.11.1"
 color-eyre = "0.6.3"
 comemo = "0.4.0"
