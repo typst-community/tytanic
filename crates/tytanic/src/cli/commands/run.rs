@@ -65,18 +65,17 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
             optimize: args.export.optimize_refs.get_or_default(),
             fail_fast: args.runner.fail_fast.get_or_default(),
             pixel_per_pt,
-            action: Action::Run {
-                strategy: args
-                    .compare
-                    .compare
-                    .get_or_default()
-                    .then_some(Strategy::Simple {
-                        max_delta,
-                        max_deviation,
-                    }),
-                export_ephemeral: args.export.export_ephemeral.get_or_default(),
-                origin,
-            },
+            strategy: args
+                .compare
+                .compare
+                .get_or_default()
+                .then_some(Strategy::Simple {
+                    max_delta,
+                    max_deviation,
+                }),
+            export_ephemeral: args.export.export_ephemeral.get_or_default(),
+            origin,
+            action: Action::Run,
             cancellation: &CANCELLED,
         },
     );
