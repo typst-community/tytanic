@@ -7,20 +7,39 @@ use tytanic_utils::fmt::Term;
 use super::Context;
 use crate::cwrite;
 
-pub fn run(ctx: &mut Context) -> eyre::Result<()> {
+#[derive(clap::Args, Debug, Clone)]
+#[group(id = "util-clean-args")]
+pub struct Args {
+    /// Also remove persistent references
+    #[arg(long)]
+    pub include_persistent_references: bool,
+}
+
+pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
     let project = ctx.project()?;
     let suite = ctx.collect_tests(&project)?;
 
-    let mut len = 0;
+    let mut temp = 0;
+    let mut persistent = 0;
     for test in suite.unit_tests() {
         test.delete_temporary_directories(&project)?;
-        len += 1;
+        if args.include_persistent_references && test.kind().is_persistent() {
+            test.delete_reference_document(&project)?;
+            persistent += 1;
+        }
+        temp += 1;
     }
 
     let mut w = ctx.ui.stderr();
     write!(w, "Removed temporary directories for ")?;
-    cwrite!(colored(w, Color::Green), "{len}")?;
-    writeln!(w, " {}", Term::simple("test").with(len))?;
+    cwrite!(colored(w, Color::Green), "{temp}")?;
+    writeln!(w, " {}", Term::simple("test").with(temp))?;
+
+    if persistent != 0 {
+        write!(w, "Removed persistent references for ")?;
+        cwrite!(colored(w, Color::Green), "{persistent}")?;
+        writeln!(w, " {}", Term::simple("test").with(temp))?;
+    }
 
     Ok(())
 }
