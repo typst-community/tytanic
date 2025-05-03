@@ -292,7 +292,7 @@ impl Test {
     /// Deletes the temporary directories of this test.
     #[tracing::instrument(skip(project))]
     pub fn delete_temporary_directories(&self, project: &Project) -> io::Result<()> {
-        if !self.kind.is_compile_only() {
+        if self.kind.is_ephemeral() {
             tytanic_utils::fs::remove_dir(project.unit_test_ref_dir(&self.id), true)?;
         }
 
