@@ -13,6 +13,7 @@
 - Added `util completion` sub command for generating completions
 - Added `util manpage` sub command for generating man pages
 - Unhid non-default switches on short help
+- Added `--include-persistent-references` to `util clean` sub command
 
 ## Fixes
 - Don't panic when trying to update non-persistent tests

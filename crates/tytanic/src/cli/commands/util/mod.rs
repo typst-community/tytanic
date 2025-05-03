@@ -26,7 +26,7 @@ pub enum Command {
 
     /// Remove test output artifacts
     #[command()]
-    Clean,
+    Clean(clean::Args),
 
     /// Generate completions
     #[command()]
@@ -53,7 +53,7 @@ impl Command {
     pub fn run(&self, ctx: &mut Context) -> eyre::Result<()> {
         match self {
             Command::About => about::run(ctx),
-            Command::Clean => clean::run(ctx),
+            Command::Clean(args) => clean::run(ctx, args),
             Command::Completion(args) => completion::run(ctx, args),
             Command::Manpage(args) => manpage::run(ctx, args),
             Command::Fonts(args) => fonts::run(ctx, args),
