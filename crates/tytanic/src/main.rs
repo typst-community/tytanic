@@ -1,4 +1,4 @@
-//! A test runner for t4gl set suites.
+//! A test runner for typst set suites.
 
 use std::env;
 use std::io::{self, Write};
