@@ -17,17 +17,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Probe runner package cache
-        uses: awalsh128/cache-apt-pkgs-action@latest
+      - name: Install tytanic
+        uses: taiki-e/cache-cargo-install-action@v2
         with:
-          packages: cargo
-          version: 1.0
-
-      - name: Install tytanic from crates.io
-        uses: baptiste0928/cargo-install@v3.3.0
-        with:
-          crate: tytanic
-          version: 0.2.2
+          tool: tytanic@0.2.2
 
       - name: Run test suite
         run: tt run --no-fail-fast

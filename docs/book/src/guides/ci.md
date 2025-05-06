@@ -44,23 +44,16 @@ jobs:
 
 This adds a single step to our job (called `tests`), which checks out the repository, making it available for the following steps.
 
-For now, we'll need `cargo` to download and install Tytanic, so we install it and cache the installation with a package cache action.
-After this, we install Tytanic version `0.2.2` straight from crates.io, this version targets typst `0.12.x`.
+We'll use `taiki-e/install-action` for downloading Tytanic, it usese `cargo-binstall`, which downloads the release binaries directly from GitHub.
+The latest version of Tytanic is `0.2.2`, which targets Typst `0.12.x`.
 
 ```yml
 steps:
   # ...
-  - name: Probe runner package cache
-    uses: awalsh128/cache-apt-pkgs-action@latest
+  - name: Install tytanic
+    uses: taiki-e/cache-cargo-install-action@v2
     with:
-      packages: cargo
-      version: 1.0
-
-  - name: Install tytanic from crates.io
-    uses: baptiste0928/cargo-install@v3.3.0
-    with:
-      crate: tytanic
-      version: '0.2.2'
+      tool: tytanic@0.2.2
 
 ```
 
@@ -116,17 +109,10 @@ And that's it, you can add this file to your repo, push it to a branch and open 
 >       - name: Checkout
 >         uses: actions/checkout@v4
 >
->       - name: Probe runner package cache
->         uses: awalsh128/cache-apt-pkgs-action@latest
+>       - name: Install tytanic
+>         uses: taiki-e/cache-cargo-install-action@v2
 >         with:
->           packages: cargo
->           version: 1.0
->
->       - name: Install tytanic from crates.io
->         uses: baptiste0928/cargo-install@v3.3.0
->         with:
->           crate: tytanic
->           version: '0.2.2'
+>           tool: tytanic@0.2.2
 >
 >       - name: Run test suite
 >         run: tt run
