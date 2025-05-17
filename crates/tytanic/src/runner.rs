@@ -3,11 +3,9 @@ use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 
 use color_eyre::eyre;
-use color_eyre::eyre::ContextCompat;
 use color_eyre::eyre::WrapErr;
 use typst::diag::Warned;
 use typst::layout::PagedDocument;
-use typst::syntax::Source;
 use tytanic_core::config::Direction;
 use tytanic_core::doc::compare::Strategy;
 use tytanic_core::doc::compile;
@@ -27,7 +25,7 @@ use tytanic_core::UnitTest;
 
 use crate::cli::TestFailure;
 use crate::report::Reporter;
-use crate::world::SystemWorld;
+use crate::world::Providers;
 use crate::DEFAULT_OPTIMIZE_OPTIONS;
 
 #[derive(Debug, Clone)]
@@ -75,7 +73,7 @@ pub struct RunnerConfig<'c> {
 pub struct Runner<'c, 'p> {
     pub project: &'p Project,
     pub suite: &'p FilteredSuite,
-    pub world: &'p SystemWorld,
+    pub providers: &'p Providers,
 
     pub result: SuiteResult,
     pub config: RunnerConfig<'c>,
@@ -85,14 +83,14 @@ impl<'c, 'p> Runner<'c, 'p> {
     pub fn new(
         project: &'p Project,
         suite: &'p FilteredSuite,
-        world: &'p SystemWorld,
+        providers: &'p Providers,
         config: RunnerConfig<'c>,
     ) -> Self {
         Self {
             project,
             result: SuiteResult::new(suite),
             suite,
-            world,
+            providers,
             config,
         }
     }
@@ -129,7 +127,7 @@ impl<'c, 'p> Runner<'c, 'p> {
             reporter.clear_status()?;
 
             // TODO(tinger): Retrieve export var from action.
-            reporter.report_test_result(test, &result)?;
+            reporter.report_test_result(self.project, test, &result)?;
 
             if result.is_fail() && self.config.fail_fast {
                 self.result.set_test_result(test.id().clone(), result);
@@ -176,8 +174,7 @@ impl UnitTestRunner<'_, '_, '_> {
 
         match self.project_runner.config.action {
             Action::Run => {
-                let output = self.load_out_src()?;
-                let output = self.compile_out_doc(output)?;
+                let output = self.compile_out_doc()?;
                 let output = self.render_out_doc(output)?;
 
                 if export {
@@ -186,8 +183,7 @@ impl UnitTestRunner<'_, '_, '_> {
 
                 match self.test.kind() {
                     Kind::Ephemeral => {
-                        let reference = self.load_ref_src()?;
-                        let reference = self.compile_ref_doc(reference)?;
+                        let reference = self.compile_ref_doc()?;
                         let reference = self.render_ref_doc(reference)?;
 
                         if export {
@@ -226,8 +222,7 @@ impl UnitTestRunner<'_, '_, '_> {
             Action::Update { force } => match self.test.kind() {
                 Kind::Ephemeral => eyre::bail!("attempted to update ephemeral test"),
                 Kind::Persistent => {
-                    let output = self.load_out_src()?;
-                    let output = self.compile_out_doc(output)?;
+                    let output = self.compile_out_doc()?;
                     let output = self.render_out_doc(output)?;
 
                     let needs_update = force || {
@@ -294,23 +289,6 @@ impl UnitTestRunner<'_, '_, '_> {
 
     pub fn cleanup(&mut self) -> eyre::Result<()> {
         Ok(())
-    }
-
-    pub fn load_out_src(&mut self) -> eyre::Result<Source> {
-        tracing::trace!(test = ?self.test.id(), "loading output source");
-        Ok(self.test.load_source(self.project_runner.project)?)
-    }
-
-    pub fn load_ref_src(&mut self) -> eyre::Result<Source> {
-        tracing::trace!(test = ?self.test.id(), "loading reference source");
-
-        if !self.test.kind().is_ephemeral() {
-            eyre::bail!("attempted to load reference source for non-ephemeral test");
-        }
-
-        self.test
-            .load_reference_source(self.project_runner.project)?
-            .wrap_err_with(|| format!("couldn't load reference source for test {}", self.test.id()))
     }
 
     pub fn load_ref_doc(&mut self) -> eyre::Result<Document> {
@@ -383,30 +361,30 @@ impl UnitTestRunner<'_, '_, '_> {
         Ok(Document::render_diff(reference, output, origin))
     }
 
-    pub fn compile_out_doc(&mut self, output: Source) -> eyre::Result<PagedDocument> {
+    pub fn compile_out_doc(&mut self) -> eyre::Result<PagedDocument> {
         tracing::trace!(test = ?self.test.id(), "compiling output document");
 
-        self.compile_inner(output, false)
+        self.compile_inner(false)
     }
 
-    pub fn compile_ref_doc(&mut self, reference: Source) -> eyre::Result<PagedDocument> {
+    pub fn compile_ref_doc(&mut self) -> eyre::Result<PagedDocument> {
         tracing::trace!(test = ?self.test.id(), "compiling reference document");
 
         if self.test.kind().is_compile_only() {
             eyre::bail!("attempted to compile reference for compile-only test");
         }
 
-        self.compile_inner(reference, true)
+        self.compile_inner(true)
     }
 
-    fn compile_inner(&mut self, source: Source, is_reference: bool) -> eyre::Result<PagedDocument> {
+    fn compile_inner(&mut self, is_reference: bool) -> eyre::Result<PagedDocument> {
         let Warned { output, warnings } = compile::compile(
-            source,
-            self.project_runner.world,
+            &self.project_runner.providers.unit_world(
+                self.project_runner.project,
+                self.test,
+                is_reference,
+            ),
             self.project_runner.config.warnings,
-            // NOTE(tinger): We only use augmentation here because package
-            // rerouting should not happen for unit tests.
-            |w| w.augment_standard_library(true),
         );
 
         self.result.set_warnings(warnings);
@@ -530,8 +508,7 @@ impl TemplateTestRunner<'_, '_, '_> {
     fn run_inner(&mut self) -> eyre::Result<()> {
         match self.project_runner.config.action {
             Action::Run => {
-                let output = self.load_template_src()?;
-                let _output = self.compile_template(output)?;
+                let _output = self.compile_template()?;
 
                 // if export {
                 //     let output = self.render_template_doc(output)?;
@@ -568,26 +545,13 @@ impl TemplateTestRunner<'_, '_, '_> {
         Ok(())
     }
 
-    pub fn load_template_src(&mut self) -> eyre::Result<Source> {
-        tracing::trace!(test = ?self.test.id(), "loading template source");
-        Ok(self.test.load_source(self.project_runner.project)?)
-    }
-
-    pub fn compile_template(&mut self, source: Source) -> eyre::Result<PagedDocument> {
+    pub fn compile_template(&mut self) -> eyre::Result<PagedDocument> {
         let Warned { output, warnings } = compile::compile(
-            source,
-            self.project_runner.world,
+            &self
+                .project_runner
+                .providers
+                .template_world(self.project_runner.project, self.test),
             self.project_runner.config.warnings,
-            |w| {
-                w.reroute_package(self.project_runner.project.package_spec())
-                    .root_prefix(
-                        self.project_runner
-                            .project
-                            .manifest()
-                            .and_then(|m| m.template.as_ref())
-                            .map(|t| t.path.as_str().into()),
-                    )
-            },
         );
 
         self.result.set_warnings(warnings);
