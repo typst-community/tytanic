@@ -23,7 +23,6 @@ The changelog can be found [here][changelog].
 [contrib]: ./docs/CONTRIBUTING.md
 [changelog]: ./docs/CHANGELOG.md
 
-[workaround]: https://tingerrr.github.io/tytanic/guides/watching.html
 [Typst]: https://typst.app
 [book]: https://tingerrr.github.io/tytanic/index.html
 
