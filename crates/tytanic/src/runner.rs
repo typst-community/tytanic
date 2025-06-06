@@ -1,12 +1,19 @@
 use std::fmt::Debug;
+use std::path::Path;
+use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 
+use codespan_reporting::term;
+use codespan_reporting::term::Config;
 use color_eyre::eyre;
 use color_eyre::eyre::WrapErr;
 use typst::diag::Warned;
 use typst::layout::PagedDocument;
+use typst::World;
+use typst_syntax::Source;
 use tytanic_core::config::Direction;
+use tytanic_core::diag::DiagnosticContext;
 use tytanic_core::doc::compare::Strategy;
 use tytanic_core::doc::compile;
 use tytanic_core::doc::compile::Warnings;
@@ -14,6 +21,7 @@ use tytanic_core::doc::render;
 use tytanic_core::doc::render::Origin;
 use tytanic_core::doc::Document;
 use tytanic_core::project::Project;
+use tytanic_core::suite::xml;
 use tytanic_core::suite::FilteredSuite;
 use tytanic_core::suite::SuiteResult;
 use tytanic_core::test::unit::Kind;
@@ -50,6 +58,9 @@ pub struct RunnerConfig<'c> {
 
     /// Whether to stop after the first failure.
     pub fail_fast: bool,
+
+    /// A path at which to store a JUnit-XML report of the run.
+    pub report_path: Option<PathBuf>,
 
     /// The pixel-per-pt to use when rendering documents.
     pub pixel_per_pt: f32,
@@ -151,6 +162,37 @@ impl<'c, 'p> Runner<'c, 'p> {
         let res = self.run_inner(reporter);
         self.result.end();
         reporter.report_end(&self.result)?;
+
+        if let Some(report_path) = &self.config.report_path {
+            struct Ctx<'a> {
+                config: &'a Config,
+                world: &'a dyn World,
+            }
+
+            // TODO(tinger): Attach the correct world context or whatever to a
+            // test result? Otherwise we'd need yet another do-it-all world impl.
+            let ctx = Ctx {
+                config: &term::Config::default(),
+                world: todo!(),
+            };
+
+            impl DiagnosticContext for Ctx<'_> {
+                fn config(&self) -> &Config {
+                    self.config
+                }
+
+                fn world(&self) -> &dyn World {
+                    self.world
+                }
+
+                fn root(&self) -> &Path {
+                    self.world.root()
+                }
+            }
+
+            let report = xml::write_to_string(&ctx, &self.result)?;
+            std::fs::write(report_path, report)?;
+        }
 
         res?;
 

@@ -29,6 +29,8 @@ use crate::test::TestResult;
 use crate::test::UnitTest;
 use crate::TemplateTest;
 
+pub mod xml;
+
 /// A suite of tests.
 #[derive(Debug, Clone)]
 pub struct Suite {
@@ -75,7 +77,7 @@ impl Suite {
             }
         }
 
-        let without_leaves: BTreeSet<_> = this
+        let without_leafs: BTreeSet<_> = this
             .tests
             .keys()
             .flat_map(|test| test.ancestors().skip(1))
@@ -88,7 +90,7 @@ impl Suite {
             .map(|test| test.as_str().to_owned())
             .collect();
 
-        for id in all.intersection(&without_leaves) {
+        for id in all.intersection(&without_leafs) {
             if let Some((id, test)) = this.tests.remove_entry(id.as_str()) {
                 this.nested.insert(id, test);
             }
@@ -355,7 +357,7 @@ impl FilteredSuite {
 #[derive(Debug, Error)]
 pub enum FilterError {
     /// An error occurred while evaluating an expression filter.
-    #[error("an error occurred while evaluating an expressions filter")]
+    #[error("an error occurred while evaluating an expresison filter")]
     TestSet(#[from] eval::Error),
 
     /// At least one test given by an explicit filter was missing.

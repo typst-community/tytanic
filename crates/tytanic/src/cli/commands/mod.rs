@@ -495,6 +495,10 @@ pub struct CompareOptions {
 pub struct RunnerOptions {
     #[command(flatten)]
     pub fail_fast: FailFastSwitch,
+
+    /// A path at which to store a JUnit-XML report of the run.
+    #[arg(long)]
+    pub junit_xml: Option<PathBuf>,
 }
 
 /// Options for configuring the CLI output.

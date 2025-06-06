@@ -120,6 +120,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
             warnings: args.compile.warnings.into_native(),
             optimize: args.export.optimize_refs.get_or_default(),
             fail_fast: args.runner.fail_fast.get_or_default(),
+            report_path: args.runner.junit_xml.clone(),
             pixel_per_pt,
             strategy: args
                 .compare
