@@ -1,12 +1,13 @@
 //! Test loading and on-disk manipulation.
 
 use std::fmt::Debug;
-use std::time::Duration;
-use std::time::Instant;
 
-use ecow::EcoVec;
-use ecow::eco_vec;
+use chrono::DateTime;
+use chrono::TimeDelta;
+use chrono::Utc;
 use typst::diag::SourceDiagnostic;
+use typst::ecow::EcoVec;
+use typst::ecow::eco_vec;
 
 use crate::doc::compare;
 use crate::doc::compile;
@@ -101,8 +102,8 @@ pub enum Stage {
 pub struct TestResult {
     stage: Stage,
     warnings: EcoVec<SourceDiagnostic>,
-    timestamp: Instant,
-    duration: Duration,
+    timestamp: DateTime<Utc>,
+    duration: TimeDelta,
 }
 
 impl TestResult {
@@ -115,8 +116,8 @@ impl TestResult {
         Self {
             stage: Stage::Skipped,
             warnings: eco_vec![],
-            timestamp: Instant::now(),
-            duration: Duration::ZERO,
+            timestamp: Utc::now(),
+            duration: TimeDelta::zero(),
         }
     }
 
@@ -126,8 +127,8 @@ impl TestResult {
         Self {
             stage: Stage::Filtered,
             warnings: eco_vec![],
-            timestamp: Instant::now(),
-            duration: Duration::ZERO,
+            timestamp: Utc::now(),
+            duration: TimeDelta::zero(),
         }
     }
 }
@@ -144,12 +145,12 @@ impl TestResult {
     }
 
     /// The timestamp at which the suite run started.
-    pub fn timestamp(&self) -> Instant {
+    pub fn timestamp(&self) -> DateTime<Utc> {
         self.timestamp
     }
 
     /// The duration of the test, this a zero if this test wasn't started.
-    pub fn duration(&self) -> Duration {
+    pub fn duration(&self) -> TimeDelta {
         self.duration
     }
 
@@ -189,17 +190,17 @@ impl TestResult {
 }
 
 impl TestResult {
-    /// Sets the timestamp to [`Instant::now`].
+    /// Sets the timestamp to [`Utc::now`].
     ///
     /// See [`TestResult::end`].
     pub fn start(&mut self) {
-        self.timestamp = Instant::now();
+        self.timestamp = Utc::now();
     }
 
     /// Sets the duration to the time elapsed since [`TestResult::start`] was
     /// called.
     pub fn end(&mut self) {
-        self.duration = self.timestamp.elapsed();
+        self.duration = Utc::now().signed_duration_since(self.timestamp);
     }
 
     /// Sets the kind for this test to a compilation pass.
