@@ -520,10 +520,7 @@ impl TemplateTestRunner<'_, '_, '_> {
     // TODO: suite, different world root and lookup behavior
     fn run_inner(&mut self) -> eyre::Result<()> {
         match self.project_runner.config.action {
-            Action::Run {
-                // export_ephemeral: export,
-                ..
-            } => {
+            Action::Run => {
                 let output = self.load_template_src()?;
                 let _output = self.compile_template(output)?;
 
