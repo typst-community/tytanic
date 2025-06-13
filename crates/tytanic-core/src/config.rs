@@ -1,10 +1,13 @@
 //! Reading and interpreting tytanic configuration.
 
-use std::{fs, io};
+use std::fs;
+use std::io;
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 use thiserror::Error;
-use tytanic_utils::result::{io_not_found, ResultEx};
+use tytanic_utils::result::io_not_found;
+use tytanic_utils::result::ResultEx;
 
 /// The key used to configure tytanic in the manifest tool config.
 pub const MANIFEST_TOOL_KEY: &str = crate::TOOL_NAME;

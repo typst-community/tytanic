@@ -1,6 +1,9 @@
-use std::{fs, io};
+use std::fs;
+use std::io;
 
-use typst::syntax::{FileId, Source, VirtualPath};
+use typst::syntax::FileId;
+use typst::syntax::Source;
+use typst::syntax::VirtualPath;
 
 use super::Id;
 use crate::project::Project;

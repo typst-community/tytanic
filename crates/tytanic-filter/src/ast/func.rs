@@ -1,9 +1,19 @@
-use ecow::{eco_vec, EcoVec};
+use ecow::eco_vec;
+use ecow::EcoVec;
 use pest::iterators::Pair;
 use pest::pratt_parser::PrattParser;
 
-use super::{Error, Expr, Id, PairExt, PairsExt, Rule};
-use crate::eval::{self, Context, Eval, Test, Value};
+use super::Error;
+use super::Expr;
+use super::Id;
+use super::PairExt;
+use super::PairsExt;
+use super::Rule;
+use crate::eval::Context;
+use crate::eval::Eval;
+use crate::eval::Test;
+use crate::eval::Value;
+use crate::eval::{self};
 
 /// A function call node.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

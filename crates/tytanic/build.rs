@@ -1,4 +1,5 @@
-use toml::{Table, Value};
+use toml::Table;
+use toml::Value;
 
 fn main() {
     let lock: Table = toml::from_str(include_str!("../../Cargo.lock")).unwrap();

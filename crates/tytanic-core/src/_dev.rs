@@ -3,12 +3,17 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-use typst::diag::{FileError, FileResult};
-use typst::foundations::{Bytes, Datetime};
-use typst::syntax::{FileId, Source};
-use typst::text::{Font, FontBook};
+use typst::diag::FileError;
+use typst::diag::FileResult;
+use typst::foundations::Bytes;
+use typst::foundations::Datetime;
+use typst::syntax::FileId;
+use typst::syntax::Source;
+use typst::text::Font;
+use typst::text::FontBook;
 use typst::utils::LazyHash;
-use typst::{Library, World};
+use typst::Library;
+use typst::World;
 
 /// A virtual file slot, unlike the typst-cli implementation, this will not read
 /// from disk.

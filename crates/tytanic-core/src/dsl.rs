@@ -5,7 +5,12 @@
 //! [guide]: https://tingerrr.github.io/tytanic/guides/test-sets.html
 
 use tytanic_filter::ast::Id;
-use tytanic_filter::eval::{self, Context, Error, Func, Set, Value};
+use tytanic_filter::eval::Context;
+use tytanic_filter::eval::Error;
+use tytanic_filter::eval::Func;
+use tytanic_filter::eval::Set;
+use tytanic_filter::eval::Value;
+use tytanic_filter::eval::{self};
 
 use crate::test::Test;
 
@@ -44,7 +49,10 @@ pub fn context() -> Context<Test> {
 /// Function definitions for the tytanic test set DSL default evaluation
 /// context.
 pub mod built_in {
-    use tytanic_filter::eval::{Context, Error, Func, Value};
+    use tytanic_filter::eval::Context;
+    use tytanic_filter::eval::Error;
+    use tytanic_filter::eval::Func;
+    use tytanic_filter::eval::Value;
 
     use super::*;
 

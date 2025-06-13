@@ -2,20 +2,30 @@
 //! fields for test templates, custom test set bindings and other information
 //! necessary for managing, filtering and running tests.
 
-use std::collections::{btree_map, BTreeMap, BTreeSet};
+use std::collections::btree_map;
+use std::collections::BTreeMap;
+use std::collections::BTreeSet;
+use std::fs;
+use std::io;
 use std::path::Path;
-use std::time::{Duration, Instant};
-use std::{fs, io};
+use std::time::Duration;
+use std::time::Instant;
 
 use thiserror::Error;
-use tytanic_filter::{eval, ExpressionFilter};
+use tytanic_filter::eval;
+use tytanic_filter::ExpressionFilter;
 use tytanic_utils::fmt::Term;
-use tytanic_utils::result::{io_not_found, ResultEx};
+use tytanic_utils::result::io_not_found;
+use tytanic_utils::result::ResultEx;
 use uuid::Uuid;
 
 use crate::project::Project;
 use crate::test::unit::LoadError;
-use crate::test::{Id, ParseIdError, Test, TestResult, UnitTest};
+use crate::test::Id;
+use crate::test::ParseIdError;
+use crate::test::Test;
+use crate::test::TestResult;
+use crate::test::UnitTest;
 use crate::TemplateTest;
 
 /// A suite of tests.

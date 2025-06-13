@@ -21,7 +21,8 @@
 
 use std::str::FromStr;
 
-use ecow::{EcoString, EcoVec};
+use ecow::EcoString;
+use ecow::EcoVec;
 use thiserror::Error;
 
 use crate::config::Direction;

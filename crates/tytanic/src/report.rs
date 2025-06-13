@@ -1,17 +1,23 @@
 //! Live reporting of test progress.
 
-use std::io::{self, Write};
+use std::io::Write;
+use std::io::{self};
 use std::time::Duration;
 
 use color_eyre::eyre;
 use termcolor::Color;
-use tytanic_core::doc::compare::{self, PageError};
+use tytanic_core::doc::compare::PageError;
+use tytanic_core::doc::compare::{self};
 use tytanic_core::suite::SuiteResult;
-use tytanic_core::test::{Stage, Test, TestResult};
+use tytanic_core::test::Stage;
+use tytanic_core::test::Test;
+use tytanic_core::test::TestResult;
 use tytanic_utils::fmt::Term;
 
 use crate::cwrite;
-use crate::ui::{self, CWrite, Ui};
+use crate::ui::CWrite;
+use crate::ui::Ui;
+use crate::ui::{self};
 use crate::world::SystemWorld;
 
 /// The padding to use for annotations while test run reporting.

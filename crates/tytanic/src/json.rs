@@ -3,11 +3,13 @@
 use std::path::PathBuf;
 
 use serde::Serialize;
-use typst_syntax::package::{PackageManifest, PackageVersion};
+use typst_syntax::package::PackageManifest;
+use typst_syntax::package::PackageVersion;
 use tytanic_core::project::Project;
 use tytanic_core::suite::Suite;
 use tytanic_core::test::Test;
-use tytanic_core::{TemplateTest, UnitTest};
+use tytanic_core::TemplateTest;
+use tytanic_core::UnitTest;
 
 #[derive(Debug, Serialize)]
 pub struct ProjectJson<'m, 's> {

@@ -1,5 +1,12 @@
-use super::{Id, Num, Pat, Str};
-use crate::eval::{Context, Error, Eval, Test, Value};
+use super::Id;
+use super::Num;
+use super::Pat;
+use super::Str;
+use crate::eval::Context;
+use crate::eval::Error;
+use crate::eval::Eval;
+use crate::eval::Test;
+use crate::eval::Value;
 
 /// An leaf node within a test set expression such as an identifier or literal.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

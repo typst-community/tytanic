@@ -1,19 +1,32 @@
 #![allow(dead_code)]
 
-use std::fmt::{Debug, Display};
-use std::io::{BufRead, IsTerminal, Stdin, StdinLock, Write};
-use std::{fmt, io};
+use std::fmt;
+use std::fmt::Debug;
+use std::fmt::Display;
+use std::io;
+use std::io::BufRead;
+use std::io::IsTerminal;
+use std::io::Stdin;
+use std::io::StdinLock;
+use std::io::Write;
 
-use codespan_reporting::diagnostic::{Diagnostic, Label};
+use codespan_reporting::diagnostic::Diagnostic;
+use codespan_reporting::diagnostic::Label;
 use codespan_reporting::term;
 use color_eyre::eyre;
 use ecow::eco_format;
-use termcolor::{
-    Color, ColorChoice, ColorSpec, HyperlinkSpec, StandardStream, StandardStreamLock, WriteColor,
-};
-use typst::diag::{Severity, SourceDiagnostic};
+use termcolor::Color;
+use termcolor::ColorChoice;
+use termcolor::ColorSpec;
+use termcolor::HyperlinkSpec;
+use termcolor::StandardStream;
+use termcolor::StandardStreamLock;
+use termcolor::WriteColor;
+use typst::diag::Severity;
+use typst::diag::SourceDiagnostic;
 use typst::WorldExt;
-use typst_syntax::{FileId, Span};
+use typst_syntax::FileId;
+use typst_syntax::Span;
 use tytanic_core::test::Id;
 
 use crate::world::SystemWorld;

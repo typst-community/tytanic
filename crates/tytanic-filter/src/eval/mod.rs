@@ -1,11 +1,13 @@
 //! Test set evaluation.
 
 use std::collections::BTreeMap;
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
+use std::fmt::Display;
 
 use ecow::EcoVec;
 use thiserror::Error;
-use tytanic_utils::fmt::{Separators, Term};
+use tytanic_utils::fmt::Separators;
+use tytanic_utils::fmt::Term;
 
 use super::ast::Id;
 
@@ -15,7 +17,9 @@ mod value;
 
 pub use self::func::Func;
 pub use self::set::Set;
-pub use self::value::{TryFromValue, Type, Value};
+pub use self::value::TryFromValue;
+pub use self::value::Type;
+pub use self::value::Value;
 
 /// A marker trait for tests, this is automatically implemented for all clonable
 /// static types.

@@ -1,9 +1,14 @@
 //! Test identifiers.
 
-use std::borrow::{Borrow, Cow};
-use std::fmt::{self, Debug, Display};
+use std::borrow::Borrow;
+use std::borrow::Cow;
+use std::fmt::Debug;
+use std::fmt::Display;
+use std::fmt::{self};
 use std::ops::Deref;
-use std::path::{Component, Path, PathBuf};
+use std::path::Component;
+use std::path::Path;
+use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::LazyLock;
 

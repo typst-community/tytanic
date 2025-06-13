@@ -1,5 +1,8 @@
-use super::{Error, Func, Set};
-use crate::ast::{Num, Str};
+use super::Error;
+use super::Func;
+use super::Set;
+use crate::ast::Num;
+use crate::ast::Str;
 
 /// The value of a test set expression.
 #[derive(Debug, Clone)]

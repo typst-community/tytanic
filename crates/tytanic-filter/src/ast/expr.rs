@@ -3,8 +3,20 @@ use std::sync::Arc;
 use pest::iterators::Pair;
 use pest::pratt_parser::PrattParser;
 
-use super::{Atom, Error, Func, Id, Num, Pat, Rule, Str};
-use crate::eval::{self, Context, Eval, Set, Test, Value};
+use super::Atom;
+use super::Error;
+use super::Func;
+use super::Id;
+use super::Num;
+use super::Pat;
+use super::Rule;
+use super::Str;
+use crate::eval::Context;
+use crate::eval::Eval;
+use crate::eval::Set;
+use crate::eval::Test;
+use crate::eval::Value;
+use crate::eval::{self};
 
 /// A unary prefix operator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

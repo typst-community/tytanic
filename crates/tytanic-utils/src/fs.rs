@@ -1,14 +1,18 @@
 //! Helper functions and types for filesystem interactions, including unit test
 //! helpers.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::fmt::Write;
-use std::path::{Path, PathBuf};
-use std::{fs, io};
+use std::fs;
+use std::io;
+use std::path::Path;
+use std::path::PathBuf;
 
 use tempdir::TempDir;
 
-use crate::result::{io_not_found, ResultEx};
+use crate::result::io_not_found;
+use crate::result::ResultEx;
 
 /// The prefix used for temporary directories in [`TempTestEnv`].
 pub const TEMP_DIR_PREFIX: &str = "tytanic-utils";

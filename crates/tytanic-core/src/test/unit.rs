@@ -1,17 +1,26 @@
 //! Test loading and on-disk manipulation.
 
 use std::fmt::Debug;
-use std::fs::{self, File};
-use std::io::{self, Write};
+use std::fs::File;
+use std::fs::{self};
+use std::io::Write;
+use std::io::{self};
 
-use ecow::{EcoString, EcoVec};
+use ecow::EcoString;
+use ecow::EcoVec;
 use thiserror::Error;
-use typst::syntax::{FileId, Source, VirtualPath};
+use typst::syntax::FileId;
+use typst::syntax::Source;
+use typst::syntax::VirtualPath;
 
-use super::{Annotation, Id, ParseAnnotationError};
+use super::Annotation;
+use super::Id;
+use super::ParseAnnotationError;
 use crate::doc;
-use crate::doc::{Document, SaveError};
-use crate::project::{Project, Vcs};
+use crate::doc::Document;
+use crate::doc::SaveError;
+use crate::project::Project;
+use crate::project::Vcs;
 
 // NOTE(tinger): the order of ignoring and deleting/creating documents is not
 // random, this is specifically for VCS like jj with active watchman triggers
@@ -467,7 +476,8 @@ pub enum LoadError {
 
 #[cfg(test)]
 mod tests {
-    use tytanic_utils::fs::{Setup, TempTestEnv};
+    use tytanic_utils::fs::Setup;
+    use tytanic_utils::fs::TempTestEnv;
 
     use super::*;
 

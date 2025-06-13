@@ -1,11 +1,21 @@
 use std::fmt::Debug;
 use std::ops::Deref;
 
-use ecow::{eco_vec, EcoString};
+use ecow::eco_vec;
+use ecow::EcoString;
 use pest::iterators::Pair;
 
-use super::{Error, PairExt, PairsExt, Rule};
-use crate::eval::{self, Context, Eval, Test, TryFromValue, Type, Value};
+use super::Error;
+use super::PairExt;
+use super::PairsExt;
+use super::Rule;
+use crate::eval::Context;
+use crate::eval::Eval;
+use crate::eval::Test;
+use crate::eval::TryFromValue;
+use crate::eval::Type;
+use crate::eval::Value;
+use crate::eval::{self};
 
 /// A string literal node.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

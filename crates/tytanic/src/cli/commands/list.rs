@@ -5,9 +5,11 @@ use termcolor::Color;
 use tytanic_core::test::unit::Kind as TestKind;
 use tytanic_core::test::Test;
 
-use super::{Context, FilterOptions};
+use super::Context;
+use super::FilterOptions;
+use crate::cwrite;
 use crate::json::TestJson;
-use crate::{cwrite, ui};
+use crate::ui;
 
 #[derive(clap::Args, Debug, Clone)]
 #[group(id = "list-args")]

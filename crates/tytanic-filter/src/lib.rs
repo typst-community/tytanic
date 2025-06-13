@@ -16,7 +16,8 @@ use ecow::EcoString;
 use eval::Value;
 use thiserror::Error;
 
-use crate::eval::{Eval, Test};
+use crate::eval::Eval;
+use crate::eval::Test;
 
 pub mod ast;
 pub mod eval;
