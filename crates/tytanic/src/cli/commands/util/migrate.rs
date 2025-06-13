@@ -10,7 +10,8 @@ use tytanic_core::test::Id;
 use tytanic_core::Project;
 
 use crate::cli::Context;
-use crate::{cwrite, ui};
+use crate::cwrite;
+use crate::ui;
 
 #[derive(clap::Args, Debug, Clone)]
 #[group(id = "util-migrate-args")]

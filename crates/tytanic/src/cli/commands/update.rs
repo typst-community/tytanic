@@ -2,18 +2,29 @@ use std::io::Write;
 
 use color_eyre::eyre;
 use tytanic_core::doc::compare::Strategy;
-use tytanic_core::doc::render::{self, Origin};
+use tytanic_core::doc::render::Origin;
+use tytanic_core::doc::render::{self};
+use tytanic_core::dsl;
 use tytanic_core::suite::Filter;
-use tytanic_core::{dsl, Id};
+use tytanic_core::Id;
 use tytanic_filter::eval;
 
-use super::{
-    CompareOptions, CompileOptions, Context, Direction, ExportOptions, FilterOptions,
-    OptionDelegate, RunnerOptions, Switch,
-};
-use crate::cli::{OperationFailure, TestFailure, CANCELLED};
+use super::CompareOptions;
+use super::CompileOptions;
+use super::Context;
+use super::Direction;
+use super::ExportOptions;
+use super::FilterOptions;
+use super::OptionDelegate;
+use super::RunnerOptions;
+use super::Switch;
+use crate::cli::OperationFailure;
+use crate::cli::TestFailure;
+use crate::cli::CANCELLED;
 use crate::report::Reporter;
-use crate::runner::{Action, Runner, RunnerConfig};
+use crate::runner::Action;
+use crate::runner::Runner;
+use crate::runner::RunnerConfig;
 use crate::ui;
 
 #[derive(clap::Args, Debug, Clone)]

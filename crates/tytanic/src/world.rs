@@ -6,19 +6,32 @@
 // TODO(tinger): upstream this to typst-kit
 
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::fs;
+use std::io;
+use std::mem;
+use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Mutex;
-use std::{fs, io, mem};
 
-use chrono::{DateTime, Datelike, FixedOffset, Local, Utc};
-use typst::diag::{FileError, FileResult};
-use typst::foundations::{Bytes, Datetime};
-use typst::syntax::{FileId, Source};
-use typst::text::{Font, FontBook};
+use chrono::DateTime;
+use chrono::Datelike;
+use chrono::FixedOffset;
+use chrono::Local;
+use chrono::Utc;
+use typst::diag::FileError;
+use typst::diag::FileResult;
+use typst::foundations::Bytes;
+use typst::foundations::Datetime;
+use typst::syntax::FileId;
+use typst::syntax::Source;
+use typst::text::Font;
+use typst::text::FontBook;
 use typst::utils::LazyHash;
-use typst::{Library, World};
+use typst::Library;
+use typst::World;
 use typst_kit::download::ProgressSink;
-use typst_kit::fonts::{FontSlot, Fonts};
+use typst_kit::fonts::FontSlot;
+use typst_kit::fonts::Fonts;
 use typst_kit::package::PackageStorage;
 
 /// A world that provides access to the operating system.

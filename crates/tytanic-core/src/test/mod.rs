@@ -1,20 +1,25 @@
 //! Test loading and on-disk manipulation.
 
 use std::fmt::Debug;
-use std::time::{Duration, Instant};
+use std::time::Duration;
+use std::time::Instant;
 
-use ecow::{eco_vec, EcoVec};
+use ecow::eco_vec;
+use ecow::EcoVec;
 use typst::diag::SourceDiagnostic;
 
-use crate::doc::{compare, compile};
+use crate::doc::compare;
+use crate::doc::compile;
 
 mod annotation;
 mod id;
 pub mod template;
 pub mod unit;
 
-pub use self::annotation::{Annotation, ParseAnnotationError};
-pub use self::id::{Id, ParseIdError};
+pub use self::annotation::Annotation;
+pub use self::annotation::ParseAnnotationError;
+pub use self::id::Id;
+pub use self::id::ParseIdError;
 pub use self::template::Test as TemplateTest;
 pub use self::unit::Test as UnitTest;
 

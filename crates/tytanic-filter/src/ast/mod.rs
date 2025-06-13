@@ -24,7 +24,9 @@ mod str;
 use parser::Rule;
 
 pub use self::atom::Atom;
-pub use self::expr::{Expr, InfixOp, PrefixOp};
+pub use self::expr::Expr;
+pub use self::expr::InfixOp;
+pub use self::expr::PrefixOp;
 pub use self::func::Func;
 pub use self::glob::Glob;
 pub use self::id::Id;
@@ -35,7 +37,8 @@ pub use self::str::Str;
 
 /// The pratt parser defining the operator precedence.
 pub(super) static PRATT_PARSER: LazyLock<PrattParser<Rule>> = LazyLock::new(|| {
-    use pest::pratt_parser::{Assoc, Op};
+    use pest::pratt_parser::Assoc;
+    use pest::pratt_parser::Op;
 
     PrattParser::new()
         .op(Op::infix(Rule::infix_op_pipe, Assoc::Left) | Op::infix(Rule::infix_op_or, Assoc::Left))

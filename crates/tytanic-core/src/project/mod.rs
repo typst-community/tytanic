@@ -1,15 +1,20 @@
 //! Discovering, loading and managing typst projects.
 
 use std::collections::BTreeMap;
+use std::fs;
+use std::io;
 use std::ops::Deref;
-use std::path::{Component, Path, PathBuf};
-use std::{fs, io};
+use std::path::Component;
+use std::path::Path;
+use std::path::PathBuf;
 
 use ecow::EcoString;
 use serde::Deserialize;
 use thiserror::Error;
-use typst::syntax::package::{PackageManifest, PackageSpec};
-use tytanic_utils::result::{io_not_found, ResultEx};
+use typst::syntax::package::PackageManifest;
+use typst::syntax::package::PackageSpec;
+use tytanic_utils::result::io_not_found;
+use tytanic_utils::result::ResultEx;
 
 use crate::config::ProjectConfig;
 use crate::test::Id;
@@ -17,7 +22,8 @@ use crate::TOOL_NAME;
 
 mod vcs;
 
-pub use vcs::{Kind as VcsKind, Vcs};
+pub use vcs::Kind as VcsKind;
+pub use vcs::Vcs;
 
 /// The name of the manifest file which is used to discover the project root
 /// automatically.
@@ -507,7 +513,8 @@ pub enum ManifestError {
 
 #[cfg(test)]
 mod tests {
-    use tytanic_utils::typst::{PackageManifestBuilder, TemplateInfoBuilder};
+    use tytanic_utils::typst::PackageManifestBuilder;
+    use tytanic_utils::typst::TemplateInfoBuilder;
 
     use super::*;
 

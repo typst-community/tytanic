@@ -5,9 +5,12 @@ use termcolor::Color;
 use typst::text::FontStyle;
 
 use crate::cli::Context;
-use crate::json::{FontJson, FontVariantJson};
+use crate::cwrite;
+use crate::cwriteln;
+use crate::json::FontJson;
+use crate::json::FontVariantJson;
+use crate::kit;
 use crate::ui::Indented;
-use crate::{cwrite, cwriteln, kit};
 
 #[derive(clap::Args, Debug, Clone)]
 #[group(id = "util-font-args")]

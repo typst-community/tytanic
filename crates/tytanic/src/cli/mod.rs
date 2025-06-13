@@ -1,23 +1,37 @@
+use std::env;
+use std::io;
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
-use std::{env, io};
 
 use color_eyre::eyre;
 use color_eyre::eyre::WrapErr;
 use commands::CompileOptions;
 use termcolor::Color;
 use thiserror::Error;
-use tytanic_core::project::{ConfigError, ManifestError, Project, ShallowProject};
-use tytanic_core::suite::{Filter, FilterError, FilteredSuite, Suite};
-use tytanic_core::test::{self, ParseIdError};
-use tytanic_core::{doc, dsl};
-use tytanic_filter::{eval, ExpressionFilter};
+use tytanic_core::doc;
+use tytanic_core::dsl;
+use tytanic_core::project::ConfigError;
+use tytanic_core::project::ManifestError;
+use tytanic_core::project::Project;
+use tytanic_core::project::ShallowProject;
+use tytanic_core::suite::Filter;
+use tytanic_core::suite::FilterError;
+use tytanic_core::suite::FilteredSuite;
+use tytanic_core::suite::Suite;
+use tytanic_core::test::ParseIdError;
+use tytanic_core::test::{self};
+use tytanic_filter::eval;
+use tytanic_filter::ExpressionFilter;
 
-use self::commands::{CliArguments, FilterOptions, Switch};
-use crate::ui::{self, Ui};
+use self::commands::CliArguments;
+use self::commands::FilterOptions;
+use self::commands::Switch;
+use crate::cwrite;
+use crate::kit;
+use crate::ui::Ui;
+use crate::ui::{self};
 use crate::world::SystemWorld;
-use crate::{cwrite, kit};
 
 pub mod commands;
 

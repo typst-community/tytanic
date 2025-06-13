@@ -1,10 +1,13 @@
 use std::collections::BTreeMap;
 
 use ecow::EcoString;
-use typst_syntax::package::{
-    PackageInfo, PackageManifest, PackageVersion, TemplateInfo, ToolInfo, UnknownFields,
-    VersionBound,
-};
+use typst_syntax::package::PackageInfo;
+use typst_syntax::package::PackageManifest;
+use typst_syntax::package::PackageVersion;
+use typst_syntax::package::TemplateInfo;
+use typst_syntax::package::ToolInfo;
+use typst_syntax::package::UnknownFields;
+use typst_syntax::package::VersionBound;
 
 /// A builder for [`PackageManifest`].
 #[derive(Debug, Clone)]

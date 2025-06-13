@@ -2,18 +2,30 @@
 
 use std::fmt::Debug;
 use std::path::PathBuf;
-use std::sync::{LazyLock, OnceLock};
+use std::sync::LazyLock;
+use std::sync::OnceLock;
 
-use ecow::{eco_format, eco_vec, EcoVec};
+use ecow::eco_format;
+use ecow::eco_vec;
+use ecow::EcoVec;
 use thiserror::Error;
-use typst::diag::{FileResult, Severity, SourceDiagnostic, Warned};
-use typst::foundations::{Bytes, Datetime};
+use typst::diag::FileResult;
+use typst::diag::Severity;
+use typst::diag::SourceDiagnostic;
+use typst::diag::Warned;
+use typst::foundations::Bytes;
+use typst::foundations::Datetime;
 use typst::layout::PagedDocument;
 use typst::syntax::package::PackageSpec;
-use typst::syntax::{FileId, Source, Span, VirtualPath};
-use typst::text::{Font, FontBook};
+use typst::syntax::FileId;
+use typst::syntax::Source;
+use typst::syntax::Span;
+use typst::syntax::VirtualPath;
+use typst::text::Font;
+use typst::text::FontBook;
 use typst::utils::LazyHash;
-use typst::{Library, World};
+use typst::Library;
+use typst::World;
 use tytanic_utils::fmt::Term;
 
 use crate::library::augmented_default_library;

@@ -2,10 +2,14 @@ use std::path::PathBuf;
 
 use color_eyre::eyre;
 use typst_kit::download::Downloader;
-use typst_kit::fonts::{FontSearcher, Fonts};
+use typst_kit::fonts::FontSearcher;
+use typst_kit::fonts::Fonts;
 use typst_kit::package::PackageStorage;
 
-use crate::cli::commands::{CompileOptions, FontOptions, PackageOptions, Switch};
+use crate::cli::commands::CompileOptions;
+use crate::cli::commands::FontOptions;
+use crate::cli::commands::PackageOptions;
+use crate::cli::commands::Switch;
 use crate::world::SystemWorld;
 
 #[tracing::instrument(skip(font_options, package_options, compile_options))]

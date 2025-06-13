@@ -1,7 +1,8 @@
 //! A test runner for typst set suites.
 
 use std::env;
-use std::io::{self, Write};
+use std::io::Write;
+use std::io::{self};
 use std::process::ExitCode;
 use std::sync::atomic::Ordering;
 
@@ -9,7 +10,9 @@ use clap::Parser;
 use codespan_reporting::term;
 use color_eyre::eyre;
 use once_cell::sync::Lazy;
-use termcolor::{Color, StandardStream, WriteColor};
+use termcolor::Color;
+use termcolor::StandardStream;
+use termcolor::WriteColor;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::filter::Targets;
 use tracing_subscriber::layer::SubscriberExt;
@@ -17,7 +20,9 @@ use tracing_subscriber::util::SubscriberInitExt;
 use tracing_tree::HierarchicalLayer;
 
 use crate::cli::commands::CliArguments;
-use crate::cli::{Context, OperationFailure, TestFailure};
+use crate::cli::Context;
+use crate::cli::OperationFailure;
+use crate::cli::TestFailure;
 use crate::ui::Ui;
 
 mod cli;

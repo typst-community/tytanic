@@ -5,9 +5,13 @@
 //! `.hgignore` based VCS' as well as auto discovery  of Git, Mercurial and
 //! Jujutsu through their hidden repository directories.
 
-use std::fmt::{self, Debug, Display};
-use std::path::{Path, PathBuf};
-use std::{fs, io};
+use std::fmt::Debug;
+use std::fmt::Display;
+use std::fmt::{self};
+use std::fs;
+use std::io;
+use std::path::Path;
+use std::path::PathBuf;
 
 use super::Project;
 use crate::test::UnitTest;

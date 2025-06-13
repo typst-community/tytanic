@@ -3,7 +3,12 @@ use std::sync::Arc;
 
 use ecow::eco_vec;
 
-use super::{Context, Error, Test, TryFromValue, Type, Value};
+use super::Context;
+use super::Error;
+use super::Test;
+use super::TryFromValue;
+use super::Type;
+use super::Value;
 use crate::ast::Pat;
 
 /// The backing implementation for a [`Set`].

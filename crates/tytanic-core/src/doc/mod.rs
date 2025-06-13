@@ -2,11 +2,15 @@
 //!
 //! Thsee documents are currently stored as individual pages in the PNG format.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
+use std::collections::BTreeSet;
+use std::fs;
+use std::io;
+use std::iter;
 use std::path::Path;
-use std::{fs, io, iter};
 
-use compile::{TestWorldAdapter, Warnings};
+use compile::TestWorldAdapter;
+use compile::Warnings;
 use ecow::EcoVec;
 use thiserror::Error;
 use tiny_skia::Pixmap;

@@ -2,8 +2,10 @@
 
 use std::ffi::OsStr;
 use std::fmt::Display;
-use std::path::{Path, PathBuf};
-use std::process::{self, ExitStatus};
+use std::path::Path;
+use std::path::PathBuf;
+use std::process::ExitStatus;
+use std::process::{self};
 
 use assert_cmd::Command;
 use tempdir::TempDir;

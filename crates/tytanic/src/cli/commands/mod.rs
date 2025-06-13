@@ -1,7 +1,11 @@
 use std::path::PathBuf;
 
-use chrono::{DateTime, Utc};
-use clap::{Args, ColorChoice, Parser, ValueEnum};
+use chrono::DateTime;
+use chrono::Utc;
+use clap::Args;
+use clap::ColorChoice;
+use clap::Parser;
+use clap::ValueEnum;
 use color_eyre::eyre;
 use tytanic_core::config::Direction;
 use tytanic_core::doc::compile::Warnings;

@@ -2,8 +2,19 @@ use std::hash::Hash;
 
 use pest::iterators::Pair;
 
-use super::{Error, Glob, PairExt, PairsExt, Regex, Rule, Str};
-use crate::eval::{self, Context, Eval, Set, Test, Value};
+use super::Error;
+use super::Glob;
+use super::PairExt;
+use super::PairsExt;
+use super::Regex;
+use super::Rule;
+use super::Str;
+use crate::eval::Context;
+use crate::eval::Eval;
+use crate::eval::Set;
+use crate::eval::Test;
+use crate::eval::Value;
+use crate::eval::{self};
 
 /// A pattern literal node.
 #[derive(Clone, PartialEq, Eq, Hash)]

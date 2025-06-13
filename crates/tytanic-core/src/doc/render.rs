@@ -2,7 +2,11 @@
 
 use std::cmp::Ordering;
 
-use tiny_skia::{BlendMode, FilterQuality, Pixmap, PixmapPaint, Transform};
+use tiny_skia::BlendMode;
+use tiny_skia::FilterQuality;
+use tiny_skia::Pixmap;
+use tiny_skia::PixmapPaint;
+use tiny_skia::Transform;
 
 /// The origin of a documents page, this is used for comparisons of pages with
 /// different dimensions.

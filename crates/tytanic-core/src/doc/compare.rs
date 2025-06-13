@@ -3,7 +3,8 @@
 //! This currently only provies a single primitive comparison algorithm,
 //! [`Strategy::Simple`].
 
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
+use std::fmt::Display;
 
 use thiserror::Error;
 use tiny_skia::Pixmap;

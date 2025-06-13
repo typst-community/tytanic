@@ -8,7 +8,8 @@ use pest_derive::Parser;
 #[grammar = "ast/grammar.pest"]
 pub(super) struct ExpressionParser;
 
-use super::{InfixOp, PrefixOp};
+use super::InfixOp;
+use super::PrefixOp;
 
 impl Rule {
     /// Turns this rule into the respective prefix operator.

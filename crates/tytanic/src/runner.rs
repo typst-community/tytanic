@@ -1,20 +1,29 @@
 use std::fmt::Debug;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::AtomicBool;
+use std::sync::atomic::Ordering;
 
-use color_eyre::eyre::{self, ContextCompat, WrapErr};
+use color_eyre::eyre::ContextCompat;
+use color_eyre::eyre::WrapErr;
+use color_eyre::eyre::{self};
 use typst::diag::Warned;
 use typst::layout::PagedDocument;
 use typst::syntax::Source;
 use tytanic_core::config::Direction;
 use tytanic_core::doc::compare::Strategy;
+use tytanic_core::doc::compile;
 use tytanic_core::doc::compile::Warnings;
-use tytanic_core::doc::render::{self, Origin};
-use tytanic_core::doc::{compile, Document};
+use tytanic_core::doc::render::Origin;
+use tytanic_core::doc::render::{self};
+use tytanic_core::doc::Document;
 use tytanic_core::project::Project;
-use tytanic_core::suite::{FilteredSuite, SuiteResult};
+use tytanic_core::suite::FilteredSuite;
+use tytanic_core::suite::SuiteResult;
 use tytanic_core::test::unit::Kind;
-use tytanic_core::test::{Annotation, Test, TestResult};
-use tytanic_core::{TemplateTest, UnitTest};
+use tytanic_core::test::Annotation;
+use tytanic_core::test::Test;
+use tytanic_core::test::TestResult;
+use tytanic_core::TemplateTest;
+use tytanic_core::UnitTest;
 
 use crate::cli::TestFailure;
 use crate::report::Reporter;

@@ -1,14 +1,23 @@
 use color_eyre::eyre;
 use tytanic_core::doc::compare::Strategy;
-use tytanic_core::doc::render::{self, Origin};
+use tytanic_core::doc::render::Origin;
+use tytanic_core::doc::render::{self};
 
-use super::{
-    CompareOptions, CompileOptions, Context, Direction, ExportOptions, FilterOptions,
-    OptionDelegate, RunnerOptions, Switch,
-};
-use crate::cli::{TestFailure, CANCELLED};
+use super::CompareOptions;
+use super::CompileOptions;
+use super::Context;
+use super::Direction;
+use super::ExportOptions;
+use super::FilterOptions;
+use super::OptionDelegate;
+use super::RunnerOptions;
+use super::Switch;
+use crate::cli::TestFailure;
+use crate::cli::CANCELLED;
 use crate::report::Reporter;
-use crate::runner::{Action, Runner, RunnerConfig};
+use crate::runner::Action;
+use crate::runner::Runner;
+use crate::runner::RunnerConfig;
 
 #[derive(clap::Args, Debug, Clone)]
 #[group(id = "run-args")]

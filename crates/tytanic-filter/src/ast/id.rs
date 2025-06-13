@@ -5,8 +5,14 @@ use std::ops::Deref;
 use ecow::EcoString;
 use pest::iterators::Pair;
 
-use super::{Error, PairExt, Rule};
-use crate::eval::{self, Context, Eval, Test, Value};
+use super::Error;
+use super::PairExt;
+use super::Rule;
+use crate::eval::Context;
+use crate::eval::Eval;
+use crate::eval::Test;
+use crate::eval::Value;
+use crate::eval::{self};
 
 /// An identifier node.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

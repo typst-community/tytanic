@@ -1,9 +1,14 @@
-use std::fmt::{self, Debug};
+use std::fmt::Debug;
+use std::fmt::{self};
 use std::sync::Arc;
 
 use ecow::eco_vec;
 
-use super::{Context, Error, TryFromValue, Type, Value};
+use super::Context;
+use super::Error;
+use super::TryFromValue;
+use super::Type;
+use super::Value;
 
 /// The backing implementation for a [`Func`].
 type FuncImpl<T> =
