@@ -214,7 +214,7 @@ impl Separators {
 
     // NOTE(tinger): this seems to take ages to type check in doc tests.
 
-    /// Formats th given items with this sequence's separators.
+    /// Formats the given items with this sequence's separators.
     ///
     /// # Examples
     /// ```

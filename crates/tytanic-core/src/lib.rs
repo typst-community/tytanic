@@ -1,4 +1,4 @@
-//! The core library of the tytanic test runner.
+//! The core library of the Tytanic test runner.
 
 pub mod config;
 pub mod doc;

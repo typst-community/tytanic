@@ -13,7 +13,7 @@ These guidelines are mostly there to make reviewing and bug hunting in the futur
 ### Link To Issues
 Link to issues that are related to a PR or commit, ideally in both.
 
-Github picks thse up automatically when you place `Closes #42` or `Resolves #42, #45 and #46.` in your PR/commit descriptions.
+GitHub picks these up automatically when you place `Closes #42` or `Resolves #42, #45 and #46.` in your PR/commit descriptions.
 
 ### Linear History
 Try to keep your history linear, avoid merges.
@@ -36,7 +36,7 @@ Start your commits with a topic like `cli: add:` or `runner:`.
 
 Take a look at the other commits or ask a contributor if you're unsure.
 Document your commits, add a short summary and describe the what and why, not the how of a patch.
-Here's a good writeup of [how to write good commit messages](https://cbea.ms/git-commit/).
+Here's a good write-up of [how to write good commit messages](https://cbea.ms/git-commit/).
 
 ---
 

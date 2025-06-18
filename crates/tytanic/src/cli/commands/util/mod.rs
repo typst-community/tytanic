@@ -13,38 +13,38 @@ pub mod vcs;
 #[derive(clap::Args, Debug, Clone)]
 #[group(id = "util-args")]
 pub struct Args {
-    /// The sub command to run
+    /// The sub command to run.
     #[command(subcommand)]
     pub cmd: Command,
 }
 
 #[derive(clap::Subcommand, Debug, Clone)]
 pub enum Command {
-    /// Print information about this program
+    /// Print information about this program.
     #[command()]
     About,
 
-    /// Remove test output artifacts
+    /// Remove test output artifacts.
     #[command()]
     Clean(clean::Args),
 
-    /// Generate completions
+    /// Generate completions.
     #[command()]
     Completion(completion::Args),
 
-    /// Generate a man page for tytanic
+    /// Generate a man page for Tytanic.
     #[command()]
     Manpage(manpage::Args),
 
-    /// List all available fonts
+    /// List all available fonts.
     #[command()]
     Fonts(fonts::Args),
 
-    /// Migrate the test structure to the new version
+    /// Migrate the test structure to the new version.
     #[command()]
     Migrate(migrate::Args),
 
-    /// Vcs related commands
+    /// Vcs related commands.
     #[command()]
     Vcs(vcs::Args),
 }

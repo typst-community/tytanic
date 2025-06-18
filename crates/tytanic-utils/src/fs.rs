@@ -120,7 +120,7 @@ where
     fn inner(path: &Path, all: bool) -> io::Result<()> {
         let res = remove_dir(path, true);
         if all {
-            // if there was nothing to clear, then we simply go on to creation
+            // If there was nothing to clear, then we simply go on to creation.
             res.ignore_default(io_not_found)?;
         } else {
             res?;
@@ -149,7 +149,7 @@ pub struct Setup(TempTestEnv);
 impl Setup {
     /// Create a directory and all its parents within the test root.
     ///
-    /// May panic if io errros are encountered.
+    /// May panic if io errors are encountered.
     pub fn setup_dir<P: AsRef<Path>>(&mut self, path: P) -> &mut Self {
         let abs_path = self.0.root.path().join(path.as_ref());
         create_dir(abs_path, true).unwrap();
@@ -158,7 +158,7 @@ impl Setup {
 
     /// Create a file and all its parent directories within the test root.
     ///
-    /// May panic if io errros are encountered.
+    /// May panic if io errors are encountered.
     pub fn setup_file<P: AsRef<Path>>(&mut self, path: P, content: impl AsRef<[u8]>) -> &mut Self {
         let abs_path = self.0.root.path().join(path.as_ref());
         let parent = abs_path.parent().unwrap();
@@ -173,7 +173,7 @@ impl Setup {
 
     /// Create a directory and all its parents within the test root.
     ///
-    /// May panic if io errros are encountered.
+    /// May panic if io errors are encountered.
     pub fn setup_file_empty<P: AsRef<Path>>(&mut self, path: P) -> &mut Self {
         let abs_path = self.0.root.path().join(path.as_ref());
         let parent = abs_path.parent().unwrap();
@@ -224,7 +224,7 @@ impl Expect {
 }
 
 impl TempTestEnv {
-    /// Create a test enviroment and run the given test in it.
+    /// Create a test environments and run the given test in it.
     ///
     /// The given closures for `setup` and `expect` set up the test environment
     /// and configure the expected end state respectively.
@@ -253,7 +253,7 @@ impl TempTestEnv {
         dir.assert();
     }
 
-    /// Create a test enviroment and run the given test in it.
+    /// Create a test environments and run the given test in it.
     ///
     /// This is the same as [`TempTestEnv::run`], but does not check the
     /// resulting directory structure.

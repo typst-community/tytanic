@@ -17,14 +17,14 @@ There are three kinds of unit tests:
 Each of these kinds is available as a test set function.
 
 ## Identifiers
-The directory path within the test root `tests` in your project is the identifier of a test and uses forward slahes as path separators on all platforms, the individual components of a test path must satisfy the following rules:
+The directory path within the test root `tests` in your project is the identifier of a test and uses forward slashes as path separators on all platforms, the individual components of a test path must satisfy the following rules:
 - must start with an ASCII alphabetic character (`a`-`z` or `A`-`Z`)
 - may contain any additional sequence of ASCII alphabetic characters, numeric characters (`0`-`9`), underscores `_` or hyphens `-`
 
 ## Test structure
 Given a directory within `tests`, it is considered a valid test, if it contains at least a `test.typ` file.
 The strucutre of this directory looks as follows:
-- `test.typ`: The main test script, this is always compiled as the entrypoint.
+- `test.typ`: The main test script, this is always compiled as the entry-point.
 - `ref.typ` (optional): This makes a test ephemeral and is used to compile the reference document for each invocation.
 - `ref` (optional, temporary): This makes a test either persistent or ephemeral and is used to store the reference documents.
   If the test is ephemeral this directory is temporary.
@@ -33,12 +33,12 @@ The strucutre of this directory looks as follows:
 
 The kind of a test is determined as follows:
 - If it contains a `ref` directory but no `ref.typ` script, it is considered a persistent test.
-- If it contians a `ref.typ` script, it is considered an ephemeral test.
+- If it contains a `ref.typ` script, it is considered an ephemeral test.
 - If it contains neither, it is considered compile only.
 
 Temporary directories are ignored within the VCS if one is detected, this is currently done by simply adding an ignore file within the test directory which ignores all temporary directories.
 
-Unit test are compiled with the project root as their typst root, such that they can easily access package internals with absolute paths.
+Unit test are compiled with the project root as their Typst root, such that they can easily access package internals with absolute paths.
 
 <div class="warning">
 

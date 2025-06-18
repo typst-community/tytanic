@@ -1,10 +1,10 @@
 //! Test loading and on-disk manipulation.
 
 use std::fmt::Debug;
+use std::fs;
 use std::fs::File;
-use std::fs::{self};
+use std::io;
 use std::io::Write;
-use std::io::{self};
 
 use ecow::EcoString;
 use ecow::EcoVec;
@@ -22,7 +22,7 @@ use crate::doc::SaveError;
 use crate::project::Project;
 use crate::project::Vcs;
 
-// NOTE(tinger): the order of ignoring and deleting/creating documents is not
+// NOTE(tinger): The order of ignoring and deleting/creating documents is not
 // random, this is specifically for VCS like jj with active watchman triggers
 // and auto snapshotting.
 //
@@ -31,7 +31,7 @@ use crate::project::Vcs;
 /// The default test input as source code.
 pub const DEFAULT_TEST_INPUT: &str = include_str!("default-test.typ");
 
-/// The default test output as an encouded PNG.
+/// The default test output as an encoded PNG.
 pub const DEFAULT_TEST_OUTPUT: &[u8] = include_bytes!("default-test.png");
 
 /// References for a test.
@@ -68,7 +68,7 @@ pub enum Kind {
 }
 
 impl Kind {
-    /// Whether this kind is is ephemeral.
+    /// Whether this kind is ephemeral.
     pub fn is_ephemeral(self) -> bool {
         matches!(self, Kind::Ephemeral)
     }
@@ -103,7 +103,7 @@ impl Reference {
     }
 }
 
-/// A standalone test script and its assocaited documents.
+/// A standalone test script and its associated documents.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Test {
     id: Id,
@@ -211,7 +211,7 @@ impl Test {
             annotations,
         };
 
-        // ingore temporaries before creating any
+        // Ignore temporaries before creating any.
         if let Some(vcs) = vcs {
             vcs.ignore(project, &this)?;
         }
@@ -310,14 +310,14 @@ impl Test {
         Ok(())
     }
 
-    /// Deletes the test script of of this test.
+    /// Deletes the test script of this test.
     #[tracing::instrument(skip(project))]
     pub fn delete_script(&self, project: &Project) -> io::Result<()> {
         tytanic_utils::fs::remove_file(project.unit_test_script(&self.id))?;
         Ok(())
     }
 
-    /// Deletes reference script of of this test.
+    /// Deletes reference script of this test.
     #[tracing::instrument(skip(project))]
     pub fn delete_reference_script(&self, project: &Project) -> io::Result<()> {
         tytanic_utils::fs::remove_file(project.unit_test_ref_script(&self.id))?;
@@ -337,7 +337,7 @@ impl Test {
     pub fn make_ephemeral(&mut self, project: &Project, vcs: Option<&Vcs>) -> io::Result<()> {
         self.kind = Kind::Ephemeral;
 
-        // ensure deletion is recorded before ignore file is updated
+        // Ensure deletion is recorded before ignore file is updated.
         self.delete_reference_script(project)?;
         self.delete_reference_document(project)?;
 
@@ -345,7 +345,7 @@ impl Test {
             vcs.ignore(project, self)?;
         }
 
-        // copy refernces after ignore file is updated
+        // Copy references after ignore file is updated.
         std::fs::copy(
             project.unit_test_script(&self.id),
             project.unit_test_ref_script(&self.id),
@@ -366,7 +366,7 @@ impl Test {
     ) -> Result<(), SaveError> {
         self.kind = Kind::Persistent;
 
-        // ensure deletion/creation is recorded before ignore file is updated
+        // Ensure deletion/creation is recorded before ignore file is updated.
         self.delete_reference_script(project)?;
         self.create_reference_document(project, reference, optimize_options)?;
 
@@ -382,7 +382,7 @@ impl Test {
     pub fn make_compile_only(&mut self, project: &Project, vcs: Option<&Vcs>) -> io::Result<()> {
         self.kind = Kind::CompileOnly;
 
-        // ensure deletion is recorded before ignore file is updated
+        // Ensure deletion is recorded before ignore file is updated.
         self.delete_reference_document(project)?;
         self.delete_reference_script(project)?;
 
@@ -457,7 +457,7 @@ pub enum CreateError {
     #[error("an error occurred while saving test files")]
     Save(#[from] doc::SaveError),
 
-    /// An io error occurred.
+    /// An IO error occurred.
     #[error("an io error occurred")]
     Io(#[from] io::Error),
 }
@@ -469,7 +469,7 @@ pub enum LoadError {
     #[error("an error occurred while parsing a test annotation")]
     Annotation(#[from] ParseAnnotationError),
 
-    /// An io error occurred.
+    /// An IO error occurred.
     #[error("an io error occurred")]
     Io(#[from] io::Error),
 }

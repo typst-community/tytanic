@@ -15,7 +15,7 @@ watchexec \
 ```
 
 Of course a shell alias or task runner definition makes this more convenient.
-While this is running, any change to a file in your project which is not excluded by the patterns proivided using the `--ignore` flag will trigger a re-run of `tt run`.
+While this is running, any change to a file in your project which is not excluded by the patterns provided using the `--ignore` flag will trigger a re-run of `tt run`.
 
 If you have other files you may edit which don't influence the outcome of your test suite, then you should ignore them too.
 

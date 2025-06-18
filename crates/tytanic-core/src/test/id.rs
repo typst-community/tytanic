@@ -2,9 +2,9 @@
 
 use std::borrow::Borrow;
 use std::borrow::Cow;
+use std::fmt;
 use std::fmt::Debug;
 use std::fmt::Display;
-use std::fmt::{self};
 use std::ops::Deref;
 use std::path::Component;
 use std::path::Path;
@@ -16,7 +16,7 @@ use ecow::EcoString;
 use thiserror::Error;
 
 // NOTE(tinger): The inner static in `Id::template()` cannot access the
-// assocaited `Id::TEMPLATE`.
+// associated `Id::TEMPLATE`.
 const _TEMPLATE: &str = "@template";
 
 /// A test id, this is the relative path from the test root directory, down to
@@ -46,8 +46,8 @@ impl Id {
 
     /// Turns this string into an id.
     ///
-    /// All components must start at least one ascii alphabetic letter and
-    /// contain only ascii alphanumeric characters, underscores and minuses.
+    /// All components must start at least one ASCII alphabetic letter and
+    /// contain only ASCII alphanumeric characters, underscores, and minuses.
     /// The only exception is the special template test identifier `@template`.
     ///
     /// # Examples
@@ -161,7 +161,7 @@ impl Id {
         Self::validate_component(component).is_ok()
     }
 
-    // TODO(tinger): this seems to be the culprit of the 100% doc tests
+    // TODO(tinger): This seems to be the culprit of the 100% doc tests.
     fn validate_component<S: AsRef<str>>(component: S) -> Result<(), ParseIdError> {
         let component = component.as_ref();
 

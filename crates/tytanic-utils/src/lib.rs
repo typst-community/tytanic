@@ -1,4 +1,4 @@
-//! A utility library for tytanic and its internal crates.
+//! A utility library for Tytanic and its internal crates.
 //!
 //! This library makes _*no stability guarantees*_ at the moment and likely
 //! won't ever.

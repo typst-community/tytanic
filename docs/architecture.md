@@ -1,5 +1,5 @@
 # Architecture
-Tytanic is split into three libraries and one binrary crate.
+Tytanic is split into three libraries and one binary crate.
 The three library crates are split for various different reasons.
 
 > [!note]
@@ -21,7 +21,7 @@ This crate does not yet make SemVer guarantees, but breaking changes are kept at
 # Library crate: `tytanic-filter`
 The filter crate contains the parsing and evaluation of test set expressions, generic over their test type.
 This was primarily moved out of the core crate to re-use it outside of Tytanic.
-This crate does not yet make SemVer guarnatees, but breaking changes are kept at a reasonable minimum.
+This crate does not yet make SemVer guarantees, but breaking changes are kept at a reasonable minimum.
 
 # Library crate: `tytanic-utils`
 The utils crate contains helpers which were used in both the core library and the binary.

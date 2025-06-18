@@ -1,7 +1,7 @@
 use color_eyre::eyre;
 use tytanic_core::doc::compare::Strategy;
+use tytanic_core::doc::render;
 use tytanic_core::doc::render::Origin;
-use tytanic_core::doc::render::{self};
 
 use super::CompareOptions;
 use super::CompileOptions;

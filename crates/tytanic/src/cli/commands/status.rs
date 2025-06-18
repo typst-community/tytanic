@@ -11,7 +11,7 @@ use crate::json::ProjectJson;
 #[derive(clap::Args, Debug, Clone)]
 #[group(id = "status-args")]
 pub struct Args {
-    /// Print a JSON describing the project to stdout
+    /// Print a JSON describing the project to stdout.
     #[arg(long)]
     pub json: bool,
 }

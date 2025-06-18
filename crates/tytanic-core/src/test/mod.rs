@@ -62,7 +62,7 @@ impl Test {
 /// The stage of a single test run.
 #[derive(Debug, Clone, Default)]
 pub enum Stage {
-    /// The test was cancelled or not started in the first place.
+    /// The test was canceled or not started in the first place.
     #[default]
     Skipped,
 

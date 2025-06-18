@@ -1,6 +1,6 @@
 //! Comparison of rendered pages.
 //!
-//! This currently only provies a single primitive comparison algorithm,
+//! This currently only provides a single primitive comparison algorithm,
 //! [`Strategy::Simple`].
 
 use std::fmt::Debug;

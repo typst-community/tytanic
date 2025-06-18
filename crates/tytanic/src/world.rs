@@ -3,7 +3,7 @@
 
 #![allow(dead_code)]
 
-// TODO(tinger): upstream this to typst-kit
+// TODO(tinger): Upstream this to typst-kit.
 
 use std::collections::HashMap;
 use std::fs;
@@ -50,7 +50,7 @@ pub struct SystemWorld {
     slots: Mutex<HashMap<FileId, FileSlot>>,
     /// Holds information about where packages are stored.
     package_storage: PackageStorage,
-    /// The current datetime if requested.
+    /// The current date-time if requested.
     now: DateTime<Utc>,
 }
 
@@ -309,7 +309,7 @@ fn read_from_disk(path: &Path) -> FileResult<Vec<u8>> {
     }
 }
 
-/// Decode UTF-8 with an optional BOM.
+/// Decode UTF-8 with an optional byte order mark (BOM).
 fn decode_utf8(buf: &[u8]) -> FileResult<&str> {
     // Remove UTF-8 BOM.
     Ok(std::str::from_utf8(

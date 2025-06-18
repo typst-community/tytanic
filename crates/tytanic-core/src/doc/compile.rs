@@ -188,7 +188,7 @@ pub struct Error(pub EcoVec<SourceDiagnostic>);
 ///
 /// This function compiles a test source by wrapping the provided [`World`]
 /// implementation in a short lived wrapper which exposes `source` as the
-/// compilation entrypoint. The `f` argument can be used to configure the
+/// compilation entry-point. The `f` argument can be used to configure the
 /// behavior of this wrapper type.
 pub fn compile<'w, F>(
     source: Source,

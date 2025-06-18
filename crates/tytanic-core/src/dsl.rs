@@ -5,12 +5,12 @@
 //! [guide]: https://typst-community.github.io/tytanic/guides/test-sets.html
 
 use tytanic_filter::ast::Id;
+use tytanic_filter::eval;
 use tytanic_filter::eval::Context;
 use tytanic_filter::eval::Error;
 use tytanic_filter::eval::Func;
 use tytanic_filter::eval::Set;
 use tytanic_filter::eval::Value;
-use tytanic_filter::eval::{self};
 
 use crate::test::Test;
 
@@ -20,7 +20,7 @@ impl eval::Test for Test {
     }
 }
 
-/// Creates the default context used by tytanic, this contains bindings for the
+/// Creates the default context used by Tytanic, this contains bindings for the
 /// constructor functions in [`built_in`].
 pub fn context() -> Context<Test> {
     type FuncPtr =
@@ -46,7 +46,7 @@ pub fn context() -> Context<Test> {
     ctx
 }
 
-/// Function definitions for the tytanic test set DSL default evaluation
+/// Function definitions for the Tytanic test set DSL default evaluation
 /// context.
 pub mod built_in {
     use tytanic_filter::eval::Context;

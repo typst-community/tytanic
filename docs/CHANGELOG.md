@@ -5,14 +5,14 @@
 - Added template tests.
 - Added `unit()` test set.
 - Added `template()` test set.
-- Added absolute paths to unit tests in `--json` outout
+- Added absolute paths to unit tests in `--json` output
 - Added `template_test` to `status --json`
 - Removed `is_template` form `status --json`
 - `update` no longer updates all matching test, but only those which fail
-- Added `--force` flag to `update` to foce updating all matching tests
+- Added `--force` flag to `update` to force updating all matching tests
 - Added `util completion` sub command for generating completions
 - Added `util manpage` sub command for generating man pages
-- Unhid non-default switches on short help
+- Unhide non-default switches on short help
 - Added `--include-persistent-references` to `util clean` sub command
 - Added filter options to `util clean` sub command
 - Added support for delimiters in testset raw patterns
@@ -42,7 +42,7 @@
 # [v0.2.0](https://github.com/typst-community/tytanic/releases/tag/v0.2.0)
 ## Highlights
 This release bumps Typst to `0.13.0` and brings plenty of improvements like annotations and config options for various export and comparison settings.
-Among other things this release focuses on improved reproducibility by no longer reading system fonts by default.
+Among other things this release focuses on improved reproducability by no longer reading system fonts by default.
 
 > [!important]
 > This release was yanked, see v0.2.1.
@@ -85,7 +85,7 @@ This release adds a workflow for releasing Docker containers to `ghrc.io/typst-c
 ## Changes
 - Added `--compare` (as inverse of `--no-compare`)
 - Added `--fail-fast` (as inverse of `--no-fail-fast`)
-- Renamed `--no-implicit-skip` to `--no-skip`,  added `--skip`
+- Renamed `--no-implicit-skip` to `--no-skip`, added `--skip`
 - Renamed `--no-optimize-references` to `--no-optimize-refs`, added `--optimize-refs`
 - Renamed `--no-export` to `--no-export-ephemeral`, added `--export-ephemeral`
 - Removed `--promote-warnings`
@@ -99,7 +99,7 @@ This release adds a workflow for releasing Docker containers to `ghrc.io/typst-c
 
 ## Fixes
 - Don't ignore single explicit test arguments
-- Don't create ddefault test with incorrect reference
+- Don't create default test with incorrect reference
 - Fix detection of git repository
 - Don't create persistent references for non-persistent tests
 - Don't panic with empty annotations
@@ -139,7 +139,7 @@ This is the initial release of Tytanic, it now hosts an mdBook using GitHub page
 - Added a test set DSL for filtering tests
 - Added compile-only tests which only compiled
 - Added ephemeral tests which create references on the go
-- Added support for skipping tests usiong in-source annotations
+- Added support for skipping tests using in-source annotations
 - Added test templates using `tests/template.typ`
 - Added an augmented standard library with special helpers for regression test
 - Added `--font-path` for adding additional font search paths

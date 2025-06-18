@@ -1,8 +1,8 @@
-//! A test runner for typst set suites.
+//! A test runner for Typst set suites.
 
 use std::env;
+use std::io;
 use std::io::Write;
-use std::io::{self};
 use std::process::ExitCode;
 use std::sync::atomic::Ordering;
 
@@ -68,7 +68,7 @@ fn main_impl() -> eyre::Result<ExitCode> {
         },
     );
 
-    // Emit deprecation waring for aliases
+    // Emit deprecation warning for aliases
     if let Some(arg) = env::args().skip(1).find(|arg| !arg.starts_with('-')) {
         match &arg[..] {
             "remove" | "rm" => {
@@ -101,15 +101,15 @@ fn main_impl() -> eyre::Result<ExitCode> {
         }
     }
 
-    // this is a hack, termcolor does not expose any way for us to easily reuse
+    // This is a hack, termcolor does not expose any way for us to easily reuse
     // their internal mechanism of checking whether the given stream is color
-    // capable without constructing a stream and asking for it
+    // capable without constructing a stream and asking for it.
     let tracing_ansi = StandardStream::stderr(cc).supports_color();
 
     tracing_subscriber::registry()
         .with(
-            // we set with_ansi to true, because ui handles the usage of color
-            // through termcolor::StandardStream
+            // We set with_ansi to true, because UI handles the usage of color
+            // through termcolor::StandardStream.
             HierarchicalLayer::new(4)
                 .with_targets(true)
                 .with_ansi(tracing_ansi),
@@ -161,7 +161,7 @@ fn main_impl() -> eyre::Result<ExitCode> {
                 }
             }
 
-            // FIXME: https://github.com/serde-rs/json/issues/1169
+            // FIXME(tinger): https://github.com/serde-rs/json/issues/1169
             if root
                 .downcast_ref()
                 .and_then(serde_json::Error::io_error_kind)

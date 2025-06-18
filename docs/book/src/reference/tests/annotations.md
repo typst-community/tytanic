@@ -31,10 +31,10 @@ The following annotations are available:
 |---|---|
 |`skip`|Marks the test as part of the `skip()` test set.|
 |`dir`|Sets the direction used for creating difference documents, expects either `ltr` or `rtl` as an argument.|
-|`ppi`|Sets the pixel per inch used for exporing and comparing documents, expects a floating point value as an argument.|
+|`ppi`|Sets the pixel per inch used for exporting and comparing documents, expects a floating point value as an argument.|
 |`max-delta`|Sets the maximum allowed per-pixel delta, expects an integer between 0 and 255 as an argument.|
 |`max-deviations`|Sets the maximum allowed deviations, expects an integer as an argument.|
 
 ## Skip
-The skip annotation adds a test to the `skip()` test set, this is a special test set that is automatically wrapepd around the `--expression` option `(...) ~ skip()`.
+The skip annotation adds a test to the `skip()` test set, this is a special test set that is automatically wrapped around the `--expression` option `(...) ~ skip()`.
 This implicit skip set can be disabled using `--no-skip`.

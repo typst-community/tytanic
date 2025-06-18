@@ -6,13 +6,13 @@ use pest::iterators::Pair;
 use super::Error;
 use super::PairExt;
 use super::Rule;
+use crate::eval;
 use crate::eval::Context;
 use crate::eval::Eval;
 use crate::eval::Test;
 use crate::eval::TryFromValue;
 use crate::eval::Type;
 use crate::eval::Value;
-use crate::eval::{self};
 
 /// A number literal node.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -74,7 +74,7 @@ impl Num {
                 continue;
             }
 
-            // decimal equivalent of shift left and or LSB
+            // Decimal equivalent of shift left and or LSB.
             num *= 10;
             num += (d - b'0') as usize;
         }

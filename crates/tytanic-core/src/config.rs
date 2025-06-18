@@ -1,4 +1,4 @@
-//! Reading and interpreting tytanic configuration.
+//! Reading and interpreting Tytanic configuration.
 
 use std::fs;
 use std::io;
@@ -9,7 +9,7 @@ use thiserror::Error;
 use tytanic_utils::result::io_not_found;
 use tytanic_utils::result::ResultEx;
 
-/// The key used to configure tytanic in the manifest tool config.
+/// The key used to configure Tytanic in the manifest tool config.
 pub const MANIFEST_TOOL_KEY: &str = crate::TOOL_NAME;
 
 /// The directory name for in which the user config can be found.

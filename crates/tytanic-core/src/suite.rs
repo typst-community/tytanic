@@ -353,7 +353,7 @@ impl FilteredSuite {
 /// Returned by [`Suite::filter`].
 #[derive(Debug, Error)]
 pub enum FilterError {
-    /// An error occurred while evaluating an expresison filter.
+    /// An error occurred while evaluating an expression filter.
     #[error("an error occurred while evaluating an expresison filter")]
     TestSet(#[from] eval::Error),
 
@@ -377,7 +377,7 @@ pub enum Error {
     #[error("an error occurred while collecting a test")]
     Test(#[from] LoadError),
 
-    /// An io error occurred.
+    /// An IO error occurred.
     #[error("an io error occurred")]
     Io(#[from] io::Error),
 }
@@ -399,7 +399,7 @@ pub struct SuiteResult {
 
 impl SuiteResult {
     /// Create a fresh result for a suite, this will have pre-filled results for
-    /// all test set to cancelled, these results can be overridden while running
+    /// all test set to canceled, these results can be overridden while running
     /// the suite.
     pub fn new(suite: &FilteredSuite) -> Self {
         Self {

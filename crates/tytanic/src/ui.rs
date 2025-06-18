@@ -85,9 +85,9 @@ pub struct Ui {
 /// Returns whether or not a given output stream is connected to a terminal.
 pub fn check_terminal<T: IsTerminal>(t: T, choice: ColorChoice) -> ColorChoice {
     match choice {
-        // when we use auto and the stream is not a terminal, we disable it
+        // When we use auto and the stream is not a terminal, we disable it
         // since termcolor does not check for this, in any other case we let
-        // termcolor figure out what to do
+        // termcolor figure out what to do.
         ColorChoice::Auto if !t.is_terminal() => ColorChoice::Never,
         other => other,
     }
@@ -322,8 +322,8 @@ pub fn annotated<W: WriteColor>(
     let align = max_align.into().unwrap_or(header.len());
     cwrite!(bold_colored(w, color), "{header:>align$} ")?;
 
-    // when taking the indent from the header length, we need to account for the
-    // additional space
+    // When taking the indent from the header length, we need to account for the
+    // additional space.
     Ok(Indented::continued(w, align + 1))
 }
 
@@ -397,7 +397,7 @@ pub fn write_diagnostics(
 }
 
 /// Writes content with some styles, this does not implement [`WriteColor`]
-/// because it sets and unsets its own style, manualy interference should be
+/// because it sets and unsets its own style, manually interference should be
 /// avoided.
 #[derive(Debug)]
 pub struct Styled<W, F, G> {

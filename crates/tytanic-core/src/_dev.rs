@@ -42,7 +42,7 @@ impl VirtualFile {
 #[derive(Debug)]
 pub struct VirtualWorld {
     /// The optional main file, defaults to `None`. If this is `None`, then this
-    /// is only useful as a base implementation for pther worlds. Similar to the
+    /// is only useful as a base implementation for other worlds. Similar to the
     /// tests in `tytanic-core`.
     pub main: Option<FileId>,
 

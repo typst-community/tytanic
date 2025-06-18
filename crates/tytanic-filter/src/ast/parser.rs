@@ -31,7 +31,7 @@ impl Rule {
         })
     }
 
-    /// The token this rule corresponds to, or a sensble substitute for
+    /// The token this rule corresponds to, or a sensible substitute for
     /// diagnostics.
     pub fn name(self) -> &'static str {
         match self {

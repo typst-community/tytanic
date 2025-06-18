@@ -2,8 +2,8 @@ use std::io::Write;
 
 use color_eyre::eyre;
 use tytanic_core::doc::compare::Strategy;
+use tytanic_core::doc::render;
 use tytanic_core::doc::render::Origin;
-use tytanic_core::doc::render::{self};
 use tytanic_core::dsl;
 use tytanic_core::suite::Filter;
 use tytanic_core::Id;
@@ -45,7 +45,7 @@ pub struct Args {
     #[command(flatten)]
     pub filter: FilterOptions,
 
-    /// Update all included tests, even if they didn't fail
+    /// Update all included tests, even if they didn't fail.
     #[arg(long)]
     pub force: bool,
 }

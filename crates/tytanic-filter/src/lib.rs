@@ -5,7 +5,7 @@
 //! internal projects of the author. This means that contribution is welcome,
 //! but may be rejected for various reasons not apparent in `tytanic` only.
 //!
-//! This libary is still unstable to some degree, the inner test set types are
+//! This library is still unstable to some degree, the inner test set types are
 //! very opaque and not easily printed or inspected because of this, this may
 //! change in the future.
 //!
@@ -111,7 +111,7 @@ impl<T> ExpressionFilter<T> {
 /// Returned by [`ExpressionFilter::new`].
 #[derive(Debug, Error)]
 pub enum Error {
-    /// A error occurred during parsing.
+    /// An error occurred during parsing.
     #[error(transparent)]
     Parse(#[from] ast::Error),
 

@@ -16,11 +16,11 @@ use crate::ui;
 #[derive(clap::Args, Debug, Clone)]
 #[group(id = "util-migrate-args")]
 pub struct Args {
-    /// Confirm the migration
+    /// Confirm the migration.
     #[arg(long)]
     pub confirm: bool,
 
-    /// The name of the new sub directories the tests get moved to
+    /// The name of the new sub directories the tests get moved to.
     #[arg(long, default_value = "self")]
     pub name: String,
 }

@@ -34,7 +34,7 @@ pub enum ParseAnnotationError {
     #[error("the annotation had only one or no delimiter")]
     MissingDelimiter,
 
-    /// The annotation identifier is unknown, invalid or empty.
+    /// The annotation identifier is unknown, invalid, or empty.
     #[error("unknown or invalid annotation identifier: {0:?}")]
     Unknown(EcoString),
 
@@ -46,7 +46,7 @@ pub enum ParseAnnotationError {
     #[error("the annotation {0} expected an argument, but received none")]
     MissingArg(&'static str),
 
-    /// An error occured while parsing the annotation.
+    /// An error occurred while parsing the annotation.
     #[error("an error occured while parsing the annotation")]
     Other(#[source] Box<dyn std::error::Error + Sync + Send + 'static>),
 }
@@ -68,30 +68,30 @@ pub enum Annotation {
     /// The pixel per inch to use for exporting the documents.
     Ppi(f32),
 
-    /// The maximum allowed per pixel delta to use for comparsion.
+    /// The maximum allowed per pixel delta to use for comparison.
     MaxDelta(u8),
 
-    /// The maximum allowed amount of deviations to use fro comparison.
+    /// The maximum allowed amount of deviations to use for comparison.
     MaxDeviations(usize),
 }
 
 impl Annotation {
     /// Collects all annotations found within a test's source code.
     pub fn collect(source: &str) -> Result<EcoVec<Self>, ParseAnnotationError> {
-        // skip regular comments and leading empty lines
+        // Skip regular comments and leading empty lines.
         let lines = source.lines().skip_while(|line| {
             line.strip_prefix("//")
                 .is_some_and(|rest| !rest.starts_with('/'))
                 || line.trim().is_empty()
         });
 
-        // then collect all consecutive doc comment lines
+        // Then collect all consecutive doc comment lines.
         let lines = lines.map_while(|line| line.strip_prefix("///").map(str::trim));
 
-        // ignore empty ones
+        // Ignore empty ones.
         let lines = lines.filter(|line| !line.is_empty());
 
-        // take only those which start with an annotation deimiter
+        // Take only those which start with an annotation delimiter.
         let lines = lines.take_while(|line| line.starts_with('['));
 
         lines.map(str::parse).collect()

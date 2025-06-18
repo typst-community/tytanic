@@ -119,8 +119,8 @@ mod tests {
     use typst::syntax::Source;
 
     use crate::_dev::VirtualWorld;
+    use crate::doc::compile;
     use crate::doc::compile::Warnings;
-    use crate::doc::compile::{self};
 
     #[test]
     fn test_catch() {

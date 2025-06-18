@@ -22,10 +22,11 @@ pub mod status;
 pub mod update;
 pub mod util;
 
-// TODO(tinger): use built in negation once in clap
+// TODO(tinger): Use built in negation once in clap.
 // See: https://github.com/clap-rs/clap/issues/815
 
-// TODO(tinger): remove rustdoc attributes once markdown support is in clap stable
+// TODO(tinger): Remove rustdoc attributes once markdown support is in clap
+// stable.
 
 /// The separator used for multiple paths.
 const ENV_PATH_SEP: char = if cfg!(windows) { ';' } else { ':' };
@@ -39,16 +40,16 @@ pub trait OptionDelegate: Sized {
     fn into_native(self) -> Self::Native;
 }
 
-/// The kind of a unit test
+/// The kind of a unit test.
 #[derive(clap::ValueEnum, Debug, Clone, Copy)]
 pub enum KindOption {
-    /// Create a persistent test
+    /// Create a persistent test.
     Persistent,
 
-    /// Create an ephemeral test
+    /// Create an ephemeral test.
     Ephemeral,
 
-    /// Create a compile-only test
+    /// Create a compile-only test.
     CompileOnly,
 }
 
@@ -64,16 +65,16 @@ impl OptionDelegate for KindOption {
     }
 }
 
-/// How to handle warnings
+/// How to handle warnings.
 #[derive(ValueEnum, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum WarningsOption {
-    /// Ignore warnings
+    /// Ignore warnings.
     Ignore,
 
-    /// Emit warnigns
+    /// Emit warnings.
     Emit,
 
-    /// Promote warnings to errors
+    /// Promote warnings to errors.
     Promote,
 }
 
@@ -154,10 +155,10 @@ macro_rules! impl_switch {
 impl_switch! {
     /// The `--[no-]use-embedded-fonts` switch.
     UseEmbeddedFontsSwitch(true) {
-        /// Use embedded fonts (default)
+        /// Use embedded fonts (default).
         #[cfg_attr(not(feature = "embed-fonts"), clap(hide = true))]
         use_embedded_fonts,
-        /// Don't use embedded fonts
+        /// Don't use embedded fonts.
         #[cfg_attr(not(feature = "embed-fonts"), clap(hide = true))]
         no_use_embedded_fonts,
     }
@@ -166,9 +167,9 @@ impl_switch! {
 impl_switch! {
     /// The `--[no-]use-system-fonts` switch.
     UseSystemFontsSwitch(false) {
-        /// Use system fonts
+        /// Use system fonts.
         use_system_fonts,
-        /// Don't use system fonts (default)
+        /// Don't use system fonts (default).
         no_use_system_fonts,
     }
 }
@@ -176,9 +177,9 @@ impl_switch! {
 impl_switch! {
     /// The `--[no-]template` switch.
     TemplateSwitch(true) {
-        /// Use the template (default)
+        /// Use the template (default).
         template,
-        /// Don't use the template
+        /// Don't use the template.
         no_template,
     }
 }
@@ -186,9 +187,9 @@ impl_switch! {
 impl_switch! {
     /// The `--[no-]compare` switch.
     CompareSwitch(true) {
-        /// Compare tests if they have references (default)
+        /// Compare tests if they have references (default).
         compare,
-        /// Don't compare tests
+        /// Don't compare tests.
         no_compare,
     }
 }
@@ -196,12 +197,12 @@ impl_switch! {
 impl_switch! {
     /// The `--[no-]export-ephemeral` switch.
     ExportEphemeralSwitch(true) {
-        /// Export ephemeral documents (default)
+        /// Export ephemeral documents (default).
         ///
         /// Ephemeral documents are those which are created for each test run,
         /// i.e. non-persistent ones.
         export_ephemeral,
-        /// Don't export temporaries
+        /// Don't export temporaries.
         no_export_ephemeral,
     }
 }
@@ -209,9 +210,9 @@ impl_switch! {
 impl_switch! {
     /// The `--[no-]fail-fast` switch.
     FailFastSwitch(true) {
-        /// Abort after the first test failure (default)
+        /// Abort after the first test failure (default).
         fail_fast = 'f',
-        /// Don't abort after the first test failure
+        /// Don't abort after the first test failure.
         no_fail_fast = 'F',
     }
 }
@@ -219,12 +220,12 @@ impl_switch! {
 impl_switch! {
     /// The `--[no-]skip` switch.
     SkipSwitch(true) {
-        /// Automatically remove skipped tests (default)
+        /// Automatically remove skipped tests (default).
         ///
         /// Equivalent to wrapping the test set expression in `(...) ~ skip()`.
         skip = 's',
 
-        /// Don't automatically remove skipped tests
+        /// Don't automatically remove skipped tests.
         no_skip = 'S',
     }
 }
@@ -232,10 +233,10 @@ impl_switch! {
 impl_switch! {
     /// The `--[no-]optimize-refs` switch.
     OptimizeRefsSwitch(true) {
-        /// Optimize persistent references (default)
+        /// Optimize persistent references (default).
         optimize_refs,
 
-        /// Don't optimize persistent references
+        /// Don't optimize persistent references.
         no_optimize_refs,
     }
 }
@@ -255,8 +256,8 @@ macro_rules! ansi {
     };
 }
 
-// NOTE(tinger): we use clap style formatting here and keep it simple to avoid a
-// proc macro dependency for a single use of static ansi formatting
+// NOTE(tinger): We use clap style formatting here and keep it simple to avoid a
+// proc macro dependency for a single use of static ansi formatting.
 #[rustfmt::skip]
 static AFTER_LONG_ABOUT: &str = concat!(
     ansi!("Exit Codes:\n"; u + b),
@@ -266,21 +267,21 @@ static AFTER_LONG_ABOUT: &str = concat!(
     "  ", ansi!("3"; b), "  An unexpected error occurred",
 );
 
-/// Run and manage tests for typst projects
+/// Run and manage tests for Typst projects.
 #[derive(Parser, Debug, Clone)]
 #[command(version, after_long_help = AFTER_LONG_ABOUT)]
 pub struct CliArguments {
-    /// The command to run
+    /// The command to run.
     #[command(subcommand)]
     pub cmd: Command,
 
-    /// The project root directory
+    /// The project root directory.
     ///
     /// If none is given, then the first ancestor with a `typst.toml` is used.
     #[arg(long, short, env = "TYPST_ROOT", global = true)]
     pub root: Option<PathBuf>,
 
-    /// The number of threads to use for compilation
+    /// The number of threads to use for compilation.
     #[arg(long, short, global = true)]
     pub jobs: Option<usize>,
 
@@ -305,7 +306,7 @@ pub struct FontOptions {
     #[command(flatten)]
     pub use_system_fonts: UseSystemFontsSwitch,
 
-    /// Add a directory to read fonts from (can be repeated)
+    /// Add a directory to read fonts from (can be repeated).
     #[arg(
         long = "font-path",
         env = "TYPST_FONT_PATHS",
@@ -321,11 +322,11 @@ pub struct FontOptions {
 /// These options are global.
 #[derive(Args, Debug, Clone)]
 pub struct PackageOptions {
-    /// Custom path to local packages, defaults to system-dependent location
+    /// Custom path to local packages, defaults to system-dependent location.
     #[clap(long, env = "TYPST_PACKAGE_PATH", value_name = "DIR", global = true)]
     pub package_path: Option<PathBuf>,
 
-    /// Custom path to package cache, defaults to system-dependent location
+    /// Custom path to package cache, defaults to system-dependent location.
     #[clap(
         long,
         env = "TYPST_PACKAGE_CACHE_PATH",
@@ -334,7 +335,7 @@ pub struct PackageOptions {
     )]
     pub package_cache_path: Option<PathBuf>,
 
-    /// Path to a custom CA certificate to use when making network requests
+    /// Path to a custom CA certificate to use when making network requests.
     #[clap(long, visible_alias = "cert", env = "TYPST_CERT", global = true)]
     pub certificate: Option<PathBuf>,
 }
@@ -343,7 +344,7 @@ pub struct PackageOptions {
 #[derive(Args, Debug, Clone)]
 pub struct FilterOptions {
     #[allow(rustdoc::bare_urls)]
-    /// A test set expression for filtering tests
+    /// A test set expression for filtering tests.
     ///
     /// See the language reference and guide at
     /// https://typst-community.github.io/tytanic/index.html
@@ -354,7 +355,7 @@ pub struct FilterOptions {
     #[command(flatten)]
     pub skip: SkipSwitch,
 
-    /// The exact tests to operate on
+    /// The exact tests to operate on.
     ///
     /// Implies `--no-skip`. Equivalent to passing
     /// `--expression 'exact:a | exact:b | ...'`.
@@ -391,7 +392,7 @@ pub struct CompileOptions {
     )]
     pub timestamp: DateTime<Utc>,
 
-    /// How to handle warnings
+    /// How to handle warnings.
     #[arg(long, default_value = "emit", value_name = "WHAT")]
     pub warnings: WarningsOption,
 }
@@ -399,7 +400,7 @@ pub struct CompileOptions {
 /// Options for document rendering and export.
 #[derive(Args, Debug, Clone)]
 pub struct ExportOptions {
-    /// The document direction
+    /// The document direction.
     ///
     /// This is used to correctly align images with different dimensions when
     /// generating diff images.
@@ -408,7 +409,7 @@ pub struct ExportOptions {
     #[arg(long)]
     pub dir: Option<DirectionOption>,
 
-    /// The pixel-per-inch value to use for export
+    /// The pixel-per-inch value to use for export.
     ///
     /// Defaults to `144.0`, can be configured in the manifest.
     #[arg(long)]
@@ -448,7 +449,7 @@ pub struct CompareOptions {
     #[command(flatten)]
     pub compare: CompareSwitch,
 
-    /// The maximum allowed delta per pixel
+    /// The maximum allowed delta per pixel.
     ///
     /// If a single channel (red/green/blue/alpha component) of a pixel differs
     /// by more than this much between reference and output the pixel is counted
@@ -458,9 +459,9 @@ pub struct CompareOptions {
     #[arg(long)]
     pub max_delta: Option<u8>,
 
-    /// The maximum allowed deviations per comparison
+    /// The maximum allowed deviations per comparison.
     ///
-    /// If a reference and output image have more than the this, then it is
+    /// If a reference and output image have more than this, then it is
     /// counted as a comparison failure.
     ///
     /// Defaults to `0`, can be configured in the manifest.
@@ -480,7 +481,7 @@ pub struct RunnerOptions {
 /// These options are global.
 #[derive(Args, Debug, Clone)]
 pub struct OutputArgs {
-    /// When to use colorful output
+    /// When to use colorful output.
     ///
     /// If set to auto, color will only be enabled if a capable terminal is
     /// detected.
@@ -495,7 +496,7 @@ pub struct OutputArgs {
     )]
     pub color: ColorChoice,
 
-    /// Produce more logging output [-v ... -vvvvv]
+    /// Produce more logging output [-v ... -vvvvv].
     ///
     /// Logs are written to stderr, the increasing number of verbose flags
     /// corresponds to the log levels ERROR, WARN, INFO, DEBUG, TRACE.
@@ -505,31 +506,31 @@ pub struct OutputArgs {
 
 #[derive(clap::Subcommand, Debug, Clone)]
 pub enum Command {
-    /// Show information about the current project
+    /// Show information about the current project.
     #[command(visible_alias = "st")]
     Status(status::Args),
 
-    /// List the tests in the current project
+    /// List the tests in the current project.
     #[command(visible_alias = "ls")]
     List(list::Args),
 
-    /// Compile and compare tests
+    /// Compile and compare tests.
     #[command(visible_alias = "r")]
     Run(run::Args),
 
-    /// Compile and update tests
+    /// Compile and update tests.
     #[command()]
     Update(update::Args),
 
-    /// Create a new test
+    /// Create a new test.
     #[command(alias = "add")]
     New(new::Args),
 
-    /// Remove tests
+    /// Remove tests.
     #[command(alias = "remove", alias = "rm")]
     Delete(delete::Args),
 
-    /// Utility commands
+    /// Utility commands.
     #[command()]
     Util(util::Args),
 }

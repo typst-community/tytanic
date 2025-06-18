@@ -17,15 +17,15 @@ pub enum Origin {
     #[default]
     TopLeft,
 
-    /// The origin of pages on the top right corner, tis is usd in left-to-right
-    /// read documents.
+    /// The origin of pages on the top right corner, this is used in
+    /// left-to-right read documents.
     TopRight,
 
-    /// The origin of pages on the botoom left corner, this is included for
+    /// The origin of pages on the bottom left corner, this is included for
     /// completeness.
     BottomLeft,
 
-    /// The origin of pages on the botoom right corner, this is included for
+    /// The origin of pages on the bottom right corner, this is included for
     /// completeness.
     BottomRight,
 }
@@ -55,9 +55,9 @@ impl Origin {
 /// The factor used to convert pixel per pt to pixel per inch.
 pub const PPP_TO_PPI_FACTOR: f32 = 72.0;
 
-// NOTE(tinger): this doesn't seem to be quite exactly 2, so we use this to
+// NOTE(tinger): This doesn't seem to be quite exactly 2, so we use this to
 // ensure we get the same default value as typst-cli, this avoids spurious
-// failures when people migrate between the old and new version
+// failures when people migrate between the old and new version.
 
 /// The default pixel per pt value used for rendering pages to pixel buffers.
 pub const DEFAULT_PIXEL_PER_PT: f32 = 144.0 / PPP_TO_PPI_FACTOR;
@@ -152,13 +152,13 @@ mod tests {
                 // That's not surprising, but not allowing us to create those
                 // pixels when they're valid is.
                 *px = bytemuck::cast(match (is_in(x, y, &base), is_in(x, y, &change)) {
-                    // proper difference where both are in bounds
+                    // Proper difference where both are in bounds.
                     (true, true) => [0u8, 255, 255, 255],
-                    // no difference to base where change is out of bounds
+                    // No difference to base where change is out of bounds.
                     (true, false) => [255, 255, 255, 255],
-                    // no difference to change where base is out of bounds
+                    // No difference to change where base is out of bounds.
                     (false, true) => [255, 0, 0, 255],
-                    // dead area from size mismatch
+                    // Dead area from size mismatch.
                     (false, false) => [0, 0, 0, 0],
                 });
             }
@@ -195,13 +195,13 @@ mod tests {
                 // That's not surprising, but not allowing us to create those
                 // pixels when they're valid is.
                 *px = bytemuck::cast(match (is_in(x, y, &base), is_in(x, y, &change)) {
-                    // proper difference where both are in bounds
+                    // Proper difference where both are in bounds.
                     (true, true) => [0u8, 255, 255, 255],
-                    // no difference to base where change is out of bounds
+                    // No difference to base where change is out of bounds.
                     (true, false) => [255, 255, 255, 255],
-                    // no difference to change where base is out of bounds
+                    // No difference to change where base is out of bounds.
                     (false, true) => [255, 0, 0, 255],
-                    // dead area from size mismatch
+                    // Dead area from size mismatch.
                     (false, false) => [0, 0, 0, 0],
                 });
             }

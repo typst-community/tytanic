@@ -2,13 +2,13 @@
 ## Versions
 You can either install a stable version or a nightly version, a stable version uses a version tag like `v0.1.3`, whereas nightly versions are simply whatever is currently pointed to by the `main` branch on the GitHub repository.
 
-Nightly has the newest features, but may have unfixed bugs or rough edges, use this with caution and backup your tests.
+Nightly has the newest features, but may have unfixed bugs or rough edges, use this with caution and back up your tests.
 
 Once installed you will have a `tt` binary available, make sure to have a look at [Dependencies](#dependencies) if running Tytanic spits out some error about dynamic libraries.
 
 ## Methods
 ### Download from GitHub
-You can download pre-built binaries of all stable versions from the [release page][releases] of the GitHub repository, these are automatically built for Linux, macOS and Windows.
+You can download pre-built binaries of all stable versions from the [release page][releases] of the GitHub repository, these are automatically built for Linux, macOS, and Windows.
 Nightly versions are not pre-built.
 
 After you downloaded the correct archive for your operating system and architecture you have to extract them and place the `tt` binary somewhere in your `$PATH`.
@@ -55,7 +55,7 @@ nix run github:typst-community/tytanic/v0.2.2
 nix run github:typst-community/tytanic
 ```
 
-This method does't require any extraction or `$PATH` modifications.
+This method doesn't require any extraction or `$PATH` modifications.
 
 ### Using docker
 Every release is automatically added to the GitHub Container Registry `ghcr.io` and can be pulled like so:
@@ -80,7 +80,7 @@ Tytanic tries to provide feature flags for vendoring dependencies where possible
 ### OpenSSL
 OpenSSL (**v1.0.1** to **v3.x.x**) or LibreSSL (**v2.5** to **v3.7.x**) are required to allow Tytanic to download packages from the [Typst Universe][universe] package registry.
 
-When installing from source the `vendor-openssl` feature can be used on unix-like operating systems to vendor OpenSSL.
+When installing from source the `vendor-openssl` feature can be used on Unix-like operating systems to vendor OpenSSL.
 This avoids the need for it on the operating system.
 
 [releases]: https://github.com/typst-community/tytanic/releases/

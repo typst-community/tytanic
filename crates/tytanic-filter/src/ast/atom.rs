@@ -8,7 +8,7 @@ use crate::eval::Eval;
 use crate::eval::Test;
 use crate::eval::Value;
 
-/// An leaf node within a test set expression such as an identifier or literal.
+/// A leaf node within a test set expression such as an identifier or literal.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Atom {
     /// A variable.

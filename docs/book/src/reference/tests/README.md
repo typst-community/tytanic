@@ -1,8 +1,8 @@
 # Tests
 There are three types of tests:
 - Unit tests, which are similar to unit or integration tests in other languages and are mostly used to test the API of a package and visual regressions through comparison with reference documents.
-  Unit tests are standalone files in a `tests` directory inside the project root and have additional features available inside typst using a custom standard library.
-- Template tests, these are automatically created from a template packge's template directory and may not access the augmented standard library.
+  Unit tests are standalone files in a `tests` directory inside the project root and have additional features available inside Typst using a custom standard library.
+- Template tests, these are automatically created from a template package's template directory and may not access the augmented standard library.
   Note that there are also unit tests which can access the template directory assets.
   Instead, they receive access to the template assets.
 - Doc tests, example code in documentation comments which are compiled but not compared.

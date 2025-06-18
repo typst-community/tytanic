@@ -81,8 +81,8 @@ impl<T: 'static> Set<T> {
         })
     }
 
-    /// Construct a set which contains all tests which are contained in all of
-    /// the given sets.
+    /// Construct a set which contains all tests which are contained in all the
+    /// given sets.
     ///
     /// This is the test set created by `a & b`.
     pub fn expr_inter<I>(a: Set<T>, b: Set<T>, rest: I) -> Self
