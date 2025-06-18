@@ -1,13 +1,13 @@
 //! Live reporting of test progress.
 
+use std::io;
 use std::io::Write;
-use std::io::{self};
 use std::time::Duration;
 
 use color_eyre::eyre;
 use termcolor::Color;
+use tytanic_core::doc::compare;
 use tytanic_core::doc::compare::PageError;
-use tytanic_core::doc::compare::{self};
 use tytanic_core::suite::SuiteResult;
 use tytanic_core::test::Stage;
 use tytanic_core::test::Test;
@@ -15,9 +15,9 @@ use tytanic_core::test::TestResult;
 use tytanic_utils::fmt::Term;
 
 use crate::cwrite;
+use crate::ui;
 use crate::ui::CWrite;
 use crate::ui::Ui;
-use crate::ui::{self};
 use crate::world::SystemWorld;
 
 /// The padding to use for annotations while test run reporting.
@@ -136,7 +136,7 @@ impl Reporter<'_, '_> {
 
         writeln!(w)?;
 
-        // TODO(tinger): report failures, mean and avg time
+        // TODO(tinger): Report failures, mean, and average time.
 
         Ok(())
     }

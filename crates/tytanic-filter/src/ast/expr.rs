@@ -11,14 +11,14 @@ use super::Num;
 use super::Pat;
 use super::Rule;
 use super::Str;
+use crate::eval;
 use crate::eval::Context;
 use crate::eval::Eval;
 use crate::eval::Set;
 use crate::eval::Test;
 use crate::eval::Value;
-use crate::eval::{self};
 
-/// A unary prefix operator.
+/// An unary prefix operator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum PrefixOp {
     /// The negation operator. Matches the symbols `not` and `!`.
@@ -65,22 +65,22 @@ pub enum Expr {
         /// The binary infix operator.
         op: InfixOp,
 
-        /// The left hand side of this binary expression.
+        /// The left-hand side of this binary expression.
         lhs: Arc<Expr>,
 
-        /// The right hand side of this binary expression.
+        /// The right-hand side of this binary expression.
         rhs: Arc<Expr>,
     },
 }
 
-// TODO(tinger): flatten intersection and union chains
+// TODO(tinger): Flatten intersection and union chains.
 impl<T: Test> Eval<T> for Expr {
     fn eval(&self, ctx: &Context<T>) -> Result<Value<T>, eval::Error> {
         match self {
             Self::Atom(atom) => atom.eval(ctx),
             Self::Func(func) => func.eval(ctx),
             Self::Prefix { op, expr } => {
-                // unary prefix operator is only valid for test sets
+                // Unary prefix operator is only valid for test sets.
                 let set: Set<T> = expr.eval(ctx)?.expect_type()?;
 
                 Ok(Value::Set(match op {
@@ -88,7 +88,7 @@ impl<T: Test> Eval<T> for Expr {
                 }))
             }
             Self::Infix { op, lhs, rhs } => {
-                // binary infix operator is only valid for test sets
+                // Binary infix operator is only valid for test sets.
                 let lhs: Set<T> = lhs.eval(ctx)?.expect_type()?;
                 let rhs: Set<T> = rhs.eval(ctx)?.expect_type()?;
 

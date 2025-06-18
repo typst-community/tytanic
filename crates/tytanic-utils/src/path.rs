@@ -24,13 +24,13 @@ pub fn common_ancestor<'a>(p: &'a Path, q: &'a Path) -> Option<&'a Path> {
     paths.sort_by_key(|p| p.as_os_str().len());
     let [short, long] = paths;
 
-    // find the longest match where long starts with short
+    // Find the longest match where long starts with short.
     short.ancestors().find(|a| long.starts_with(a))
 }
 
-/// Returns whether `base` is an ancestor of `path` lexically. This means it
-/// will not canonicalize paths and may not always be correct (e.g. in the
-/// presence of symlinks or filesystem mounts).
+/// Returns whether `base` is a lexical ancestor of `path`. This means it will
+/// not canonicalize paths and may not always be correct (e.g. in the presence
+/// of symlinks or filesystem mounts).
 ///
 /// # Example
 /// ```no_run

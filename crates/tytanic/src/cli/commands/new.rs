@@ -30,19 +30,19 @@ use crate::DEFAULT_OPTIMIZE_OPTIONS;
 #[derive(clap::Args, Debug, Clone)]
 #[group(id = "new-args")]
 pub struct Args {
-    /// The type of test to create
+    /// The type of test to create.
     #[arg(long = "type", short, group = "type", default_value = "persistent")]
     pub kind: KindOption,
 
-    /// Shorthand for `--type=persistent`
+    /// Shorthand for `--type=persistent`.
     #[arg(long, short = 'P', group = "type")]
     pub persistent: bool,
 
-    /// Shorthand for `--type=ephermeral`
+    /// Shorthand for `--type=ephermeral`.
     #[arg(long, short = 'E', group = "type")]
     pub ephemeral: bool,
 
-    /// Shorthand for `--type=compile-only`
+    /// Shorthand for `--type=compile-only`.
     #[arg(long, short = 'C', group = "type")]
     pub compile_only: bool,
 
@@ -55,7 +55,7 @@ pub struct Args {
     #[command(flatten)]
     pub export: ExportOptions,
 
-    /// The name of the new test
+    /// The name of the new test.
     #[arg(value_name = "NAME")]
     pub test: Id,
 }

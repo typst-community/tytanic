@@ -30,7 +30,7 @@ pub use vcs::Vcs;
 pub const MANIFEST_FILE: &str = "typst.toml";
 
 /// Represents a "shallow" unloaded project, it contains the base paths required
-/// to to load a project.
+/// to load a project.
 #[derive(Debug, Clone)]
 pub struct ShallowProject {
     root: PathBuf,
@@ -75,8 +75,8 @@ impl ShallowProject {
             }
 
             // TODO(tinger): Currently we keep searching for a project even when
-            // we find a vcs root, I'm not sure if this makes sense, stopping at
-            // the vcs root is likely the most sensible behavior.
+            // we find a VCS root, I'm not sure if this makes sense, stopping at
+            // the VCS root is likely the most sensible behavior.
             if vcs.is_none() {
                 if let Some(kind) = Vcs::exists_at(dir)? {
                     tracing::debug!(vcs = ?kind, root = ?dir, "found vcs");
@@ -98,7 +98,7 @@ impl ShallowProject {
 }
 
 impl ShallowProject {
-    /// Loads the manifest, configuration and unit test template of a project.
+    /// Loads the manifest, configuration, and unit test template of a project.
     #[tracing::instrument]
     pub fn load(self) -> Result<Project, LoadError> {
         let manifest = self.parse_manifest()?;
@@ -186,9 +186,9 @@ impl ShallowProject {
         self.root.join(MANIFEST_FILE)
     }
 
-    /// Returns the path to the vcs root.
+    /// Returns the path to the VCS root.
     ///
-    /// The vcs root is used for properly handling non-persistent storage of
+    /// The VCS root is used for properly handling non-persistent storage of
     /// tests.
     pub fn vcs_root(&self) -> Option<&Path> {
         self.vcs.as_ref().map(Vcs::root)
@@ -458,7 +458,7 @@ pub enum LoadError {
     #[error("an error occurred while parsing the project config")]
     Config(#[from] ConfigError),
 
-    /// An io error occurred.
+    /// An IO error occurred.
     #[error("an io error occurred")]
     Io(#[from] io::Error),
 }
@@ -490,7 +490,7 @@ pub enum ConfigError {
     #[error("an error occurred while parsing the project config")]
     Parse(#[from] toml::de::Error),
 
-    /// An io error occurred.
+    /// An IO error occurred.
     #[error("an io error occurred")]
     Io(#[from] io::Error),
 }

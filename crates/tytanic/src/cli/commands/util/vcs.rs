@@ -11,14 +11,14 @@ use crate::cwrite;
 #[derive(clap::Args, Debug, Clone)]
 #[group(id = "util-vcs-args")]
 pub struct Args {
-    /// The sub command to run
+    /// The sub command to run.
     #[command(subcommand)]
     pub cmd: Command,
 }
 
 #[derive(clap::Subcommand, Debug, Clone)]
 pub enum Command {
-    /// Rewrite all ignore files
+    /// Rewrite all ignore files.
     #[command()]
     Ignore,
 }

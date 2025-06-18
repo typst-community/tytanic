@@ -4,10 +4,10 @@ Many operations such as running, comparing, removing or updating tests all need 
 Tytanic offers a functional set-based language which is used to select tests, it visually resembles writing a predicate which is applied to each test.
 
 Test set expressions are passed using the `--expression` or `-e` flag, they support the following features:
-- binary and unary operators like `&`/`and` or `!`/`not`
-- built-in primitive test sets such as `ephemeral()`, `compile-only()` or `skip()`
-- identity test sets for easier scripting like `all()` and `none()`
-- identifier pattern such as `regex:foo-\d{2}`
+- Binary and unary operators like `&`/`and` or `!`/`not`.
+- Built-in primitive test sets such as `ephemeral()`, `compile-only()` or `skip()`.
+- Identity test sets for easier scripting like `all()` and `none()`.
+- Identifier pattern such as `regex:foo-\d{2}`.
 
 This allows you to concisely filter your test suite without having to remember a number of hard-to-compose CLI options. [^ref]
 
@@ -112,11 +112,11 @@ If you update or remove tests and the test set evaluates to more than one test, 
 
 ## Patterns
 Note that patterns come in two forms:
-- raw patterns: They are provided for convenience, they have been used in the examples above and are simply the pattern kind followed by a colon and any non-whitespace characters.
-- string patterns: A generalization which allows for whitespace and other ambiguous cases.
+- Raw patterns: They are provided for convenience, they have been used in the examples above and are simply the pattern kind followed by a colon and any non-whitespace characters.
+- String patterns: A generalization which allows for whitespace and other ambiguous cases.
 
 This distinction is useful for scripting and some interactive use cases.
-String patterns have delimiters with which any ambiguties can be avoided, but they require more careful consideration of shell interpolation rules.
+String patterns have delimiters with which any ambiguities can be avoided, but they require more careful consideration of shell interpolation rules.
 
 ## Scripting
 If you build up test set expressions programmatically, consider taking a look at the built-in test set functions.
@@ -125,6 +125,6 @@ Specifically the `all()` and `none()` test set constructors can be used as ident
 Some of the syntax used in test sets may interfere with your shell, especially the use of whitespace and special tokens within patterns like `$` in regexes.
 Use non-interpreting quotes around the test set expression (commonly single quotes `'...'`) to avoid interpreting them as shell specific sequences.
 
-This should give you a rough overview of how test sets work, you can check out the [reference] to learn which operators, patterns and test sets exist.
+This should give you a rough overview of how test sets work, you can check out the [reference] to learn which operators, patterns, and test sets exist.
 
 [reference]: ../reference/test-sets/index.html

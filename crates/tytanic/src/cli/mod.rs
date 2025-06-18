@@ -19,8 +19,8 @@ use tytanic_core::suite::Filter;
 use tytanic_core::suite::FilterError;
 use tytanic_core::suite::FilteredSuite;
 use tytanic_core::suite::Suite;
+use tytanic_core::test;
 use tytanic_core::test::ParseIdError;
-use tytanic_core::test::{self};
 use tytanic_filter::eval;
 use tytanic_filter::ExpressionFilter;
 
@@ -29,8 +29,8 @@ use self::commands::FilterOptions;
 use self::commands::Switch;
 use crate::cwrite;
 use crate::kit;
+use crate::ui;
 use crate::ui::Ui;
-use crate::ui::{self};
 use crate::world::SystemWorld;
 
 pub mod commands;
@@ -64,7 +64,7 @@ pub struct Context<'a> {
     /// The parsed top-level arguments.
     pub args: &'a CliArguments,
 
-    /// The terminal ui.
+    /// The terminal UI.
     pub ui: &'a Ui,
 }
 
@@ -87,7 +87,7 @@ impl Context<'_> {
     }
 }
 
-// TODO(tinger): cache these values
+// TODO(tinger): Cache these values.
 impl Context<'_> {
     /// Resolve the current root.
     #[tracing::instrument(skip_all)]
@@ -201,7 +201,7 @@ impl Context<'_> {
 }
 
 impl Context<'_> {
-    /// Run the parsed command and report errors as ui messages.
+    /// Run the parsed command and report errors as UI messages.
     #[tracing::instrument(skip_all)]
     pub fn run(&mut self) -> eyre::Result<()> {
         let Err(error) = self.args.cmd.run(self) else {
@@ -209,7 +209,7 @@ impl Context<'_> {
         };
 
         for error in error.chain() {
-            // TODO(tinger): attach test id
+            // TODO(tinger): Attach test id.
             if let Some(doc::LoadError::MissingPages(pages)) = error.downcast_ref() {
                 if pages.is_empty() {
                     writeln!(self.ui.error()?, "References had zero pages")?;
@@ -223,7 +223,7 @@ impl Context<'_> {
                 eyre::bail!(OperationFailure);
             }
 
-            // TODO(tinger): attach test id
+            // TODO(tinger): Attach test id.
             if let Some(error) = error.downcast_ref::<ParseIdError>() {
                 match error {
                     ParseIdError::InvalidFragment => {
@@ -237,7 +237,7 @@ impl Context<'_> {
                 eyre::bail!(OperationFailure);
             }
 
-            // TODO(tinger): attach test id
+            // TODO(tinger): Attach test id.
             if let Some(error) = error.downcast_ref::<test::ParseAnnotationError>() {
                 writeln!(self.ui.error()?, "Couldn't parse annotations:\n{error}")?;
                 eyre::bail!(OperationFailure);

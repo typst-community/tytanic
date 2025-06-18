@@ -1,6 +1,6 @@
 //! On-disk management of reference and test documents.
 //!
-//! Thsee documents are currently stored as individual pages in the PNG format.
+//! These documents are currently stored as individual pages in the PNG format.
 
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
@@ -130,7 +130,7 @@ impl Document {
             buffers.insert(page, Pixmap::load_png(path)?);
         }
 
-        // check we got pages starting at 1
+        // Check we got pages starting at 1.
         match buffers.first_key_value() {
             Some((min, _)) if *min != 1 => {
                 return Err(LoadError::MissingPages(buffers.into_keys().collect()));
@@ -141,7 +141,7 @@ impl Document {
             }
         }
 
-        // check we got pages ending in the page count
+        // Check we got pages ending in the page count.
         match buffers.last_key_value() {
             Some((max, _)) if *max != buffers.len() => {
                 return Err(LoadError::MissingPages(buffers.into_keys().collect()));
@@ -269,7 +269,7 @@ pub enum SaveError {
     #[error("a page could not be encoded")]
     Page(#[from] png::EncodingError),
 
-    /// An io error occurred.
+    /// An IO error occurred.
     #[error("an io error occurred")]
     Io(#[from] io::Error),
 }

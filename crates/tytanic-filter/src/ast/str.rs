@@ -9,13 +9,13 @@ use super::Error;
 use super::PairExt;
 use super::PairsExt;
 use super::Rule;
+use crate::eval;
 use crate::eval::Context;
 use crate::eval::Eval;
 use crate::eval::Test;
 use crate::eval::TryFromValue;
 use crate::eval::Type;
 use crate::eval::Value;
-use crate::eval::{self};
 
 /// A string literal node.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -27,7 +27,7 @@ impl Str {
         self.0.as_str()
     }
 
-    /// Unwraps the inner eco string.
+    /// Unwraps the inner EcoString.
     pub fn into_inner(self) -> EcoString {
         self.0
     }

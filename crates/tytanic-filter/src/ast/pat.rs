@@ -9,12 +9,12 @@ use super::PairsExt;
 use super::Regex;
 use super::Rule;
 use super::Str;
+use crate::eval;
 use crate::eval::Context;
 use crate::eval::Eval;
 use crate::eval::Set;
 use crate::eval::Test;
 use crate::eval::Value;
-use crate::eval::{self};
 
 /// A pattern literal node.
 #[derive(Clone, PartialEq, Eq, Hash)]

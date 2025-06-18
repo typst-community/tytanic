@@ -44,7 +44,7 @@ jobs:
 
 This adds a single step to our job (called `tests`), which checks out the repository, making it available for the following steps.
 
-We'll use `taiki-e/install-action` for downloading Tytanic, it usese `cargo-binstall`, which downloads the release binaries directly from GitHub.
+We'll use `taiki-e/install-action` for downloading Tytanic, it uses `cargo-binstall`, which downloads the release binaries directly from GitHub.
 The latest version of Tytanic is `0.2.2`, which targets Typst `0.12.x`.
 
 ```yml

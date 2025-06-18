@@ -2,9 +2,9 @@ use std::fmt::Debug;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 
+use color_eyre::eyre;
 use color_eyre::eyre::ContextCompat;
 use color_eyre::eyre::WrapErr;
-use color_eyre::eyre::{self};
 use typst::diag::Warned;
 use typst::layout::PagedDocument;
 use typst::syntax::Source;
@@ -12,8 +12,8 @@ use tytanic_core::config::Direction;
 use tytanic_core::doc::compare::Strategy;
 use tytanic_core::doc::compile;
 use tytanic_core::doc::compile::Warnings;
+use tytanic_core::doc::render;
 use tytanic_core::doc::render::Origin;
-use tytanic_core::doc::render::{self};
 use tytanic_core::doc::Document;
 use tytanic_core::project::Project;
 use tytanic_core::suite::FilteredSuite;
@@ -128,7 +128,7 @@ impl<'c, 'p> Runner<'c, 'p> {
 
             reporter.clear_status()?;
 
-            // TODO(tinger): retrieve export var from action
+            // TODO(tinger): Retrieve export var from action.
             reporter.report_test_result(test, &result)?;
 
             if result.is_fail() && self.config.fail_fast {
@@ -172,7 +172,7 @@ impl UnitTestRunner<'_, '_, '_> {
         let strategy = self.project_runner.config.strategy;
         let origin = self.project_runner.config.origin;
 
-        // TODO(tinger): don't exit early if there are still exports possible
+        // TODO(tinger): Don't exit early if there are still exports possible.
 
         match self.project_runner.config.action {
             Action::Run => {
@@ -206,9 +206,9 @@ impl UnitTestRunner<'_, '_, '_> {
                     Kind::Persistent => {
                         let reference = self.load_ref_doc()?;
 
-                        // TODO(tinger): don't unconditionally export this
-                        // perhaps? on the other hand without comparison we
-                        // don't know whether this is meaningful or not
+                        // TODO(tinger): Don't unconditionally export this
+                        // perhaps? On the other hand without comparison we
+                        // don't know whether this is meaningful or not.
                         if export {
                             let diff = self.render_diff_doc(&output, &reference, origin)?;
                             self.export_diff_doc(&diff)?;
@@ -526,7 +526,7 @@ pub struct TemplateTestRunner<'c, 's, 'p> {
 }
 
 impl TemplateTestRunner<'_, '_, '_> {
-    // TODO: suite, different world root and lookup behavior
+    // TODO(tinger): Suite, different world root and lookup behavior.
     fn run_inner(&mut self) -> eyre::Result<()> {
         match self.project_runner.config.action {
             Action::Run => {

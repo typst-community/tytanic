@@ -15,14 +15,14 @@ use crate::ui::Indented;
 #[derive(clap::Args, Debug, Clone)]
 #[group(id = "util-font-args")]
 pub struct Args {
-    /// List variants alongside fonts
+    /// List variants alongside fonts.
     ///
     /// Variants are listed as their weight, followed by their style and
     /// optionally their stretch, if it is not 1.
     #[arg(long)]
     pub variants: bool,
 
-    /// Print a JSON describing the project to stdout
+    /// Print a JSON describing the project to stdout.
     #[arg(long)]
     pub json: bool,
 }

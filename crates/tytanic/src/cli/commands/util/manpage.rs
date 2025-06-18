@@ -8,7 +8,7 @@ use crate::cli::Context;
 #[derive(clap::Args, Debug, Clone)]
 #[group(id = "util-manpage-args")]
 pub struct Args {
-    /// The directory to write the man pages to
+    /// The directory to write the man pages to.
     #[arg(default_value = ".")]
     pub dir: PathBuf,
 }

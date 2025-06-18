@@ -14,7 +14,7 @@ use crate::ui;
 #[derive(clap::Args, Debug, Clone)]
 #[group(id = "list-args")]
 pub struct Args {
-    /// Print a JSON describing the project to stdout
+    /// Print a JSON describing the project to stdout.
     #[arg(long)]
     pub json: bool,
 
@@ -41,7 +41,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
 
     let mut w = ctx.ui.stderr();
 
-    // NOTE(tinger): max padding of 50 should be enough for most cases
+    // NOTE(tinger): Max padding of 50 should be enough for most cases.
     let pad = Ord::min(
         suite
             .matched()

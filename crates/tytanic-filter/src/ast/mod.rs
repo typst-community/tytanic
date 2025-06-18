@@ -35,7 +35,7 @@ pub use self::pat::Pat;
 pub use self::regex::Regex;
 pub use self::str::Str;
 
-/// The pratt parser defining the operator precedence.
+/// The pratt-parser defining the operator precedence.
 pub(super) static PRATT_PARSER: LazyLock<PrattParser<Rule>> = LazyLock::new(|| {
     use pest::pratt_parser::Assoc;
     use pest::pratt_parser::Op;
@@ -54,7 +54,7 @@ pub(super) static PRATT_PARSER: LazyLock<PrattParser<Rule>> = LazyLock::new(|| {
 /// Parse the given input into a test set expression.
 #[tracing::instrument(ret)]
 pub fn parse(input: &str) -> Result<Expr, Error> {
-    // unwrap main into its root level expr, removing the EOI pair
+    // Unwrap main into its root level expr, removing the EOI pair.
     let root_expr = parser::ExpressionParser::parse(Rule::main, input)
         .map_err(|err| {
             Box::new(err.renamed_rules(|r| r.token().to_owned()))
@@ -102,7 +102,7 @@ pub enum Error {
         found: &'static str,
     },
 
-    /// A string escape did not describe a valid unicode code point.
+    /// A string escape did not describe a valid Unicode code point.
     #[error("a string escape did not describe a valid unicode code point")]
     UnicodeEscape(#[from] CharTryFromError),
 
@@ -114,7 +114,7 @@ pub enum Error {
     #[error("a glob pattern could not be parsed")]
     Glob(#[from] ::glob::PatternError),
 
-    /// Some other error occured.
+    /// Some other error occurred.
     #[error("the expression could not be parsed")]
     Other(#[from] Box<dyn std::error::Error + Send + Sync + 'static>),
 }
@@ -186,7 +186,7 @@ mod tests {
 
     use super::*;
 
-    // TODO(tinger): test failures
+    // TODO(tinger): Test failures.
 
     #[test]
     fn test_parse_single_string() {

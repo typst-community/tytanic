@@ -6,7 +6,7 @@ Read the [guide], if you want to see examples of how to use test sets.
 
 ## Sections
 - [Grammar](./grammar.md) outlines operators and syntax.
-- [Evaluation](./eval.md) explains the evaulation of test set expressions.
+- [Evaluation](./eval.md) explains the evaluation of test set expressions.
 - [Built-in Test Sets](./built-in.md) lists built-in test sets and functions.
 
 [guide]: ../../guides/test-sets.md

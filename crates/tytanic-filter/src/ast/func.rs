@@ -9,11 +9,11 @@ use super::Id;
 use super::PairExt;
 use super::PairsExt;
 use super::Rule;
+use crate::eval;
 use crate::eval::Context;
 use crate::eval::Eval;
 use crate::eval::Test;
 use crate::eval::Value;
-use crate::eval::{self};
 
 /// A function call node.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

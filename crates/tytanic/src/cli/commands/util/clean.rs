@@ -11,7 +11,7 @@ use crate::cwrite;
 #[derive(clap::Args, Debug, Clone)]
 #[group(id = "util-clean-args")]
 pub struct Args {
-    /// Also remove persistent references
+    /// Also remove persistent references.
     #[arg(long)]
     pub include_persistent_references: bool,
 

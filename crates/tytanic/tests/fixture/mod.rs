@@ -4,8 +4,8 @@ use std::ffi::OsStr;
 use std::fmt::Display;
 use std::path::Path;
 use std::path::PathBuf;
+use std::process;
 use std::process::ExitStatus;
-use std::process::{self};
 
 use assert_cmd::Command;
 use tempdir::TempDir;
@@ -18,7 +18,7 @@ use tytanic_utils::result::ResultEx;
 // TODO(tinger): Add configuration options and presets for project
 // configurations such as tests and configurations.
 
-/// A test environment in which to execute tytanic.
+/// A test environment in which to execute Tytanic.
 #[derive(Debug)]
 pub struct Environment {
     dir: TempDir,
@@ -62,7 +62,7 @@ impl Environment {
 }
 
 impl Environment {
-    /// Runs tytanic in the test environment.
+    /// Runs Tytanic in the test environment.
     pub fn run_tytanic_with<F>(&self, f: F) -> Run
     where
         F: FnOnce(&mut Command) -> &mut Command,
@@ -80,7 +80,7 @@ impl Environment {
         }
     }
 
-    /// Runs tytanic in the test environment with the given args.
+    /// Runs Tytanic in the test environment with the given args.
     pub fn run_tytanic<I, T>(&self, args: I) -> Run
     where
         I: IntoIterator<Item = T>,
@@ -89,7 +89,7 @@ impl Environment {
         self.run_tytanic_with(|cmd| cmd.args(args))
     }
 
-    /// Runs tytanic in the sub directory of the test environment with the given
+    /// Runs Tytanic in the sub directory of the test environment with the given
     /// args.
     pub fn run_tytanic_in<I, T, P>(&self, path: P, args: I) -> Run
     where
@@ -120,7 +120,7 @@ impl Run {
     }
 }
 
-/// The output of running tytanic.
+/// The output of running Tytanic.
 #[derive(Debug)]
 pub struct Output {
     stdout: String,
@@ -186,7 +186,7 @@ impl Display for Output {
 
 /// This should only be used for copying the test package fixture into a
 /// freshly created temporary directory. It assumes no symlinks are present, the
-/// `src` exsits and the `dst` does not exist, but its immediate parent does.
+/// `src` exists and the `dst` does not exist, but its immediate parent does.
 fn copy_dir(src: &Path, dst: &Path) -> std::io::Result<()> {
     std::fs::create_dir(dst).ignore(|e| e.kind() == std::io::ErrorKind::AlreadyExists)?;
 
