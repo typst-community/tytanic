@@ -1,9 +1,8 @@
 ---
 name: Proposal or feature request
 about: Propose new a feature or change in behavior
-title: 'FR: '
+type: Feature
 labels:
-  - 'C-feature'
   - 'S-needs-triage'
 ---
 

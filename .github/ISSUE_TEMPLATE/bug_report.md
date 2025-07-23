@@ -1,9 +1,8 @@
 ---
 name: Bug report
 about: Report a bug or other issue
-title: 'BUG: '
+type: Bug
 labels:
-  - 'C-bug'
   - 'S-needs-triage'
 ---
 
