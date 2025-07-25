@@ -55,7 +55,7 @@ impl VirtualFileProvider {
     where
         F: FnOnce(&VirtualFileSlot) -> T,
     {
-        let map = self.slots.lock().unwrap();
+        let map = self.slots();
         map.get(&id)
             .map(f)
             .ok_or_else(|| FileError::NotFound(id.vpath().as_rooted_path().to_owned()))

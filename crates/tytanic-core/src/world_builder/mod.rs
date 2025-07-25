@@ -1,3 +1,21 @@
+//! [`World`] builders and adapters.
+//!
+//! This module contains various different kinds of partial world components
+//! such as:
+//! - [`ProvideFile`]
+//! - [`ProvideFont`]
+//! - [`ProvideLibrary`]
+//! - [`ProvideDatetime`]
+//! - [`TemplateFileProviderShim`]
+//!
+//! These, as their names imply, provide part of the [`World`] interface, making
+//! composition and reuse of certain components easier across multiple [`World`]
+//! implementations. The providers can be combined into a [`ComposedWorld`]
+//! using its [`builder`] API.
+//!
+//! Building on top of these providers are various adapters for specific use
+//! cases in tytanic, such as template test rerouting and test library support.
+
 use std::sync::OnceLock;
 
 use typst::diag::FileResult;
@@ -44,7 +62,7 @@ pub trait ProvideFile: Send + Sync {
 }
 
 forward_trait! {
-    impl<W> ProvideFile for [std::boxed::Box<W>, std::sync::Arc<W>, &W] {
+    impl<W> ProvideFile for [std::boxed::Box<W>, std::sync::Arc<W>, &W, &mut W] {
         fn provide_source(&self, id: FileId, progress: &mut dyn Progress) -> FileResult<Source> {
             W::provide_source(self, id, progress)
         }
@@ -174,7 +192,7 @@ pub trait ProvideFont: Send + Sync {
 }
 
 forward_trait! {
-    impl<W> ProvideFont for [std::boxed::Box<W>, std::sync::Arc<W>, &W] {
+    impl<W> ProvideFont for [std::boxed::Box<W>, std::sync::Arc<W>, &W, &mut W] {
         fn provide_font_book(&self) -> &LazyHash<FontBook> {
             W::provide_font_book(self)
         }
@@ -192,7 +210,7 @@ pub trait ProvideLibrary: Send + Sync {
 }
 
 forward_trait! {
-    impl<W> ProvideLibrary for [std::boxed::Box<W>, std::sync::Arc<W>, &W] {
+    impl<W> ProvideLibrary for [std::boxed::Box<W>, std::sync::Arc<W>, &W, &mut W] {
         fn provide_library(&self) -> &LazyHash<Library> {
             W::provide_library(self)
         }
@@ -222,7 +240,7 @@ pub trait ProvideDatetime: Send + Sync {
 }
 
 forward_trait! {
-    impl<W> ProvideDatetime for [std::boxed::Box<W>, std::sync::Arc<W>, &W] {
+    impl<W> ProvideDatetime for [std::boxed::Box<W>, std::sync::Arc<W>, &W, &mut W] {
         fn provide_today(&self, offset: Option<i64>) -> Option<Datetime> {
             W::provide_today(self, offset)
         }
@@ -234,14 +252,14 @@ forward_trait! {
 }
 
 /// A builder for [`ComposedWorld`].
-pub struct ComposedWorldBuilder<'w> {
-    files: Option<&'w dyn ProvideFile>,
-    fonts: Option<&'w dyn ProvideFont>,
-    library: Option<&'w dyn ProvideLibrary>,
-    datetime: Option<&'w dyn ProvideDatetime>,
+pub struct ComposedWorldBuilder<Fi, Fo, Li, Dt> {
+    files: Option<Fi>,
+    fonts: Option<Fo>,
+    library: Option<Li>,
+    datetime: Option<Dt>,
 }
 
-impl ComposedWorldBuilder<'_> {
+impl<Fi, Fo, Li, Dt> ComposedWorldBuilder<Fi, Fo, Li, Dt> {
     /// Creates a new builder.
     pub fn new() -> Self {
         Self {
@@ -253,9 +271,9 @@ impl ComposedWorldBuilder<'_> {
     }
 }
 
-impl<'w> ComposedWorldBuilder<'w> {
+impl<Fi, Fo, Li, Dt> ComposedWorldBuilder<Fi, Fo, Li, Dt> {
     /// Configure the file provider.
-    pub fn file_provider(self, value: &'w dyn ProvideFile) -> Self {
+    pub fn file_provider(self, value: Fi) -> Self {
         Self {
             files: Some(value),
             ..self
@@ -263,7 +281,7 @@ impl<'w> ComposedWorldBuilder<'w> {
     }
 
     /// Configure the font provider.
-    pub fn font_provider(self, value: &'w dyn ProvideFont) -> Self {
+    pub fn font_provider(self, value: Fo) -> Self {
         Self {
             fonts: Some(value),
             ..self
@@ -271,7 +289,7 @@ impl<'w> ComposedWorldBuilder<'w> {
     }
 
     /// Configure the library provider.
-    pub fn library_provider(self, value: &'w dyn ProvideLibrary) -> Self {
+    pub fn library_provider(self, value: Li) -> Self {
         Self {
             library: Some(value),
             ..self
@@ -279,7 +297,7 @@ impl<'w> ComposedWorldBuilder<'w> {
     }
 
     /// Configure the datetime provider.
-    pub fn datetime_provider(self, value: &'w dyn ProvideDatetime) -> Self {
+    pub fn datetime_provider(self, value: Dt) -> Self {
         Self {
             datetime: Some(value),
             ..self
@@ -289,14 +307,14 @@ impl<'w> ComposedWorldBuilder<'w> {
     /// Build the world with the configured providers.
     ///
     /// Panics if a provider is missing.
-    pub fn build(self, id: FileId) -> ComposedWorld<'w> {
+    pub fn build(self, id: FileId) -> ComposedWorld<Fi, Fo, Li, Dt> {
         self.try_build(id).unwrap()
     }
 
     /// Build the world with the configured providers.
     ///
     /// Returns `None` if a provider is missing.
-    pub fn try_build(self, id: FileId) -> Option<ComposedWorld<'w>> {
+    pub fn try_build(self, id: FileId) -> Option<ComposedWorld<Fi, Fo, Li, Dt>> {
         Some(ComposedWorld {
             files: self.files?,
             fonts: self.fonts?,
@@ -307,7 +325,7 @@ impl<'w> ComposedWorldBuilder<'w> {
     }
 }
 
-impl Default for ComposedWorldBuilder<'_> {
+impl<Fi, Fo, Li, Dt> Default for ComposedWorldBuilder<Fi, Fo, Li, Dt> {
     fn default() -> Self {
         Self::new()
     }
@@ -315,22 +333,35 @@ impl Default for ComposedWorldBuilder<'_> {
 
 /// A shim around the various provider traits which together implement a whole
 /// [`World`].
-pub struct ComposedWorld<'w> {
-    files: &'w dyn ProvideFile,
-    fonts: &'w dyn ProvideFont,
-    library: &'w dyn ProvideLibrary,
-    datetime: &'w dyn ProvideDatetime,
-    id: FileId,
+pub struct ComposedWorld<Fi, Fo, Li, Dt> {
+    /// The file provider.
+    pub files: Fi,
+
+    /// The font provider.
+    pub fonts: Fo,
+
+    /// The library provider.
+    pub library: Li,
+
+    /// The datetime provider.
+    pub datetime: Dt,
+
+    /// The main file id.
+    pub id: FileId,
 }
 
-impl<'w> ComposedWorld<'w> {
+impl<Fi, Fo, Li, Dt> ComposedWorld<Fi, Fo, Li, Dt> {
     /// Creates a new builder.
-    pub fn builder() -> ComposedWorldBuilder<'w> {
+    pub fn builder() -> ComposedWorldBuilder<Fi, Fo, Li, Dt> {
         ComposedWorldBuilder::new()
     }
 }
 
-impl ComposedWorld<'_> {
+impl<Fi, Fo, Li, Dt> ComposedWorld<Fi, Fo, Li, Dt>
+where
+    Fi: ProvideFile,
+    Dt: ProvideDatetime,
+{
     /// Resets the inner providers for the next compilation.
     pub fn reset(&self) {
         // TODO(tinger): We probably really want exclusive access here, no
@@ -340,7 +371,13 @@ impl ComposedWorld<'_> {
     }
 }
 
-impl World for ComposedWorld<'_> {
+impl<Fi, Fo, Li, Dt> World for ComposedWorld<Fi, Fo, Li, Dt>
+where
+    Fi: ProvideFile,
+    Fo: ProvideFont,
+    Li: ProvideLibrary,
+    Dt: ProvideDatetime,
+{
     fn library(&self) -> &LazyHash<Library> {
         self.library.provide_library()
     }
@@ -415,7 +452,12 @@ pub(crate) mod test_utils {
         source: Source,
         files: &'w mut VirtualFileProvider,
         library: &'w LibraryProvider,
-    ) -> ComposedWorld<'w> {
+    ) -> ComposedWorld<
+        &'w mut VirtualFileProvider,
+        &'static VirtualFontProvider,
+        &'w LibraryProvider,
+        &'static FixedDateProvider,
+    > {
         files
             .slots_mut()
             .insert(source.id(), VirtualFileSlot::from_source(source.clone()));

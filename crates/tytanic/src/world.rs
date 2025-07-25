@@ -42,6 +42,20 @@ use crate::cli::commands::FontOptions;
 use crate::cli::commands::PackageOptions;
 use crate::cli::commands::Switch;
 
+pub type TemplateWorld<'p> = ComposedWorld<
+    &'p TemplateFileProviderShim<FilesystemFileProvider, FilesystemFileProvider>,
+    &'p FilesystemFontProvider,
+    &'p LibraryProvider,
+    &'p FixedDateProvider,
+>;
+
+pub type UnitWorld<'p> = ComposedWorld<
+    &'p FilesystemFileProvider,
+    &'p FilesystemFontProvider,
+    &'p LibraryProvider,
+    &'p FixedDateProvider,
+>;
+
 #[tracing::instrument]
 fn package_storage(package_opts: &PackageOptions) -> PackageStorage {
     let agent = format!("{}/{}", tytanic_core::TOOL_NAME, env!("CARGO_PKG_VERSION"));
@@ -184,12 +198,12 @@ impl Providers {
     }
 
     /// Constructs a world for unit tests.
-    pub fn unit_world<'w>(
-        &'w self,
+    pub fn unit_world<'p>(
+        &'p self,
         project: &Project,
-        test: &'w UnitTest,
+        test: &UnitTest,
         is_ref: bool,
-    ) -> ComposedWorld<'w> {
+    ) -> UnitWorld<'p> {
         // TODO(tinger): Implement more fail safe path handling to ensure we
         // don't use absolute paths here.
         let path = if is_ref {
