@@ -8,7 +8,7 @@ use thiserror::Error;
 use typst::diag::Severity;
 use typst::diag::SourceDiagnostic;
 use typst::diag::Warned;
-use typst::layout::PagedDocument;
+use typst::Document;
 use typst::World;
 use tytanic_utils::fmt::Term;
 
@@ -32,8 +32,11 @@ pub enum Warnings {
 #[error("compilation failed with {} {}", .0.len(), Term::simple("error").with(.0.len()))]
 pub struct Error(pub EcoVec<SourceDiagnostic>);
 
-/// Compiles a test using the given test world.
-pub fn compile(world: &dyn World, warnings: Warnings) -> Warned<Result<PagedDocument, Error>> {
+/// Compiles a test using the given world and warning behavior.
+pub fn compile<D>(world: &dyn World, warnings: Warnings) -> Warned<Result<D, Error>>
+where
+    D: Document,
+{
     let Warned {
         output,
         warnings: mut emitted,
@@ -80,6 +83,7 @@ pub fn compile(world: &dyn World, warnings: Warnings) -> Warned<Result<PagedDocu
 
 #[cfg(test)]
 mod tests {
+    use typst::layout::PagedDocument;
     use typst::syntax::Source;
 
     use super::*;
@@ -98,7 +102,7 @@ mod tests {
         let source = Source::detached(TEST_PASS);
         let world = test_utils::virtual_world(source, &mut files, &library);
 
-        let Warned { output, warnings } = compile(&world, Warnings::Ignore);
+        let Warned { output, warnings } = compile::<PagedDocument>(&world, Warnings::Ignore);
         assert!(output.is_ok());
         assert!(warnings.is_empty());
     }
@@ -110,7 +114,7 @@ mod tests {
         let source = Source::detached(TEST_PASS);
         let world = test_utils::virtual_world(source, &mut files, &library);
 
-        let Warned { output, warnings } = compile(&world, Warnings::Emit);
+        let Warned { output, warnings } = compile::<PagedDocument>(&world, Warnings::Emit);
         assert!(output.is_ok());
         assert!(warnings.is_empty());
     }
@@ -122,7 +126,7 @@ mod tests {
         let source = Source::detached(TEST_PASS);
         let world = test_utils::virtual_world(source, &mut files, &library);
 
-        let Warned { output, warnings } = compile(&world, Warnings::Promote);
+        let Warned { output, warnings } = compile::<PagedDocument>(&world, Warnings::Promote);
         assert!(output.is_ok());
         assert!(warnings.is_empty());
     }
@@ -134,7 +138,7 @@ mod tests {
         let source = Source::detached(TEST_WARN);
         let world = test_utils::virtual_world(source, &mut files, &library);
 
-        let Warned { output, warnings } = compile(&world, Warnings::Ignore);
+        let Warned { output, warnings } = compile::<PagedDocument>(&world, Warnings::Ignore);
         assert!(output.is_ok());
         assert!(warnings.is_empty());
     }
@@ -146,7 +150,7 @@ mod tests {
         let source = Source::detached(TEST_WARN);
         let world = test_utils::virtual_world(source, &mut files, &library);
 
-        let Warned { output, warnings } = compile(&world, Warnings::Emit);
+        let Warned { output, warnings } = compile::<PagedDocument>(&world, Warnings::Emit);
         assert!(output.is_ok());
         assert_eq!(warnings.len(), 1);
     }
@@ -158,7 +162,7 @@ mod tests {
         let source = Source::detached(TEST_WARN);
         let world = test_utils::virtual_world(source, &mut files, &library);
 
-        let Warned { output, warnings } = compile(&world, Warnings::Promote);
+        let Warned { output, warnings } = compile::<PagedDocument>(&world, Warnings::Promote);
         assert_eq!(output.unwrap_err().0.len(), 1);
         assert!(warnings.is_empty());
     }
@@ -170,7 +174,7 @@ mod tests {
         let source = Source::detached(TEST_FAIL);
         let world = test_utils::virtual_world(source, &mut files, &library);
 
-        let Warned { output, warnings } = compile(&world, Warnings::Ignore);
+        let Warned { output, warnings } = compile::<PagedDocument>(&world, Warnings::Ignore);
         assert_eq!(output.unwrap_err().0.len(), 1);
         assert!(warnings.is_empty());
     }
@@ -182,7 +186,7 @@ mod tests {
         let source = Source::detached(TEST_FAIL);
         let world = test_utils::virtual_world(source, &mut files, &library);
 
-        let Warned { output, warnings } = compile(&world, Warnings::Emit);
+        let Warned { output, warnings } = compile::<PagedDocument>(&world, Warnings::Emit);
         assert_eq!(output.unwrap_err().0.len(), 1);
         assert_eq!(warnings.len(), 1);
     }
@@ -194,7 +198,7 @@ mod tests {
         let source = Source::detached(TEST_FAIL);
         let world = test_utils::virtual_world(source, &mut files, &library);
 
-        let Warned { output, warnings } = compile(&world, Warnings::Promote);
+        let Warned { output, warnings } = compile::<PagedDocument>(&world, Warnings::Promote);
         assert_eq!(output.unwrap_err().0.len(), 2);
         assert!(warnings.is_empty());
     }

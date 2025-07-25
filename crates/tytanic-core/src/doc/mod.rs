@@ -52,7 +52,7 @@ impl Document {
         let Warned { output, warnings } = compile::compile(world, warnings);
 
         Warned {
-            output: output.map(|doc| Self::render(doc, pixel_per_pt)),
+            output: output.map(|doc: PagedDocument| Self::render(doc, pixel_per_pt)),
             warnings,
         }
     }

@@ -116,6 +116,7 @@ fn assert_panic(
 
 #[cfg(test)]
 mod tests {
+    use typst::layout::PagedDocument;
     use typst::syntax::Source;
 
     use super::*;
@@ -141,7 +142,9 @@ mod tests {
 
         let world = test_utils::virtual_world(source, &mut files, &library);
 
-        compile::compile(&world, Warnings::Emit).output.unwrap();
+        compile::compile::<PagedDocument>(&world, Warnings::Emit)
+            .output
+            .unwrap();
     }
 
     #[test]
@@ -159,6 +162,8 @@ mod tests {
 
         let world = test_utils::virtual_world(source, &mut files, &library);
 
-        compile::compile(&world, Warnings::Emit).output.unwrap();
+        compile::compile::<PagedDocument>(&world, Warnings::Emit)
+            .output
+            .unwrap();
     }
 }
