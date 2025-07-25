@@ -47,6 +47,7 @@
             ./Cargo.lock
             ./rustfmt.toml
             ./crates
+            ./assets
           ];
         };
 
