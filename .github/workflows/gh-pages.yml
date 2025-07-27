@@ -16,17 +16,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Install mdbook
-        run: |
-          tag=$(curl 'https://api.github.com/repos/rust-lang/mdbook/releases/latest' | jq -r '.tag_name')
-          url="https://github.com/rust-lang/mdbook/releases/download/${tag}/mdbook-${tag}-x86_64-unknown-linux-gnu.tar.gz"
-          mkdir mdbook
-          curl -sSL $url | tar -xz --directory=./mdbook
-          echo `pwd`/mdbook >> $GITHUB_PATH
+      - name: Install Shiroa
+        uses: typst-community/setup-shiroa@v1
+        with:
+          shiroa-version: 0.3.0
       - name: Build Book
-        run: |
-          cd docs/book
-          mdbook build
+        run: shiroa build --mode=static-html docs/book
       - name: Setup Pages
         uses: actions/configure-pages@v4
       - name: Upload artifact

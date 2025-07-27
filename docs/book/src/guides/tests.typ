@@ -1,4 +1,8 @@
-# Writing tests
+#import "/src/packages.typ": *
+
+#import "/book.typ": book-page
+#show: book-page.with(title: "Writing Tests")
+
 To start writing tests, you only need to write regular `typst` scripts, no special syntax or annotations are required.
 
 Let's start with the most common type of tests, unit tests.
@@ -10,7 +14,7 @@ We'll assume you have a normal package directory structure:
 └─ typst.toml
 ```
 
-## Unit tests
+= Unit tests
 Unit tests are found in the `tests` directory of your project (remember that this is where your `typst.toml` manifest is found).
 
 Let's write our first test, you can run `tt add my-test` to add a new unit test, this creates a new directory called `my-test` inside `tests` and adds a test script and reference document.
@@ -156,19 +160,13 @@ Let's import our function and test it:
 )
 ```
 
-<div class="warning">
+#[//<div class="warning">
+  The exact interface of this library may change in the future.
 
-The exact interface of this library may change in the future.
+  See #link("https://github.com/typst-community/tytanic/issues/73")[\#73].
+]
 
-See [#73].
-
-</div>
-
-<!--
-The more your project grows
--->
-
-## Template tests
+= Template tests
 Template packages automatically have an additional test for the configured template path called `@template`, this test cannot be created or removed.
 These tests don't get access to the augmented standard library unit tests get, but in turn get the ability to access an unreleased version of the current package.
 
@@ -182,20 +180,11 @@ If you have a template like so:
 Even if `foo-bar:0.1.0` is not yet released, it can be accessed for this particular test.
 Template tests ensure that users can run `typst init @preview/foo-bar` without being stuck with a broken starting document.
 
-## Documentation tests
+= Documentation tests
+#[//<div class="warning">
+  In the future you'll be able to automatically test your documentation examples too, but these are currently unsupported
 
-<div class="warning">
+  See #link("https://github.com/typst-community/tytanic/issues/34")[\#34].
+]
 
-In the future you'll be able to automatically test your documentation examples too, but these are currently unsupported
-
-See [#34].
-
-</div>
-
-This should equip you with all the knowledge of how to reliably test your projects, but if you're still curious about all the details check out the [reference for tests][tests].
-
-[#73]: https://github.com/typst-community/tytanic/issues/73
-[#49]: https://github.com/typst-community/tytanic/issues/49
-[#34]: https://github.com/typst-community/tytanic/issues/34
-[tests]: ../reference/tests/index.html
-[oxipng]: https://github.com/shssoichiro/oxipng
+This should equip you with all the knowledge of how to reliably test your projects, but if you're still curious about all the details check out the #shiroa.cross-link("/src/reference/tests.typ")[reference for tests].

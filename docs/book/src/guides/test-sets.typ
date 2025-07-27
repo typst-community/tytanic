@@ -1,5 +1,9 @@
-# Using Test Sets
-## Why Tests Sets
+#import "/src/packages.typ": *
+
+#import "/book.typ": book-page
+#show: book-page.with(title: "Using Test Sets")
+
+= Why Tests Sets
 Many operations such as running, comparing, removing or updating tests all need to somehow select which tests to operate on.
 Tytanic offers a functional set-based language which is used to select tests, it visually resembles writing a predicate which is applied to each test.
 
@@ -11,7 +15,7 @@ Test set expressions are passed using the `--expression` or `-e` flag, they supp
 
 This allows you to concisely filter your test suite without having to remember a number of hard-to-compose CLI options. [^ref]
 
-## An Iterative Example
+= An Iterative Example
 Suppose you had a project with the following tests:
 ```txt
 tests
@@ -110,7 +114,7 @@ frobnicate
 
 If you update or remove tests and the test set evaluates to more than one test, then you must either specify the `all:` prefix in the test set expression, or confirm the operation in a terminal prompt.
 
-## Patterns
+= Patterns
 Note that patterns come in two forms:
 - Raw patterns: They are provided for convenience, they have been used in the examples above and are simply the pattern kind followed by a colon and any non-whitespace characters.
 - String patterns: A generalization which allows for whitespace and other ambiguous cases.
@@ -118,13 +122,11 @@ Note that patterns come in two forms:
 This distinction is useful for scripting and some interactive use cases.
 String patterns have delimiters with which any ambiguities can be avoided, but they require more careful consideration of shell interpolation rules.
 
-## Scripting
+= Scripting
 If you build up test set expressions programmatically, consider taking a look at the built-in test set functions.
 Specifically the `all()` and `none()` test set constructors can be used as identity sets for certain operators, possibly simplifying the code generating the test sets.
 
 Some of the syntax used in test sets may interfere with your shell, especially the use of whitespace and special tokens within patterns like `$` in regexes.
 Use non-interpreting quotes around the test set expression (commonly single quotes `'...'`) to avoid interpreting them as shell specific sequences.
 
-This should give you a rough overview of how test sets work, you can check out the [reference] to learn which operators, patterns, and test sets exist.
-
-[reference]: ../reference/test-sets/index.html
+This should give you a rough overview of how test sets work, you can check out the #shiroa.cross-link("/src/reference/test-sets.typ")[reference] to learn which operators, patterns, and test sets exist.

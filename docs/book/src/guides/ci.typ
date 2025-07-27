@@ -1,14 +1,14 @@
-# Setting Up CI
+#import "/book.typ": book-page
+#show: book-page.with(title: "Setting Up CI")
+
 Continuous integration can take a lot of manual work off of your shoulders.
 In this chapter we'll look at how to run Tytanic in your GitHub CI to continuously test your code and catch bugs before they get merged into your project.
 
-<div class="warning">
+#[//<div class="warning">
+  If you simply want to get CI working without any elaborate explanation, skip ahead to the bottom and copy the full file.
 
-If you simply want to get CI working without any elaborate explanation, skip ahead to the bottom and copy the full file.
-
-There's a good chance that you can simply copy and paste the workflow as is and it'll work, but the guide should give you an idea on how to adjust it to your liking.
-
-</div>
+  There's a good chance that you can simply copy and paste the workflow as is and it'll work, but the guide should give you an idea on how to adjust it to your liking.
+]
 
 We start off by creating a `.github/workflows` directory in our project and place a single `ci.yaml` file in this directory.
 The name is not important, but should be something that helps you distinguish which workflow you're looking at.
@@ -92,39 +92,40 @@ steps:
 
 And that's it, you can add this file to your repo, push it to a branch and open a PR, the PR will already start running the workflow for you and you can adjust and debug it as needed.
 
-> The full workflow file:
->
-> ```yml
-> name: CI
-> on:
->   push:
->     branches: [ main ]
->   pull_request:
->     branches: [ main ]
->
-> jobs:
->   tests:
->     runs-on: ubuntu-latest
->     steps:
->       - name: Checkout
->         uses: actions/checkout@v4
->
->       - name: Install tytanic
->         uses: taiki-e/cache-cargo-install-action@v2
->         with:
->           tool: tytanic@0.2.2
->
->       - name: Run test suite
->         run: tt run
->
->       - name: Archive artifacts
->         uses: actions/upload-artifact@v4
->         if: always()
->         with:
->           name: artifacts
->           path: |
->             tests/**/diff/*.png
->             tests/**/out/*.png
->             tests/**/ref/*.png
->           retention-days: 5
-> ```
+#block(inset: 1em, stroke: (left: gray))[
+  The full workflow file:
+  ```yml
+  name: CI
+  on:
+    push:
+      branches: [ main ]
+    pull_request:
+      branches: [ main ]
+
+  jobs:
+    tests:
+      runs-on: ubuntu-latest
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v4
+
+        - name: Install tytanic
+          uses: taiki-e/cache-cargo-install-action@v2
+          with:
+            tool: tytanic@0.2.2
+
+        - name: Run test suite
+          run: tt run
+
+        - name: Archive artifacts
+          uses: actions/upload-artifact@v4
+          if: always()
+          with:
+            name: artifacts
+            path: |
+              tests/**/diff/*.png
+              tests/**/out/*.png
+              tests/**/ref/*.png
+            retention-days: 5
+  ```
+]
