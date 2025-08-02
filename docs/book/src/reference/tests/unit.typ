@@ -1,11 +1,15 @@
-# Unit tests
+#import "/src/packages.typ": *
+
+#import "/book.typ": book-page
+#show: book-page.with(title: "Unit Tests")
+
 Unit tests are those tests found in their own directory identified by a `test.typ` script and are located in `tests`.
 
 Unit tests are the only tests which have access to an extended Typst standard library.
 This [test library](./lib.md) contains modules and functions to thoroughly test both the success and failure paths of your project.
-Note that tests with a `template` [annotation] cannot use this augmented library, instead they get access to the contents of a package's template directory.
+Note that tests with a `template` #shiroa.cross-link("/src/reference/tests/annotations.typ")[annotation] cannot use this augmented library, instead they get access to the contents of a package's template directory.
 
-## Test kinds
+= Test Kinds
 There are three kinds of unit tests:
 - `compile-only`: Tests which are compiled, but not compared to any reference, these don't produce any output.
 - `persistent`: Tests which are compared to persistent reference documents.
@@ -16,12 +20,12 @@ There are three kinds of unit tests:
 
 Each of these kinds is available as a test set function.
 
-## Identifiers
+= Identifiers
 The directory path within the test root `tests` in your project is the identifier of a test and uses forward slashes as path separators on all platforms, the individual components of a test path must satisfy the following rules:
 - must start with an ASCII alphabetic character (`a`-`z` or `A`-`Z`)
 - may contain any additional sequence of ASCII alphabetic characters, numeric characters (`0`-`9`), underscores `_` or hyphens `-`
 
-## Test structure
+= Test Structure
 Given a directory within `tests`, it is considered a valid test, if it contains at least a `test.typ` file.
 The strucutre of this directory looks as follows:
 - `test.typ`: The main test script, this is always compiled as the entry-point.
@@ -40,15 +44,13 @@ Temporary directories are ignored within the VCS if one is detected, this is cur
 
 Unit test are compiled with the project root as their Typst root, such that they can easily access package internals with absolute paths.
 
-<div class="warning">
+#[//<div class="warning">
+  A test cannot contain other tests, if a test script is found Tytanic will not search for any sub tests, this was previously supported but is being phased out.
+  Projects which have nested tests will receive a warning and the nested tests will be ignored.
+  Such projects can migrate by running `tt util migrate`, which will guide the user through and automate such a migration process.
+]
 
-A test cannot contain other tests, if a test script is found Tytanic will not search for any sub tests, this was previously supported but is being phased out.
-Projects which have nested tests will receive a warning and the nested tests will be ignored.
-Such projects can migrate by running `tt util migrate`, which will guide the user through and automate such a migration process.
-
-</div>
-
-## Comparison
+= Comparison
 Ephemeral and persistent tests are currently compared using a simple deviation threshold which determines if two images should be considered the same or different.
 If the images have different dimensions consider them different.
 Given two images of equal dimensions, pair up each pixel and compare them, if any of the 3 channels (red, green, blue) differ by at least `min-delta` count it as a deviation.
@@ -59,5 +61,3 @@ These values can be tweaked on the command line using the `--max-deviations` and
 - `--min-delta` takes a byte, i.e. any value from `0` to `255`.
 
 Both values default to `0` such that any difference will trigger a failure by default.
-
-[annotation]: ./annotations.md

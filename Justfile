@@ -25,8 +25,8 @@ test:
 	cargo insta test --test-runner nextest --workspace
 
 # build and serve the book locally
-book *args='--open':
-	mdbook serve {{ book-src }} {{ args }}
+book *args='--mode=static-html':
+	shiroa serve {{ book-src }} {{ args }}
 
 # run tests and checks similar to CI
 ci:

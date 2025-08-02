@@ -122,6 +122,12 @@
           checks = self'.checks;
           inputsFrom = [ tytanic ];
 
+          # fonts.packages = with pkgs; [
+          #   nerd-fonts.blex-mono
+          #   source-han-serif
+          #   texlivePackages.charter
+          # ];
+
           buildInputs = with pkgs; [
             rust-analyzer
           ];

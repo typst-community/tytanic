@@ -43,17 +43,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - name: Install latest mdbook
-      run: |
-        tag=$(curl 'https://api.github.com/repos/rust-lang/mdbook/releases/latest' | jq -r '.tag_name')
-        url="https://github.com/rust-lang/mdbook/releases/download/${tag}/mdbook-${tag}-x86_64-unknown-linux-gnu.tar.gz"
-        mkdir bin
-        curl -sSL $url | tar -xz --directory=bin
-        echo "$(pwd)/bin" >> $GITHUB_PATH
-    - name: Run tests
-      run: |
-        cd docs/book
-        mdbook test
+    - name: Install Shiroa
+      uses: typst-community/setup-shiroa@v1
+      with:
+        shiroa-version: 0.3.0
+    - name: Build book
+      run: shiroa build --mode=static-html docs/book
 
   check-msrv:
     name: Check mininum supported Rust version

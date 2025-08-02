@@ -1,4 +1,6 @@
-# Usage
+#import "/book.typ": book-page
+#show: book-page.with(title: "Usage")
+
 Tytanic is a command line program, it can be run by simply invoking it in your favorite shell and passing the appropriate arguments, the binary is called `tt`.
 
 If you open a shell in the folder `project` and Tytanic is at `project/bin/tt`, then you can run it using `./project/bin/tt`.
@@ -32,6 +34,4 @@ entrypoint = "src/lib.typ"
 ```
 
 Once you have a project root to work with you can run various commands like `tt new` or `tt run`.
-Check out the [tests guide][guide] to find out how you can test your code.
-
-[guide]: ../guides/tests.md
+Check out the #link("../guides/tests.md")[tests guide] to find out how you can test your code.
