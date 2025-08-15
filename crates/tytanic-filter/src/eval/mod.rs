@@ -21,7 +21,7 @@ pub use self::value::TryFromValue;
 pub use self::value::Type;
 pub use self::value::Value;
 
-/// A marker trait for tests, this is automatically implemented for all clonable
+/// A marker trait for tests, this is automatically implemented for all cloneable
 /// static types.
 pub trait Test: Clone + 'static {
     /// The id of a test, this is used for matching on tests using test sets

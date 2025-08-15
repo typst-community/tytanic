@@ -38,7 +38,7 @@ pub struct Args {
     #[arg(long, short = 'P', group = "type")]
     pub persistent: bool,
 
-    /// Shorthand for `--type=ephermeral`.
+    /// Shorthand for `--type=ephemeral`.
     #[arg(long, short = 'E', group = "type")]
     pub ephemeral: bool,
 

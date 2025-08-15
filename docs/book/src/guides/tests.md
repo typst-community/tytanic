@@ -147,8 +147,8 @@ Let's import our function and test it:
 // If we pass `none`, then this must panic, otherwise we did something wrong.
 #assert-panic(() => frobnicate(none))
 
-// We can also unwrap the panics and inspect their eror message.
-// Note that we get an array of strings back if a panic occured, or `none` if
+// We can also unwrap the panics and inspect their error message.
+// Note that we get an array of strings back if a panic occurred, or `none` if
 // there was no panic.
 #assert.eq(
   catch(() => frobnicate(none)),

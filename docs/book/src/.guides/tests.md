@@ -20,7 +20,7 @@ tt remove features/fancy-box
 ```
 
 ## Test templates
-Regression test can often have plenty of boilerplate, if Typst-test finds a `template.typ` file direclty in the `tests` directory, it will use this for new tests instead of the default `Hello World` test.
+Regression test can often have plenty of boilerplate, if Typst-test finds a `template.typ` file directly in the `tests` directory, it will use this for new tests instead of the default `Hello World` test.
 This can be turned of with `--no-template` when running the `add` sub command.
 
 ## Reference Kinds
@@ -35,7 +35,7 @@ Since the references for persistent regression tests may change as a project evo
 
 If you update your project and a persistent regression test fails, but the change in output was deliberate, you can run `tt update features/fancy-box` to update this test.
 
-This will compile the document and save it as the new refernce document.
+This will compile the document and save it as the new reference document.
 
 <div class="warning">
 

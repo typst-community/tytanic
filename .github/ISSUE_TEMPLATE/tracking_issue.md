@@ -7,7 +7,7 @@ labels:
 ---
 
 <!--
-  Thank you for opening this tracking issue! Please describe the overal goal
+  Thank you for opening this tracking issue! Please describe the overall goal
   here. Use the GitHub "Relationships" drop-down on the left to mark the related
   issues and PRs. Feel free to also include them in the body itself if you need
   to add context.

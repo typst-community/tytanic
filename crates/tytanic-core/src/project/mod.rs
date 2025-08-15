@@ -609,7 +609,7 @@ mod tests {
     }
 
     #[test]
-    fn test_validation_non_trival_paths() {
+    fn test_validation_non_trivial_paths() {
         let manifest = PackageManifestBuilder::new()
             .template(TemplateInfoBuilder::new().path("..").build())
             .build();
