@@ -47,7 +47,7 @@ pub enum ParseAnnotationError {
     MissingArg(&'static str),
 
     /// An error occurred while parsing the annotation.
-    #[error("an error occured while parsing the annotation")]
+    #[error("an error occurred while parsing the annotation")]
     Other(#[source] Box<dyn std::error::Error + Sync + Send + 'static>),
 }
 

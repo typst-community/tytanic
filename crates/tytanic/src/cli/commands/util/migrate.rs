@@ -42,13 +42,13 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
         writeln!(w, "These tests would be moved:")?;
     }
 
-    let mut has_colission = false;
+    let mut has_collision = false;
     let mut mappings = BTreeMap::new();
     for old in suite.nested().keys() {
         let new = Id::new(format!("{old}/{}", args.name))?;
         let collision = suite.contains(&new);
 
-        has_colission |= collision;
+        has_collision |= collision;
         mappings.insert(old.clone(), (new, collision));
     }
 
@@ -67,7 +67,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
 
     writeln!(w)?;
 
-    if has_colission {
+    if has_collision {
         let mut w = ctx.ui.hint()?;
         cwrite!(bold_colored(w, Color::Red), "*")?;
         writeln!(

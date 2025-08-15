@@ -42,7 +42,7 @@
 # [v0.2.0](https://github.com/typst-community/tytanic/releases/tag/v0.2.0)
 ## Highlights
 This release bumps Typst to `0.13.0` and brings plenty of improvements like annotations and config options for various export and comparison settings.
-Among other things this release focuses on improved reproducability by no longer reading system fonts by default.
+Among other things this release focuses on improved reproducibility by no longer reading system fonts by default.
 
 > [!important]
 > This release was yanked, see v0.2.1.
@@ -144,7 +144,7 @@ This is the initial release of Tytanic, it now hosts an mdBook using GitHub page
 - Added an augmented standard library with special helpers for regression test
 - Added `--font-path` for adding additional font search paths
 - Added `--ignore-system-fonts` for disabling system fonts
-- Added `--creation-timestamp` for configuring the `datetime.now()` timestmap
+- Added `--creation-timestamp` for configuring the `datetime.now()` timestamp
 - Added `--max-deviations` `--min-delta` options for configuring comparison thresholds
 - Added `--json` to print the output of some commands as JSON to stdout
 - Added an mdBook containing various guides and reference documents

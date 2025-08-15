@@ -9,7 +9,7 @@ Note that tests with a `template` [annotation] cannot use this augmented library
 There are three kinds of unit tests:
 - `compile-only`: Tests which are compiled, but not compared to any reference, these don't produce any output.
 - `persistent`: Tests which are compared to persistent reference documents.
-  The references for these tests are stored in a `ref` directory alongside the test script as individual pages using PNGs.
+  The references for these tests are stored in a `ref` directory alongside the test script as individual pages using ONGs.
   These tests can be updated with the `tt update` command.
 - `ephemeral`: Tests which are compared to the output of another script.
   The references for these tests are compiled on the fly using a `ref.typ` script.
@@ -23,7 +23,7 @@ The directory path within the test root `tests` in your project is the identifie
 
 ## Test structure
 Given a directory within `tests`, it is considered a valid test, if it contains at least a `test.typ` file.
-The strucutre of this directory looks as follows:
+The structure of this directory looks as follows:
 - `test.typ`: The main test script, this is always compiled as the entry-point.
 - `ref.typ` (optional): This makes a test ephemeral and is used to compile the reference document for each invocation.
 - `ref` (optional, temporary): This makes a test either persistent or ephemeral and is used to store the reference documents.
