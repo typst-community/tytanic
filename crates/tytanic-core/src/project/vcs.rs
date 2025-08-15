@@ -101,12 +101,12 @@ impl Vcs {
             }
         });
 
-        for always in ["diff/**\n", "out/**\n"] {
+        for always in ["/diff/\n", "/out/\n"] {
             content.push_str(always);
         }
 
         if !test.kind().is_persistent() {
-            content.push_str("ref/**\n");
+            content.push_str("/ref/\n");
         }
 
         fs::write(file, content)?;
@@ -160,7 +160,7 @@ mod tests {
             |root| {
                 root.expect_dir("tests/fancy").expect_file_content(
                     "tests/fancy/.gitignore",
-                    format!("{IGNORE_HEADER}\n\ndiff/**\nout/**\nref/**\n"),
+                    format!("{IGNORE_HEADER}\n\n/diff/\n/out/\n/ref/\n"),
                 )
             },
         );
@@ -179,7 +179,7 @@ mod tests {
             |root| {
                 root.expect_dir("tests/fancy").expect_file_content(
                     "tests/fancy/.gitignore",
-                    format!("{IGNORE_HEADER}\n\ndiff/**\nout/**\nref/**\n"),
+                    format!("{IGNORE_HEADER}\n\n/diff/\n/out/\n/ref/\n"),
                 )
             },
         );
