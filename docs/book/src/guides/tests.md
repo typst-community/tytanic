@@ -13,9 +13,9 @@ We'll assume you have a normal package directory structure:
 ## Unit tests
 Unit tests are found in the `tests` directory of your project (remember that this is where your `typst.toml` manifest is found).
 
-Let's write our first test, you can run `tt add my-test` to add a new unit test, this creates a new directory called `my-test` inside `tests` and adds a test script and reference document.
+Let's write our first test, you can run `tt new my-test` to add a new unit test, this creates a new directory called `my-test` inside `tests` and adds a test script and reference document.
 This test is located in `tests/my-test/tests.typ` and is the entry-point script (like a `main.typ` file).
-Assuming you passed no extra options to `tt add`, this test is going to be a `persistent` unit test, this means that its output will be compared to a reference document which is stored in `tests/my-test/ref/` as individual pages.
+Assuming you passed no extra options to `tt new`, this test is going to be a `persistent` unit test, this means that its output will be compared to a reference document which is stored in `tests/my-test/ref/` as individual pages.
 
 You could also pass `--ephemeral`, which means to create a script which creates this document on every test run or `--compile-only`, which means the test doesn't create any output and is only compiled.
 
@@ -112,7 +112,7 @@ Because Tytanic comes with a custom standard library you can catch panics and ex
 Let's add another test where we check that this function behaves correctly and let's not return any output but instead just check how it behaves with various inputs:
 
 ```shell
-tt add --compile-only frobnicate
+tt new --compile-only frobnicate
 ```
 
 You project should now look like this:
