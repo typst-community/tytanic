@@ -2,8 +2,8 @@
 //!
 //! This is used in a project to ensure that ephemeral storage directories are
 //! not managed by the VCS of the user. Currently supports `.gitignore` and
-//! `.hgignore` based VCS' as well as auto discovery of Git, Mercurial and
-//! Jujutsu through their hidden repository directories.
+//! `.hgignore` based VCS' as well as auto discovery of Git, Mercurial,
+//! Sapling and Jujutsu through their hidden repository directories.
 
 use std::fmt;
 use std::fmt::Debug;
@@ -31,12 +31,12 @@ pub enum Kind {
     /// Uses `.gitignore` files to ignore temporary files and directories.
     ///
     /// This means it can also be used by VCS's which support `.gitignore` files,
-    /// like Jujutsu.
+    /// like Jujutsu or Sapling.
     Git,
 
     /// Uses `.hgignore` files to ignore temporary files and directories.
     ///
-    /// This means it can also be used by Vcs' which support `.hgignore` files.
+    /// This means it can also be used by VCS' which support `.hgignore` files.
     Mercurial,
 }
 
@@ -70,7 +70,10 @@ impl Vcs {
     /// found.
     #[tracing::instrument(ret)]
     pub fn exists_at(dir: &Path) -> io::Result<Option<Kind>> {
-        if dir.join(".git").try_exists()? || dir.join(".jj").try_exists()? {
+        if dir.join(".git").try_exists()?
+            || dir.join(".jj").try_exists()?
+            || dir.join(".sl").try_exists()?
+        {
             return Ok(Some(Kind::Git));
         }
 
