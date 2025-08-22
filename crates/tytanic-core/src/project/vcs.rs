@@ -45,20 +45,25 @@ pub enum Kind {
 /// and `diff` directories.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Vcs {
-    root: PathBuf,
+    root: Option<PathBuf>,
     kind: Kind,
 }
 
 impl Vcs {
-    /// Creates a new Vcs with the given root directory and kind.
+    /// Creates a new VCS with the given root directory and kind.
     pub fn new<I>(root: I, kind: Kind) -> Self
     where
         I: Into<PathBuf>,
     {
         Self {
-            root: root.into(),
+            root: Some(root.into()),
             kind,
         }
+    }
+
+    /// Creates a new VCS with the given kind and no root.
+    pub fn new_rootless(kind: Kind) -> Self {
+        Self { root: None, kind }
     }
 
     /// Checks the given directory for a VCS root, returning which kind was
@@ -79,8 +84,8 @@ impl Vcs {
 
 impl Vcs {
     /// The root of this Vcs' repository.
-    pub fn root(&self) -> &Path {
-        &self.root
+    pub fn root(&self) -> Option<&Path> {
+        self.root.as_deref()
     }
 
     /// The kind of this repository.
