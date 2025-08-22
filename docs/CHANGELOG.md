@@ -22,6 +22,8 @@
 ## Fixes
 - Don't panic when trying to update non-persistent tests
 - Don't report old version of typst in `util about`
+- Incorrect ignore patterns of tests
+  - Use `tt util vcs ignore` to re-generate ignore files.
 
 ---
 
