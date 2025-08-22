@@ -191,7 +191,7 @@ impl ShallowProject {
     /// The VCS root is used for properly handling non-persistent storage of
     /// tests.
     pub fn vcs_root(&self) -> Option<&Path> {
-        self.vcs.as_ref().map(Vcs::root)
+        self.vcs.as_ref().and_then(Vcs::root)
     }
 }
 
