@@ -18,6 +18,7 @@
 - Added support for delimiters in testset raw patterns
 - Re-licensed under `MIT OR Apache-2.0`
 - Transferred repository to the typst-community organization
+- Add support for detecting sapling as a git-compatible VCS
 
 ## Fixes
 - Don't panic when trying to update non-persistent tests
