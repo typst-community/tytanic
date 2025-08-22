@@ -285,6 +285,10 @@ pub struct CliArguments {
     #[arg(long, short, global = true)]
     pub jobs: Option<usize>,
 
+    /// The version control system to use.
+    #[arg(long, value_enum, default_value = "auto", global = true)]
+    pub vcs: Vcs,
+
     #[command(flatten, next_help_heading = "Font Options")]
     pub font: FontOptions,
 
@@ -293,6 +297,23 @@ pub struct CliArguments {
 
     #[command(flatten, next_help_heading = "Output Options")]
     pub output: OutputArgs,
+}
+
+/// The VCS to use.
+#[derive(Debug, Default, Clone, Copy, ValueEnum)]
+pub enum Vcs {
+    #[default]
+    /// Auto detect the VCS from the current directory.
+    Auto,
+
+    /// Git-compatible VCS'.
+    Git,
+
+    /// Mercurial-compatible VCS'.
+    Mercurial,
+
+    /// Shorthand for `mercurual`.
+    Hg,
 }
 
 /// Options for configuring how to load fonts.

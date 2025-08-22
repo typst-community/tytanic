@@ -17,6 +17,8 @@ use tytanic_core::project::ConfigError;
 use tytanic_core::project::ManifestError;
 use tytanic_core::project::Project;
 use tytanic_core::project::ShallowProject;
+use tytanic_core::project::Vcs;
+use tytanic_core::project::VcsKind;
 use tytanic_core::suite::Filter;
 use tytanic_core::suite::FilterError;
 use tytanic_core::suite::FilteredSuite;
@@ -121,7 +123,25 @@ impl Context<'_> {
             eyre::bail!(OperationFailure);
         };
 
-        Ok(project.load()?)
+        let mut project = project.load()?;
+
+        'vcs: {
+            let kind = match self.args.vcs {
+                commands::Vcs::Auto => break 'vcs,
+                commands::Vcs::Git => VcsKind::Git,
+                commands::Vcs::Hg | commands::Vcs::Mercurial => VcsKind::Mercurial,
+            };
+
+            if let Some(detected) = project.vcs().map(Vcs::kind) {
+                if kind != detected {
+                    project = project.with_vcs(Some(Vcs::new_rootless(kind)));
+                }
+            } else {
+                project = project.with_vcs(Some(Vcs::new_rootless(kind)));
+            }
+        }
+
+        Ok(project)
     }
 
     /// Create a new filter from given arguments.
