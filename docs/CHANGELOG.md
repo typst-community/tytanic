@@ -80,7 +80,7 @@ Among other things this release focuses on improved reproducibility by no longer
 
 # [v0.1.2](https://github.com/typst-community/tytanic/releases/tag/v0.1.2)
 ## Highlights
-This release adds a workflow for releasing Docker containers to `ghrc.io/typst-community/tytanic` for each subsequent.
+This release adds a workflow for releasing Docker containers to `ghcr.io/typst-community/tytanic` for each subsequent.
 
 > [!important]
 > This release was yanked, see v0.1.3.
