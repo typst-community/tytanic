@@ -130,7 +130,7 @@ impl ShallowProject {
             .transpose()?;
 
         if let Some(manifest) = &manifest {
-            validate_manifest(manifest)?;
+            validate_manifest(&self.root, manifest)?;
         }
 
         Ok(manifest)
@@ -152,7 +152,7 @@ impl ShallowProject {
             .transpose()?;
 
         if let Some(config) = &config {
-            validate_config(config)?;
+            validate_config(&self.root, config)?;
         }
 
         Ok(config)
@@ -383,7 +383,7 @@ impl Deref for Project {
     }
 }
 
-fn validate_manifest(manifest: &PackageManifest) -> Result<(), ValidationError> {
+fn validate_manifest(root: &Path, manifest: &PackageManifest) -> Result<(), ValidationError> {
     let PackageManifest {
         package: _,
         template,
@@ -400,16 +400,46 @@ fn validate_manifest(manifest: &PackageManifest) -> Result<(), ValidationError> 
     };
 
     if !is_trivial_path(template.path.as_str()) {
-        error
-            .errors
-            .insert("template.path".into(), ValidationErrorCause::NonTrivialPath);
+        error.errors.insert(
+            "template.path".into(),
+            ValidationErrorCause::NonTrivialPath {
+                field: template.path.clone(),
+            },
+        );
+    } else {
+        let path = root.join(template.path.as_str());
+
+        if !path.exists() {
+            error.errors.insert(
+                "template.path".into(),
+                ValidationErrorCause::DoesNotExist {
+                    field: template.path.clone(),
+                    resolved: path,
+                },
+            );
+        }
     }
 
     if !is_trivial_path(template.entrypoint.as_str()) {
         error.errors.insert(
             "template.entrypoint".into(),
-            ValidationErrorCause::NonTrivialPath,
+            ValidationErrorCause::NonTrivialPath {
+                field: template.entrypoint.clone(),
+            },
         );
+    } else {
+        let mut path = root.join(template.path.as_str());
+        path.push(template.entrypoint.as_str());
+
+        if !path.exists() {
+            error.errors.insert(
+                "template.entrypoint".into(),
+                ValidationErrorCause::DoesNotExist {
+                    field: template.entrypoint.clone(),
+                    resolved: path,
+                },
+            );
+        }
     }
 
     if !error.errors.is_empty() {
@@ -419,7 +449,7 @@ fn validate_manifest(manifest: &PackageManifest) -> Result<(), ValidationError> 
     Ok(())
 }
 
-fn validate_config(config: &ProjectConfig) -> Result<(), ValidationError> {
+fn validate_config(root: &Path, config: &ProjectConfig) -> Result<(), ValidationError> {
     let ProjectConfig {
         unit_tests_root,
         defaults: _,
@@ -430,9 +460,24 @@ fn validate_config(config: &ProjectConfig) -> Result<(), ValidationError> {
     };
 
     if !is_trivial_path(unit_tests_root.as_str()) {
-        error
-            .errors
-            .insert("tests".into(), ValidationErrorCause::NonTrivialPath);
+        error.errors.insert(
+            "tests".into(),
+            ValidationErrorCause::NonTrivialPath {
+                field: unit_tests_root.into(),
+            },
+        );
+    } else {
+        let path = root.join(unit_tests_root);
+
+        if !path.exists() {
+            error.errors.insert(
+                "tests".into(),
+                ValidationErrorCause::DoesNotExist {
+                    field: unit_tests_root.into(),
+                    resolved: path,
+                },
+            );
+        }
     }
 
     if !error.errors.is_empty() {
@@ -481,6 +526,16 @@ pub enum ValidationErrorCause {
         /// The field as it was set in the config.
         field: EcoString,
     },
+
+    /// A configured path did not exist.
+    #[error("the path did not exist: {field:?} ({resolved:?})")]
+    DoesNotExist {
+        /// The field as it was set in the config.
+        field: EcoString,
+
+        /// The field as it was resolved.
+        resolved: PathBuf,
+    },
 }
 
 /// Returned by [`ShallowProject::parse_config`].
@@ -517,6 +572,7 @@ pub enum ManifestError {
 
 #[cfg(test)]
 mod tests {
+    use tytanic_utils::fs::TempTestEnv;
     use tytanic_utils::typst::PackageManifestBuilder;
     use tytanic_utils::typst::TemplateInfoBuilder;
 
@@ -588,54 +644,128 @@ mod tests {
 
     #[test]
     fn test_validation_default() {
-        let config = ProjectConfig::default();
-        validate_config(&config).unwrap();
+        TempTestEnv::run_no_check(
+            |root| root.setup_dir("tests"),
+            |root| {
+                let config = ProjectConfig::default();
+                validate_config(root, &config).unwrap();
+            },
+        );
     }
 
     #[test]
-    fn test_validation_trivial_paths() {
-        let manifest = PackageManifestBuilder::new()
-            .template(
-                TemplateInfoBuilder::new()
-                    .path("foo")
-                    .entrypoint("bar.typ")
-                    .build(),
-            )
-            .build();
+    fn test_validation_trivial_existing_paths() {
+        TempTestEnv::run_no_check(
+            |root| root.setup_dir("qux").setup_file_empty("foo/bar.typ"),
+            |root| {
+                let manifest = PackageManifestBuilder::new()
+                    .template(
+                        TemplateInfoBuilder::new()
+                            .path("foo")
+                            .entrypoint("bar.typ")
+                            .build(),
+                    )
+                    .build();
 
-        let config = ProjectConfig {
-            unit_tests_root: "qux".into(),
-            ..Default::default()
-        };
+                let config = ProjectConfig {
+                    unit_tests_root: "qux".into(),
+                    ..Default::default()
+                };
 
-        validate_manifest(&manifest).unwrap();
-        validate_config(&config).unwrap();
+                validate_manifest(root, &manifest).unwrap();
+                validate_config(root, &config).unwrap();
+            },
+        );
     }
 
     #[test]
     fn test_validation_non_trivial_paths() {
-        let manifest = PackageManifestBuilder::new()
-            .template(TemplateInfoBuilder::new().path("..").build())
-            .build();
+        TempTestEnv::run_no_check(
+            |root| root,
+            |root| {
+                let manifest = PackageManifestBuilder::new()
+                    .template(
+                        TemplateInfoBuilder::new()
+                            .path("..")
+                            .entrypoint(".")
+                            .build(),
+                    )
+                    .build();
 
-        let config = ProjectConfig {
-            unit_tests_root: "/.".into(),
-            ..Default::default()
-        };
+                let config = ProjectConfig {
+                    unit_tests_root: "/.".into(),
+                    ..Default::default()
+                };
 
-        let manifest = validate_manifest(&manifest).unwrap_err();
-        let config = validate_config(&config).unwrap_err();
+                let manifest = validate_manifest(root, &manifest).unwrap_err();
+                let config = validate_config(root, &config).unwrap_err();
 
-        assert_eq!(manifest.errors.len(), 1);
-        assert_eq!(config.errors.len(), 1);
+                assert_eq!(manifest.errors.len(), 2);
+                assert_eq!(config.errors.len(), 1);
 
-        assert_eq!(
-            manifest.errors.get("template.path").unwrap(),
-            &ValidationErrorCause::NonTrivialPath
+                assert_eq!(
+                    manifest.errors.get("template.path").unwrap(),
+                    &ValidationErrorCause::NonTrivialPath { field: "..".into() }
+                );
+                assert_eq!(
+                    manifest.errors.get("template.entrypoint").unwrap(),
+                    &ValidationErrorCause::NonTrivialPath { field: ".".into() }
+                );
+                assert_eq!(
+                    config.errors.get("tests").unwrap(),
+                    &ValidationErrorCause::NonTrivialPath { field: "/.".into() }
+                );
+            },
         );
-        assert_eq!(
-            config.errors.get("tests").unwrap(),
-            &ValidationErrorCause::NonTrivialPath
+    }
+
+    #[test]
+    fn test_validation_non_existent_paths() {
+        TempTestEnv::run_no_check(
+            |root| root,
+            |root| {
+                let manifest = PackageManifestBuilder::new()
+                    .template(
+                        TemplateInfoBuilder::new()
+                            .path("foo")
+                            .entrypoint("bar.typ")
+                            .build(),
+                    )
+                    .build();
+
+                let config = ProjectConfig {
+                    unit_tests_root: "qux".into(),
+                    ..Default::default()
+                };
+
+                let manifest = validate_manifest(root, &manifest).unwrap_err();
+                let config = validate_config(root, &config).unwrap_err();
+
+                assert_eq!(manifest.errors.len(), 2);
+                assert_eq!(config.errors.len(), 1);
+
+                assert_eq!(
+                    manifest.errors.get("template.path").unwrap(),
+                    &ValidationErrorCause::DoesNotExist {
+                        field: "foo".into(),
+                        resolved: root.join("foo")
+                    }
+                );
+                assert_eq!(
+                    manifest.errors.get("template.entrypoint").unwrap(),
+                    &ValidationErrorCause::DoesNotExist {
+                        field: "bar.typ".into(),
+                        resolved: root.join("foo/bar.typ")
+                    }
+                );
+                assert_eq!(
+                    config.errors.get("tests").unwrap(),
+                    &ValidationErrorCause::DoesNotExist {
+                        field: "qux".into(),
+                        resolved: root.join("qux")
+                    }
+                );
+            },
         );
     }
 }
