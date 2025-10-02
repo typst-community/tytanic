@@ -137,15 +137,25 @@ impl Output {
             String::from_utf8(bytes)
                 .unwrap()
                 .replace("\u{1b}", "<ESC>")
-                .replace("\\", "/")
+                .replace(r"C:\\", "/")
+                .replace(r"\\", "/")
+                .replace(r"C:\", "/")
+                .replace(r"\", "/")
                 .replace(dir, "<TEMP_DIR>")
         }
 
-        let dir = dir.as_os_str().to_str().unwrap();
+        let dir = dir
+            .as_os_str()
+            .to_str()
+            .unwrap()
+            .replace(r"C:\\", "/")
+            .replace(r"\\", "/")
+            .replace(r"C:\", "/")
+            .replace(r"\", "/");
 
         Output {
-            stdout: convert_bytes(output.stdout, dir),
-            stderr: convert_bytes(output.stderr, dir),
+            stdout: convert_bytes(output.stdout, &dir),
+            stderr: convert_bytes(output.stderr, &dir),
             status: output.status,
         }
     }
