@@ -277,7 +277,11 @@ impl Context<'_> {
                         eyre::bail!(OperationFailure);
                     }
                     ManifestError::Invalid(error) => {
-                        writeln!(self.ui.error()?, "Failed to validate manifest:\n{error}")?;
+                        let mut w = self.ui.error()?;
+                        writeln!(w, "Failed to validate manifest:")?;
+                        for (key, cause) in &error.errors {
+                            writeln!(w, "`{key}`: {cause}")?;
+                        }
                         eyre::bail!(OperationFailure);
                     }
                     _ => {}

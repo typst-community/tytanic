@@ -472,11 +472,15 @@ pub struct ValidationError {
 }
 
 /// The cause for a validation error of an individual field.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Error, Clone, PartialEq, Eq, Hash)]
 pub enum ValidationErrorCause {
     /// A path was not trivial when it must be, i.e. it contained components
     /// such as `.` or `..`.
-    NonTrivialPath,
+    #[error("the path was invalid: {field:?}")]
+    NonTrivialPath {
+        /// The field as it was set in the config.
+        field: EcoString,
+    },
 }
 
 /// Returned by [`ShallowProject::parse_config`].
