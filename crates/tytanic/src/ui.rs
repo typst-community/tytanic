@@ -24,10 +24,11 @@ use termcolor::StandardStreamLock;
 use termcolor::WriteColor;
 use typst::World;
 use typst::WorldExt;
+use typst::diag::FileError;
 use typst::diag::Severity;
 use typst::diag::SourceDiagnostic;
 use typst_syntax::FileId;
-use typst_syntax::Source;
+use typst_syntax::Lines;
 use typst_syntax::Span;
 use tytanic_core::test::Id;
 
@@ -399,8 +400,17 @@ pub fn write_diagnostics(
 struct WorldShim<'w>(&'w dyn World);
 
 impl WorldShim<'_> {
-    fn lookup(&self, id: FileId) -> Source {
-        self.0.source(id).unwrap()
+    fn lookup(&self, id: FileId) -> Lines<String> {
+        match self.0.source(id) {
+            Ok(source) => source.lines().clone(),
+            Err(FileError::NotSource) => {
+                let bytes = self.0.file(id).expect("file is not valid");
+                Lines::try_from(&bytes).expect("file is not valid utf-8")
+            }
+            Err(_) => {
+                panic!("file is not valid")
+            }
+        }
     }
 }
 
@@ -410,7 +420,7 @@ type CodespanError = codespan_reporting::files::Error;
 impl<'a> codespan_reporting::files::Files<'a> for WorldShim<'_> {
     type FileId = FileId;
     type Name = String;
-    type Source = Source;
+    type Source = Lines<String>;
 
     fn name(&'a self, id: FileId) -> CodespanResult<Self::Name> {
         let vpath = id.vpath();
