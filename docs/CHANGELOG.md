@@ -21,6 +21,7 @@
 - Add support for detecting sapling as a git-compatible VCS
 - Fixed panic on non-existent paths in the manifest.
 - Update MSRV to `1.88`
+- Update Typst to `0.14.0-rc.1`
 
 ## Fixes
 - Don't panic when trying to update non-persistent tests
