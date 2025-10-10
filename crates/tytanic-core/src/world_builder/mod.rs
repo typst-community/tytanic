@@ -1,16 +1,16 @@
 use std::sync::OnceLock;
 
+use typst::Library;
+use typst::World;
 use typst::diag::FileResult;
 use typst::foundations::Bytes;
 use typst::foundations::Datetime;
-use typst::syntax::package::PackageSpec;
 use typst::syntax::FileId;
 use typst::syntax::Source;
+use typst::syntax::package::PackageSpec;
 use typst::text::Font;
 use typst::text::FontBook;
 use typst::utils::LazyHash;
-use typst::Library;
-use typst::World;
 use typst_kit::download::Progress;
 use typst_kit::download::ProgressSink;
 
@@ -433,8 +433,8 @@ pub(crate) mod test_utils {
 mod tests {
     use std::collections::HashMap;
 
-    use typst::syntax::package::PackageVersion;
     use typst::syntax::VirtualPath;
+    use typst::syntax::package::PackageVersion;
 
     use super::*;
     use crate::world_builder::file::VirtualFileProvider;

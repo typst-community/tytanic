@@ -50,7 +50,7 @@ impl<T> TryFromValue<T> for Num {
                 return Err(eval::Error::TypeMismatch {
                     expected: eco_vec![Type::Num],
                     found: value.as_type(),
-                })
+                });
             }
         })
     }

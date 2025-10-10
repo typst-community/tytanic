@@ -4,8 +4,8 @@ use std::fmt::Debug;
 use std::time::Duration;
 use std::time::Instant;
 
-use ecow::eco_vec;
 use ecow::EcoVec;
+use ecow::eco_vec;
 use typst::diag::SourceDiagnostic;
 
 use crate::doc::compare;

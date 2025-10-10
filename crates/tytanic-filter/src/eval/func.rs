@@ -131,7 +131,7 @@ impl<T> TryFromValue<T> for Func<T> {
                 return Err(Error::TypeMismatch {
                     expected: eco_vec![Type::Func],
                     found: value.as_type(),
-                })
+                });
             }
         })
     }

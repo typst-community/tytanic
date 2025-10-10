@@ -1,6 +1,6 @@
-use typst::utils::LazyHash;
 use typst::Library;
 use typst::LibraryBuilder;
+use typst::utils::LazyHash;
 
 use super::ProvideLibrary;
 

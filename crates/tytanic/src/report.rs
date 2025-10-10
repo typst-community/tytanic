@@ -6,13 +6,13 @@ use std::time::Duration;
 
 use color_eyre::eyre;
 use termcolor::Color;
+use tytanic_core::Project;
 use tytanic_core::doc::compare;
 use tytanic_core::doc::compare::PageError;
 use tytanic_core::suite::SuiteResult;
 use tytanic_core::test::Stage;
 use tytanic_core::test::Test;
 use tytanic_core::test::TestResult;
-use tytanic_core::Project;
 use tytanic_utils::fmt::Term;
 
 use crate::cwrite;
@@ -285,8 +285,8 @@ impl Reporter<'_, '_> {
                             PageError::Dimensions { output, reference } => {
                                 writeln!(w, "Page {p} had different dimensions")?;
                                 w.write_with(2, |w| {
-                                    writeln!(w, "Output: {}", output)?;
-                                    writeln!(w, "Reference: {}", reference)
+                                    writeln!(w, "Output: {output}")?;
+                                    writeln!(w, "Reference: {reference}")
                                 })?;
                             }
                             PageError::SimpleDeviations { deviations } => {

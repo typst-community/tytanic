@@ -127,7 +127,7 @@ impl<T> TryFromValue<T> for Set<T> {
                 return Err(Error::TypeMismatch {
                     expected: eco_vec![Type::Set],
                     found: value.as_type(),
-                })
+                });
             }
         })
     }

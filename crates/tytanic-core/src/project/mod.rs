@@ -13,12 +13,12 @@ use serde::Deserialize;
 use thiserror::Error;
 use typst::syntax::package::PackageManifest;
 use typst::syntax::package::PackageSpec;
-use tytanic_utils::result::io_not_found;
 use tytanic_utils::result::ResultEx;
+use tytanic_utils::result::io_not_found;
 
+use crate::TOOL_NAME;
 use crate::config::ProjectConfig;
 use crate::test::Id;
-use crate::TOOL_NAME;
 
 mod vcs;
 

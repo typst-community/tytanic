@@ -1,8 +1,8 @@
 use std::fmt::Debug;
 use std::ops::Deref;
 
-use ecow::eco_vec;
 use ecow::EcoString;
+use ecow::eco_vec;
 use pest::iterators::Pair;
 
 use super::Error;
@@ -91,7 +91,7 @@ impl<T> TryFromValue<T> for Str {
                 return Err(eval::Error::TypeMismatch {
                     expected: eco_vec![Type::Str],
                     found: value.as_type(),
-                })
+                });
             }
         })
     }

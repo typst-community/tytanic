@@ -1,12 +1,12 @@
 use std::io::Write;
 
 use color_eyre::eyre;
+use tytanic_core::Id;
 use tytanic_core::doc::compare::Strategy;
 use tytanic_core::doc::render;
 use tytanic_core::doc::render::Origin;
 use tytanic_core::dsl;
 use tytanic_core::suite::Filter;
-use tytanic_core::Id;
 use tytanic_filter::eval;
 
 use super::CompareOptions;
@@ -18,9 +18,9 @@ use super::FilterOptions;
 use super::OptionDelegate;
 use super::RunnerOptions;
 use super::Switch;
+use crate::cli::CANCELLED;
 use crate::cli::OperationFailure;
 use crate::cli::TestFailure;
-use crate::cli::CANCELLED;
 use crate::report::Reporter;
 use crate::runner::Action;
 use crate::runner::Runner;

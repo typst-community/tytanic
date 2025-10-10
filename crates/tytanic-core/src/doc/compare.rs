@@ -187,29 +187,33 @@ mod tests {
     #[test]
     fn test_page_simple_below_max_delta() {
         let [a, b] = images();
-        assert!(page(
-            &a,
-            &b,
-            Strategy::Simple {
-                max_delta: 128,
-                max_deviation: 0,
-            },
+        assert!(
+            page(
+                &a,
+                &b,
+                Strategy::Simple {
+                    max_delta: 128,
+                    max_deviation: 0,
+                },
+            )
+            .is_ok()
         )
-        .is_ok())
     }
 
     #[test]
     fn test_page_simple_below_max_devitation() {
         let [a, b] = images();
-        assert!(page(
-            &a,
-            &b,
-            Strategy::Simple {
-                max_delta: 0,
-                max_deviation: 5,
-            },
-        )
-        .is_ok());
+        assert!(
+            page(
+                &a,
+                &b,
+                Strategy::Simple {
+                    max_delta: 0,
+                    max_deviation: 5,
+                },
+            )
+            .is_ok()
+        );
     }
 
     #[test]

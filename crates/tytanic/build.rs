@@ -15,5 +15,5 @@ fn main() {
         .unwrap();
     let typst_version = typst["version"].as_str().unwrap();
 
-    println!("cargo::rustc-env=TYTANIC_TYPST_VERSION={}", typst_version);
+    println!("cargo::rustc-env=TYTANIC_TYPST_VERSION={typst_version}");
 }

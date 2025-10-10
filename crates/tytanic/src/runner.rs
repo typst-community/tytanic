@@ -6,27 +6,27 @@ use color_eyre::eyre;
 use color_eyre::eyre::WrapErr;
 use typst::diag::Warned;
 use typst::layout::PagedDocument;
+use tytanic_core::TemplateTest;
+use tytanic_core::UnitTest;
 use tytanic_core::config::Direction;
+use tytanic_core::doc::Document;
 use tytanic_core::doc::compare::Strategy;
 use tytanic_core::doc::compile;
 use tytanic_core::doc::compile::Warnings;
 use tytanic_core::doc::render;
 use tytanic_core::doc::render::Origin;
-use tytanic_core::doc::Document;
 use tytanic_core::project::Project;
 use tytanic_core::suite::FilteredSuite;
 use tytanic_core::suite::SuiteResult;
-use tytanic_core::test::unit::Kind;
 use tytanic_core::test::Annotation;
 use tytanic_core::test::Test;
 use tytanic_core::test::TestResult;
-use tytanic_core::TemplateTest;
-use tytanic_core::UnitTest;
+use tytanic_core::test::unit::Kind;
 
+use crate::DEFAULT_OPTIMIZE_OPTIONS;
 use crate::cli::TestFailure;
 use crate::report::Reporter;
 use crate::world::Providers;
-use crate::DEFAULT_OPTIMIZE_OPTIONS;
 
 #[derive(Debug, Clone)]
 pub enum Action {

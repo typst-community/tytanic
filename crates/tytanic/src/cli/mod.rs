@@ -25,8 +25,8 @@ use tytanic_core::suite::FilteredSuite;
 use tytanic_core::suite::Suite;
 use tytanic_core::test;
 use tytanic_core::test::ParseIdError;
-use tytanic_filter::eval;
 use tytanic_filter::ExpressionFilter;
+use tytanic_filter::eval;
 
 use self::commands::CliArguments;
 use self::commands::FilterOptions;
@@ -254,7 +254,10 @@ impl Context<'_> {
             if let Some(error) = error.downcast_ref::<ParseIdError>() {
                 match error {
                     ParseIdError::InvalidFragment => {
-                        writeln!(self.ui.error()?, "A test identifier must not contain other characters than non-alphanumeric, hyphens and underscores")?;
+                        writeln!(
+                            self.ui.error()?,
+                            "A test identifier must not contain other characters than non-alphanumeric, hyphens and underscores"
+                        )?;
                     }
                     ParseIdError::Empty => {
                         writeln!(self.ui.error()?, "A test identifier must not be empty")?;

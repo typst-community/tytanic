@@ -181,7 +181,7 @@ impl Output {
 impl Display for Output {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.status.code() {
-            Some(code) => writeln!(f, "--- CODE: {}", code)?,
+            Some(code) => writeln!(f, "--- CODE: {code}")?,
             None => writeln!(f, "--- SIGNALED: This is most likely a bug!")?,
         }
         writeln!(f, "--- STDOUT:")?;

@@ -1,5 +1,5 @@
-use ecow::eco_vec;
 use ecow::EcoVec;
+use ecow::eco_vec;
 use pest::iterators::Pair;
 use pest::pratt_parser::PrattParser;
 

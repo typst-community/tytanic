@@ -20,10 +20,11 @@
 
 use comemo::Tracked;
 use ecow::EcoString;
-use typst::diag::bail;
+use typst::Library;
+use typst::LibraryBuilder;
 use typst::diag::SourceResult;
+use typst::diag::bail;
 use typst::engine::Engine;
-use typst::foundations::func;
 use typst::foundations::Context;
 use typst::foundations::Func;
 use typst::foundations::Module;
@@ -31,8 +32,7 @@ use typst::foundations::Repr;
 use typst::foundations::Scope;
 use typst::foundations::Str;
 use typst::foundations::Value;
-use typst::Library;
-use typst::LibraryBuilder;
+use typst::foundations::func;
 
 /// Defines prelude items for the given scope, this is a subset of
 /// [`define_test_module`].
