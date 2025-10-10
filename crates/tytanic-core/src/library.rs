@@ -18,10 +18,11 @@
 //! #assert-panic(() => {}, message: "Did not panic")
 //! ```
 
-use comemo::Tracked;
 use ecow::EcoString;
 use typst::Library;
 use typst::LibraryBuilder;
+use typst::LibraryExt;
+use typst::comemo::Tracked;
 use typst::diag::SourceResult;
 use typst::diag::bail;
 use typst::engine::Engine;
@@ -64,7 +65,7 @@ pub fn augmented_default_library() -> Library {
 /// The augmented standard library contains a new test module and a few items in
 /// the prelude for easier testing.
 pub fn augmented_library(builder: impl FnOnce(LibraryBuilder) -> LibraryBuilder) -> Library {
-    let mut lib = builder(LibraryBuilder::default()).build();
+    let mut lib = builder(Library::builder()).build();
     let scope = lib.global.scope_mut();
 
     scope.define("test", test_module());
