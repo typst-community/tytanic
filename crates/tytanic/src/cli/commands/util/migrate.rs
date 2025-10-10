@@ -5,9 +5,9 @@ use std::path::PathBuf;
 
 use color_eyre::eyre;
 use termcolor::Color;
+use tytanic_core::Project;
 use tytanic_core::suite::Suite;
 use tytanic_core::test::Id;
-use tytanic_core::Project;
 
 use crate::cli::Context;
 use crate::cwrite;

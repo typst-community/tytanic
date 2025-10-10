@@ -148,8 +148,8 @@ mod tests {
 
     use super::*;
     use crate::project::Project;
-    use crate::test::unit::Kind as TestKind;
     use crate::test::Id;
+    use crate::test::unit::Kind as TestKind;
 
     fn test(kind: TestKind) -> UnitTest {
         UnitTest::new_test(Id::new("fancy").unwrap(), kind)

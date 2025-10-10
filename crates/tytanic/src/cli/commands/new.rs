@@ -7,13 +7,13 @@ use typst::diag::Warned;
 use typst_syntax::FileId;
 use typst_syntax::Source;
 use typst_syntax::VirtualPath;
-use tytanic_core::doc::render::ppi_to_ppp;
 use tytanic_core::doc::Document;
-use tytanic_core::test::unit::Kind;
-use tytanic_core::test::unit::Reference;
-use tytanic_core::test::unit::DEFAULT_TEST_INPUT;
+use tytanic_core::doc::render::ppi_to_ppp;
 use tytanic_core::test::Id;
 use tytanic_core::test::UnitTest;
+use tytanic_core::test::unit::DEFAULT_TEST_INPUT;
+use tytanic_core::test::unit::Kind;
+use tytanic_core::test::unit::Reference;
 
 use super::CompileOptions;
 use super::Context;
@@ -22,10 +22,10 @@ use super::KindOption;
 use super::OptionDelegate;
 use super::Switch;
 use super::TemplateSwitch;
+use crate::DEFAULT_OPTIMIZE_OPTIONS;
 use crate::cli::OperationFailure;
 use crate::cwriteln;
 use crate::ui;
-use crate::DEFAULT_OPTIMIZE_OPTIONS;
 
 #[derive(clap::Args, Debug, Clone)]
 #[group(id = "new-args")]

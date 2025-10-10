@@ -9,8 +9,8 @@ use clap::ValueEnum;
 use color_eyre::eyre;
 use tytanic_core::config::Direction;
 use tytanic_core::doc::compile::Warnings;
-use tytanic_core::test::unit::Kind;
 use tytanic_core::test::Id;
+use tytanic_core::test::unit::Kind;
 
 use super::Context;
 

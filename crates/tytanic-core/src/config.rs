@@ -6,8 +6,8 @@ use std::io;
 use serde::Deserialize;
 use serde::Serialize;
 use thiserror::Error;
-use tytanic_utils::result::io_not_found;
 use tytanic_utils::result::ResultEx;
+use tytanic_utils::result::io_not_found;
 
 /// The key used to configure Tytanic in the manifest tool config.
 pub const MANIFEST_TOOL_KEY: &str = crate::TOOL_NAME;

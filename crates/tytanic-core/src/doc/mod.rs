@@ -13,9 +13,9 @@ use compile::Warnings;
 use ecow::EcoVec;
 use thiserror::Error;
 use tiny_skia::Pixmap;
+use typst::World;
 use typst::diag::Warned;
 use typst::layout::PagedDocument;
-use typst::World;
 
 use self::compare::Strategy;
 use self::render::Origin;

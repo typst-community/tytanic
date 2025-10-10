@@ -2,8 +2,8 @@ use std::io::Write;
 
 use color_eyre::eyre;
 use termcolor::Color;
-use tytanic_core::test::unit::Kind as TestKind;
 use tytanic_core::test::Test;
+use tytanic_core::test::unit::Kind as TestKind;
 
 use super::Context;
 use super::FilterOptions;

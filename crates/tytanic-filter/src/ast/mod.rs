@@ -3,9 +3,9 @@
 use std::char::CharTryFromError;
 use std::sync::LazyLock;
 
+use pest::Parser;
 use pest::iterators::Pair;
 use pest::pratt_parser::PrattParser;
-use pest::Parser;
 use thiserror::Error;
 use tytanic_utils::fmt::Separators;
 

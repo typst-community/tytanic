@@ -11,8 +11,8 @@ use std::path::PathBuf;
 
 use tempdir::TempDir;
 
-use crate::result::io_not_found;
 use crate::result::ResultEx;
+use crate::result::io_not_found;
 
 /// The prefix used for temporary directories in [`TempTestEnv`].
 pub const TEMP_DIR_PREFIX: &str = "tytanic-utils";
@@ -354,8 +354,8 @@ impl TempTestEnv {
                 writeln!(&mut msg, "/{}", path.display()).unwrap();
                 match (std::str::from_utf8(&found), std::str::from_utf8(&expected)) {
                     (Ok(found), Ok(expected)) => {
-                        writeln!(&mut msg, "=== Expected ===\n>>>\n{}\n<<<\n", expected).unwrap();
-                        writeln!(&mut msg, "=== Found ===\n>>>\n{}\n<<<\n", found).unwrap();
+                        writeln!(&mut msg, "=== Expected ===\n>>>\n{expected}\n<<<\n").unwrap();
+                        writeln!(&mut msg, "=== Found ===\n>>>\n{found}\n<<<\n").unwrap();
                     }
                     _ => {
                         writeln!(&mut msg, "Binary data differed").unwrap();

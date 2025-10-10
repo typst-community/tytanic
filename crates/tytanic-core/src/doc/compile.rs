@@ -2,14 +2,14 @@
 
 use std::fmt::Debug;
 
-use ecow::eco_vec;
 use ecow::EcoVec;
+use ecow::eco_vec;
 use thiserror::Error;
+use typst::World;
 use typst::diag::Severity;
 use typst::diag::SourceDiagnostic;
 use typst::diag::Warned;
 use typst::layout::PagedDocument;
-use typst::World;
 use tytanic_utils::fmt::Term;
 
 /// How to handle warnings during compilation.

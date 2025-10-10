@@ -20,6 +20,7 @@
 - Transferred repository to the typst-community organization
 - Add support for detecting sapling as a git-compatible VCS
 - Fixed panic on non-existent paths in the manifest.
+- Update MSRV to `1.88`
 
 ## Fixes
 - Don't panic when trying to update non-persistent tests

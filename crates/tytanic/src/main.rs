@@ -19,10 +19,10 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_tree::HierarchicalLayer;
 
-use crate::cli::commands::CliArguments;
 use crate::cli::Context;
 use crate::cli::OperationFailure;
 use crate::cli::TestFailure;
+use crate::cli::commands::CliArguments;
 use crate::ui::Ui;
 
 mod cli;

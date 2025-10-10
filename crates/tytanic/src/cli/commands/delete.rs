@@ -2,10 +2,10 @@ use std::io::Write;
 
 use color_eyre::eyre;
 use termcolor::Color;
+use tytanic_core::Id;
 use tytanic_core::dsl;
 use tytanic_core::suite::Filter;
 use tytanic_core::test::Test;
-use tytanic_core::Id;
 use tytanic_filter::eval;
 use tytanic_utils::fmt::Term;
 
