@@ -33,5 +33,6 @@ The following table describes all Tytanic and Typst versions and how they corres
 |`== v0.12.0`|`v0.1.0 .. v0.1.3`|
 |`== v0.13.0-rc1`|`v0.2.0-rc1`|
 |`== v0.13.0`|`v0.2.0 .. v0.2.2`|
-|`>= v0.13.0`|none|unsupported|
+|`== v0.14.0-rc.1`|`v0.3.0-rc.1`|
+|`>= v0.14.0-rc.1`|none|unsupported|
 
