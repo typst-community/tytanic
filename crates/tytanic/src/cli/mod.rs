@@ -189,21 +189,21 @@ impl Context<'_> {
         let suite = Suite::collect(project)?;
 
         if !suite.nested().is_empty() {
-            writeln!(self.ui.warn()?, "Found nested tests")?;
+            writeln!(self.ui.error()?, "Found nested tests")?;
 
+            let mut w = self.ui.hint()?;
+            writeln!(w, "This is no longer supported")?;
             writeln!(
-                self.ui.hint()?,
-                "This is no longer supported, these tests will be ignored"
-            )?;
-            writeln!(
-                self.ui.hint()?,
-                "This will become a hard error in a future version"
+                w,
+                "Your nested tests will be silently ignored in future versions!",
             )?;
 
             let mut w = self.ui.hint()?;
             write!(w, "You can run ")?;
             cwrite!(colored(w, Color::Cyan), "tt util migrate")?;
             writeln!(w, " to automatically move the tests")?;
+
+            eyre::bail!(OperationFailure);
         }
 
         Ok(suite)
