@@ -21,7 +21,7 @@
 - Add support for detecting sapling as a git-compatible VCS
 - Fixed panic on non-existent paths in the manifest.
 - Update MSRV to `1.88`
-- Update Typst to `0.14.0-rc.1`
+- Update Typst to `0.14.0-rc.2`
 - Promote detection of nested tests to an error
 
 ## Fixes
