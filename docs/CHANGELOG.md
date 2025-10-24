@@ -2,6 +2,18 @@
 ## Highlights
 
 ## Changes
+
+## Fixes
+
+---
+
+# [v0.3.0](https://github.com/typst-community/tytanic/releases/tag/v0.3.0)
+## Highlights
+Tytanic now supports running templates as tests, these are available automatically as new test with the special `@template` identifier.
+Static CLI completions and man-pages can now be generated using the appropriate `util` sub commands.
+Finally, the project was entirely re-licensed under a dual licensing scheme and has been transferred to the typst-community organization.
+
+## Changes
 - Added template tests.
 - Added `unit()` test set.
 - Added `template()` test set.
@@ -21,7 +33,7 @@
 - Add support for detecting sapling as a git-compatible VCS
 - Fixed panic on non-existent paths in the manifest.
 - Update MSRV to `1.88`
-- Update Typst to `0.14.0-rc.2`
+- Update Typst to `0.14.0`
 - Promote detection of nested tests to an error
 
 ## Fixes
