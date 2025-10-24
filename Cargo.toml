@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/*"]
 
 [workspace.package]
-version = "0.3.0-rc.2"
+version = "0.3.0"
 # must match ci.yml
 rust-version = "1.88"
 authors = ["tingerrr <tinger@tinger.dev>"]
@@ -16,9 +16,9 @@ keywords = ["typst", "test"]
 readme = "README.md"
 
 [workspace.dependencies]
-tytanic-core = { version = "0.3.0-rc.2", path = "crates/tytanic-core" }
-tytanic-filter = { version = "0.3.0-rc.2", path = "crates/tytanic-filter" }
-tytanic-utils = { version = "0.3.0-rc.2", path = "crates/tytanic-utils" }
+tytanic-core = { version = "0.3.0", path = "crates/tytanic-core" }
+tytanic-filter = { version = "0.3.0", path = "crates/tytanic-filter" }
+tytanic-utils = { version = "0.3.0", path = "crates/tytanic-utils" }
 
 assert_cmd = "2.0.16"
 assert_fs = "1.1.2"
@@ -54,10 +54,10 @@ tracing = "0.1.40"
 tracing-subscriber = "0.3.18"
 tracing-tree = "0.3.0"
 toml = "0.8.19"
-typst = "0.14.0-rc.2"
-typst-assets = "0.14.0-rc.2"
-typst-kit = "0.14.0-rc.2"
-typst-library = "0.14.0-rc.2"
-typst-render = "0.14.0-rc.2"
-typst-syntax = "0.14.0-rc.2"
+typst = "0.14.0"
+typst-assets = "0.14.0"
+typst-kit = "0.14.0"
+typst-library = "0.14.0"
+typst-render = "0.14.0"
+typst-syntax = "0.14.0"
 uuid = "1.11.0"

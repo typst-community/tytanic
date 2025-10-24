@@ -45,7 +45,7 @@ jobs:
 This adds a single step to our job (called `tests`), which checks out the repository, making it available for the following steps.
 
 We'll use `taiki-e/install-action` for downloading Tytanic, it uses `cargo-binstall`, which downloads the release binaries directly from GitHub.
-The latest version of Tytanic is `0.2.2`, which targets Typst `0.12.x`.
+The latest version of Tytanic is `0.3.0`, which targets Typst `0.14.x`.
 
 ```yml
 steps:
@@ -53,7 +53,7 @@ steps:
   - name: Install tytanic
     uses: taiki-e/cache-cargo-install-action@v2
     with:
-      tool: tytanic@0.2.2
+      tool: tytanic@0.3.0
 
 ```
 
@@ -112,7 +112,7 @@ And that's it, you can add this file to your repo, push it to a branch and open 
 >       - name: Install tytanic
 >         uses: taiki-e/cache-cargo-install-action@v2
 >         with:
->           tool: tytanic@0.2.2
+>           tool: tytanic@0.3.0
 >
 >       - name: Run test suite
 >         run: tt run
