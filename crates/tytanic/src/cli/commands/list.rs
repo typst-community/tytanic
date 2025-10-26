@@ -3,7 +3,7 @@ use std::io::Write;
 use color_eyre::eyre;
 use termcolor::Color;
 use tytanic_core::test::Test;
-use tytanic_core::test::unit::Kind as TestKind;
+use tytanic_core::test::UnitKind;
 
 use super::Context;
 use super::FilterOptions;
@@ -30,7 +30,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
         serde_json::to_writer_pretty(
             ctx.ui.stdout(),
             &suite
-                .matched()
+                .matched_len()
                 .tests()
                 .map(|test| TestJson::new(&project, test))
                 .collect::<Vec<_>>(),
@@ -44,7 +44,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
     // NOTE(tinger): Max padding of 50 should be enough for most cases.
     let pad = Ord::min(
         suite
-            .matched()
+            .matched_len()
             .tests()
             .map(|test| test.id().len())
             .max()
@@ -52,8 +52,8 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
         50,
     );
 
-    for test in suite.matched().tests() {
-        ui::write_test_id(&mut w, test.id())?;
+    for test in suite.matched_len().tests() {
+        ui::write_test_ident(&mut w, test.id())?;
         if let Some(pad) = pad.checked_sub(test.id().len()) {
             write!(w, "{: >pad$} ", "")?;
         }
@@ -61,9 +61,9 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
         match test {
             Test::Unit(test) => {
                 let color = match test.kind() {
-                    TestKind::Ephemeral => Color::Green,
-                    TestKind::Persistent => Color::Green,
-                    TestKind::CompileOnly => Color::Yellow,
+                    UnitKind::Ephemeral => Color::Green,
+                    UnitKind::Persistent => Color::Green,
+                    UnitKind::CompileOnly => Color::Yellow,
                 };
                 // pad by 12 for `compile-only`
                 cwrite!(bold_colored(w, color), "{: <12}", test.kind().as_str())?;
@@ -75,6 +75,9 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
             }
             Test::Template(_) => {
                 cwrite!(bold_colored(w, Color::Magenta), "{: <12}", "template")?;
+            }
+            Test::Doc(doc_test) => {
+                cwrite!(bold_colored(w, Color::Blue), "{: <12}", "doc")?;
             }
         }
 

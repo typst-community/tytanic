@@ -2,6 +2,16 @@
 ## Highlights
 
 ## Changes
+- Changed return type from `catch` to be a single string
+- Added `compare` test annotation
+- Added `use-system-fonts` test annotation
+- Added `use-system-datetime` test annotation
+- Added `use-augmented-library` test annotation
+- Added `timestamp` test annotation
+- Added `allow-packages` test annotation
+- Added `warnings` test annotation
+- Added a new directory structure for test artifacts
+- Added user config support
 
 ## Fixes
 

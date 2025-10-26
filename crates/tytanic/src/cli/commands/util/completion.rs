@@ -9,7 +9,7 @@ use crate::cli::Context;
 pub struct Args {
     /// The shell to complete the arguments for.
     #[arg()]
-    shell: Shell,
+    pub shell: Shell,
 }
 
 pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {

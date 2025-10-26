@@ -1,4 +1,5 @@
 use color_eyre::eyre;
+use tytanic_core::config::{ProjectConfig, SettingsConfig, TestConfig};
 
 use super::Context;
 
@@ -16,6 +17,35 @@ pub struct Args {
     /// The sub command to run.
     #[command(subcommand)]
     pub cmd: Command,
+}
+
+impl Args {
+    /// Adds the CLI arguments to the CLI config layer.
+    pub fn cli_config_layer(
+        &self,
+        settings: &mut SettingsConfig,
+        project: &mut ProjectConfig,
+        test: &mut TestConfig,
+    ) {
+        match &self.cmd {
+            Command::About => {}
+            Command::Clean(clean::Args {
+                include_persistent_references: _,
+                filter: _,
+            }) => {}
+            Command::Completion(completion::Args { shell: _ }) => {}
+            Command::Manpage(manpage::Args { dir: _ }) => {}
+            Command::Fonts(fonts::Args {
+                variants: _,
+                json: _,
+            }) => {}
+            Command::Migrate(migrate::Args {
+                confirm: _,
+                name: _,
+            }) => {}
+            Command::Vcs(args) => args.cli_config_layer(settings, project, test),
+        }
+    }
 }
 
 #[derive(clap::Subcommand, Debug, Clone)]

@@ -1,0 +1,32 @@
+[package]
+name = "tytanic-test-cli"
+description = "A binary crate for teting th library API."
+version.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+categories.workspace = true
+keywords.workspace = true
+readme.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+tytanic-core.workspace = true
+tytanic-filter.workspace = true
+tytanic-library.workspace = true
+tytanic-runner.workspace = true
+tytanic-utils.workspace = true
+
+chrono.workspace = true
+codespan-reporting.workspace = true
+oxipng.workspace = true
+termcolor.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+tracing-tree.workspace = true
+uuid.workspace = true

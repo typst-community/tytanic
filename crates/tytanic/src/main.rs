@@ -18,6 +18,7 @@ use tracing_subscriber::filter::Targets;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_tree::HierarchicalLayer;
+use tytanic_utils::cwrite;
 
 use crate::cli::Context;
 use crate::cli::OperationFailure;
@@ -28,9 +29,7 @@ use crate::ui::Ui;
 mod cli;
 mod json;
 mod report;
-mod runner;
 mod ui;
-mod world;
 
 /// The default optimization options to use.
 pub static DEFAULT_OPTIMIZE_OPTIONS: Lazy<oxipng::Options> =
@@ -126,6 +125,7 @@ fn main_impl() -> eyre::Result<ExitCode> {
         ))
         .init();
 
+    // TODO: Set this up for the runner only.
     if let Err(err) = ctrlc::set_handler(|| {
         cli::CANCELLED.store(true, Ordering::SeqCst);
     }) {

@@ -1,7 +1,0 @@
----
-source: crates/tytanic/src/ui.rs
-expression: str
----
-Hello
-
-World

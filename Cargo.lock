@@ -495,38 +495,15 @@ checksum = "b05b61dc5112cbb17e4b6cd61790d9845d13888356391624cbe7e41efeac1e75"
 
 [[package]]
 name = "comemo"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df6916408a724339aa77b18214233355f3eb04c42eb895e5f8909215bd8a7a91"
-dependencies = [
- "comemo-macros 0.4.0",
- "once_cell",
- "parking_lot",
- "siphasher",
-]
-
-[[package]]
-name = "comemo"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "649d7b2d867b569729c03c0f6968db10bc95921182a1f2b2012b1b549492f39d"
 dependencies = [
- "comemo-macros 0.5.0",
+ "comemo-macros",
  "parking_lot",
  "rustc-hash",
  "siphasher",
  "slab",
-]
-
-[[package]]
-name = "comemo-macros"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c8936e42f9b4f5bdfaf23700609ac1f11cb03ad4c1ec128a4ee4fd0903e228db"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
 ]
 
 [[package]]
@@ -1117,6 +1094,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
 
 [[package]]
+name = "globset"
+version = "0.4.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "52dfc19153a48bde0cbd630453615c8151bce3a5adfac7a0aebfbf0a1e1f57e3"
+dependencies = [
+ "aho-corasick",
+ "bstr",
+ "log",
+ "regex-automata",
+ "regex-syntax",
+]
+
+[[package]]
 name = "half"
 version = "2.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1513,6 +1503,22 @@ checksum = "3acae9609540aa318d1bc588455225fb2085b9ed0c4f6bd0d9d5bcd86f1a0344"
 dependencies = [
  "icu_normalizer",
  "icu_properties 2.0.1",
+]
+
+[[package]]
+name = "ignore"
+version = "0.4.24"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "81776e6f9464432afcc28d03e52eb101c93b6f0566f52aef2427663e700f0403"
+dependencies = [
+ "crossbeam-deque",
+ "globset",
+ "log",
+ "memchr",
+ "regex-automata",
+ "same-file",
+ "walkdir",
+ "winapi-util",
 ]
 
 [[package]]
@@ -3276,7 +3282,7 @@ version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2d9198018d9acb075f27abe70036e6e24302156c37f0142ea18b5e813ecb8172"
 dependencies = [
- "comemo 0.5.0",
+ "comemo",
  "ecow",
  "rustc-hash",
  "typst-eval",
@@ -3302,7 +3308,7 @@ version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3bb8965a12371f0ff325dedac06d14fa9dd0d4fa0588034bc99802da7af9362f"
 dependencies = [
- "comemo 0.5.0",
+ "comemo",
  "ecow",
  "indexmap",
  "rustc-hash",
@@ -3323,7 +3329,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "67d6858f22690a9d105ff2ea1ea38dbf345e1610e30f947d7c3f79da27e1dd0b"
 dependencies = [
  "bumpalo",
- "comemo 0.5.0",
+ "comemo",
  "ecow",
  "palette",
  "rustc-hash",
@@ -3372,7 +3378,7 @@ dependencies = [
  "az",
  "bumpalo",
  "codex",
- "comemo 0.5.0",
+ "comemo",
  "ecow",
  "either",
  "hypher",
@@ -3411,7 +3417,7 @@ dependencies = [
  "chinese-number",
  "ciborium",
  "codex",
- "comemo 0.5.0",
+ "comemo",
  "csv",
  "ecow",
  "flate2",
@@ -3485,7 +3491,7 @@ checksum = "a2725822b4c5a1a9d7aa46708f7a996a4cb1b15470f077c7ba3e788fb95e495d"
 dependencies = [
  "arrayvec",
  "bumpalo",
- "comemo 0.5.0",
+ "comemo",
  "ecow",
  "regex",
  "typst-library",
@@ -3502,7 +3508,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "807e2e52c1f0b35ea011a133c4bff23e854e88c8b84a98739a71b6e700bbc02f"
 dependencies = [
  "bytemuck",
- "comemo 0.5.0",
+ "comemo",
  "hayro",
  "image",
  "pixglyph",
@@ -3522,7 +3528,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b53718b9b8f4b4e2454600084eca155530ce9d30cb62fed0799671b8044e40fc"
 dependencies = [
  "base64",
- "comemo 0.5.0",
+ "comemo",
  "ecow",
  "flate2",
  "hayro",
@@ -3607,7 +3613,7 @@ dependencies = [
  "serde_json",
  "tempdir",
  "termcolor",
- "thiserror 1.0.69",
+ "thiserror 2.0.17",
  "toml",
  "tracing",
  "tracing-subscriber",
@@ -3617,7 +3623,9 @@ dependencies = [
  "typst-syntax",
  "tytanic-core",
  "tytanic-filter",
+ "tytanic-runner",
  "tytanic-utils",
+ "uuid",
 ]
 
 [[package]]
@@ -3626,23 +3634,21 @@ version = "0.3.0"
 dependencies = [
  "bytemuck",
  "chrono",
- "comemo 0.4.0",
+ "codespan-reporting",
  "dirs 5.0.1",
  "ecow",
- "oxipng",
- "png 0.17.16",
+ "ignore",
  "serde",
- "thiserror 1.0.69",
+ "termcolor",
+ "thiserror 2.0.17",
  "tiny-skia",
  "toml",
  "tracing",
  "typst",
- "typst-assets",
- "typst-kit",
- "typst-library",
  "typst-render",
- "tytanic-filter",
+ "typst-syntax",
  "tytanic-utils",
+ "unicode-ident",
  "uuid",
 ]
 
@@ -3656,19 +3662,74 @@ dependencies = [
  "pest_derive",
  "regex",
  "strsim",
- "thiserror 1.0.69",
+ "thiserror 2.0.17",
  "tracing",
+ "tytanic-core",
  "tytanic-utils",
+]
+
+[[package]]
+name = "tytanic-library"
+version = "0.3.0"
+dependencies = [
+ "ecow",
+ "tracing",
+ "typst",
+ "typst-assets",
+ "typst-library",
+]
+
+[[package]]
+name = "tytanic-runner"
+version = "0.3.0"
+dependencies = [
+ "chrono",
+ "oxipng",
+ "png 0.17.16",
+ "thiserror 2.0.17",
+ "tiny-skia",
+ "tracing",
+ "typst",
+ "typst-kit",
+ "typst-render",
+ "tytanic-core",
+ "tytanic-library",
+ "tytanic-utils",
+ "uuid",
+]
+
+[[package]]
+name = "tytanic-test-cli"
+version = "0.3.0"
+dependencies = [
+ "chrono",
+ "codespan-reporting",
+ "oxipng",
+ "termcolor",
+ "tracing",
+ "tracing-subscriber",
+ "tracing-tree",
+ "tytanic-core",
+ "tytanic-filter",
+ "tytanic-library",
+ "tytanic-runner",
+ "tytanic-utils",
+ "uuid",
 ]
 
 [[package]]
 name = "tytanic-utils"
 version = "0.3.0"
 dependencies = [
+ "chrono",
  "ecow",
+ "insta",
  "tempdir",
+ "termcolor",
  "toml",
  "tracing",
+ "typst",
+ "typst-kit",
  "typst-syntax",
 ]
 
@@ -3878,7 +3939,6 @@ checksum = "2f87b8aa10b915a06587d0dec516c282ff295b475d94abf425d62b57710070a2"
 dependencies = [
  "getrandom 0.3.4",
  "js-sys",
- "serde",
  "wasm-bindgen",
 ]
 

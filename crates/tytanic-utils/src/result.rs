@@ -1,8 +1,39 @@
 //! Extensions for the [`Result`] type.
 
+use std::error::Error;
+use std::fmt::Display;
 use std::io;
+use std::path::PathBuf;
 
 use crate::private::Sealed;
+
+/// An error with an associated path.
+#[derive(Debug)]
+pub struct PathError<E> {
+    /// The path associated with the error.
+    pub path: PathBuf,
+
+    /// The inner error.
+    pub error: E,
+}
+
+impl<E> Display for PathError<E>
+where
+    E: Display,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "operation on {:?} failed", self.path)
+    }
+}
+
+impl<E> Error for PathError<E>
+where
+    E: Error + 'static,
+{
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(&self.error)
+    }
+}
 
 /// Extensions for the [`Result`] type.
 #[allow(private_bounds)]
@@ -94,6 +125,40 @@ pub trait ResultEx<T, E>: Sealed {
     where
         F: FnOnce(&E) -> bool,
         G: FnOnce(&E) -> T;
+
+    /// Attaches a path to this result in the error case.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use std::fs;
+    /// use tytanic_utils::result::ResultEx;
+    /// // if foo doesn't exist we get an error with the path attached to it
+    /// assert_eq!(
+    ///     fs::read_to_string("foo.txt").path("foo.txt")?,
+    ///     String::from("foo"),
+    /// );
+    /// # Ok::<_, Box<dyn std::error::Error>>(())
+    /// ```
+    fn path<P>(self, path: P) -> Result<T, PathError<E>>
+    where
+        P: Into<PathBuf>;
+
+    /// Attaches a path to this result in the error case.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use std::fs;
+    /// use tytanic_utils::result::ResultEx;
+    /// // if foo doesn't exist we get an error with the path attached to it
+    /// assert_eq!(
+    ///     fs::read_to_string("foo.txt").path_with(|| "foo.txt".into())?,
+    ///     String::from("foo"),
+    /// );
+    /// # Ok::<_, Box<dyn std::error::Error>>(())
+    /// ```
+    fn path_with<F>(self, f: F) -> Result<T, PathError<E>>
+    where
+        F: FnOnce() -> PathBuf;
 }
 
 impl<T, E> ResultEx<T, E> for Result<T, E> {
@@ -121,6 +186,23 @@ impl<T, E> ResultEx<T, E> for Result<T, E> {
             Err(err) if check(&err) => Ok(value(&err)),
             x => x,
         }
+    }
+
+    fn path<P>(self, path: P) -> Result<T, PathError<E>>
+    where
+        P: Into<PathBuf>,
+    {
+        self.map_err(|error| PathError {
+            path: path.into(),
+            error,
+        })
+    }
+
+    fn path_with<F>(self, f: F) -> Result<T, PathError<E>>
+    where
+        F: FnOnce() -> PathBuf,
+    {
+        self.map_err(|error| PathError { path: f(), error })
     }
 }
 
