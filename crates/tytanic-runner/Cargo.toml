@@ -1,0 +1,32 @@
+[package]
+name = "tytanic-runner"
+description = "The default runner implementation for Tytanic."
+version.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+categories.workspace = true
+keywords.workspace = true
+readme.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+tytanic-core.workspace = true
+tytanic-library.workspace = true
+tytanic-utils = { workspace = true, features = ["typst-world-builder-default"] }
+
+chrono.workspace = true
+oxipng.workspace = true
+png.workspace = true
+thiserror.workspace = true
+tiny-skia.workspace = true
+tracing.workspace = true
+typst.workspace = true
+typst-kit = { workspace = true, features = ["embed-fonts"] }
+typst-render.workspace = true
+uuid = { workspace = true, features = ["v4"] }

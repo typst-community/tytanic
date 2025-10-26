@@ -3,6 +3,69 @@
 use std::cell::RefCell;
 use std::fmt::Display;
 
+/// A struct which formats two numbers as a forward-slash separated pair of
+/// numbers.
+/// # Examples
+/// ```
+/// # fn _test() -> Option<()> {
+/// # use tytanic_utils::fmt::Step;
+/// let out_of_10 = Step::first(5);
+/// assert_eq!(out_of_10.to_string(), "1/5");
+/// assert_eq!(out_of_10.next(1)?.to_string(), "2/5");
+/// assert_eq!(out_of_10.next(2)?.to_string(), "3/5");
+/// assert_eq!(Step::new(3, 3).to_string(), "3/3");
+/// # Some(()) } _test().unwrap();
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Step {
+    step: usize,
+    total: usize,
+}
+
+impl Step {
+    /// Creates a new step struct with the given values.
+    ///
+    /// # Panics
+    /// Panics if `step > total`.
+    pub fn new(step: usize, total: usize) -> Self {
+        assert!(step <= total);
+        Self { step, total }
+    }
+
+    /// Creates a new step struct with `1` as its first step.
+    ///
+    /// # Panics
+    /// Panics if `total < 1`.
+    pub fn first(total: usize) -> Self {
+        assert!(total >= 1);
+        Self { step: 1, total }
+    }
+
+    /// Returns a step with the step value incremented or `None` if it would
+    /// overflow `total`.
+    pub fn next(&self, n: usize) -> Option<Self> {
+        Some(Self {
+            step: self.step.checked_add(n)?,
+            total: self.total,
+        })
+    }
+
+    /// Returns a step with the step value incremented or `None` if it would
+    /// underflow `0`.
+    pub fn prev(&self, n: usize) -> Option<Self> {
+        Some(Self {
+            step: self.step.checked_sub(n)?,
+            total: self.total,
+        })
+    }
+}
+
+impl Display for Step {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}/{}", self.step, self.total)
+    }
+}
+
 /// Types which affect the plurality of a word. Mostly numbers.
 pub trait Plural: Copy {
     /// Returns whether a word representing this value is plural.

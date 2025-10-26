@@ -1,6 +1,6 @@
 [package]
 name = "tytanic-filter"
-description = "A generic filtlering DSL for the tytanic test runner."
+description = "A generic filtlering DSL for the Tytanic."
 version.workspace = true
 rust-version.workspace = true
 authors.workspace = true
@@ -12,7 +12,11 @@ categories.workspace = true
 keywords.workspace = true
 readme.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
+tytanic-core.workspace = true
 tytanic-utils.workspace = true
 
 ecow.workspace = true

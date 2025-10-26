@@ -2,10 +2,10 @@ use std::io::Write;
 
 use color_eyre::eyre;
 use termcolor::Color;
-use tytanic_core::Id;
-use tytanic_core::dsl;
-use tytanic_core::suite::Filter;
+use tytanic_core::filter::Filter;
+use tytanic_core::test::Ident;
 use tytanic_core::test::Test;
+use tytanic_filter::builtin::dsl;
 use tytanic_filter::eval;
 use tytanic_utils::fmt::Term;
 
@@ -26,10 +26,10 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
 
     let filter = match ctx.filter(&args.filter)? {
         Filter::TestSet(set) => {
-            Filter::TestSet(set.map(|set| eval::Set::expr_diff(set, dsl::built_in::template())))
+            Filter::TestSet(set.map(|set| eval::Set::expr_diff(set, dsl::set_template())))
         }
         Filter::Explicit(explicit) => {
-            if explicit.contains(&Id::template()) {
+            if explicit.contains(&Ident::template()) {
                 writeln!(ctx.ui.error()?, "Cannot delete template test")?;
                 eyre::bail!(OperationFailure);
             }
@@ -40,7 +40,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
 
     let suite = ctx.collect_tests_with_filter(&project, filter)?;
 
-    if suite.matched().len() > 1
+    if  suite.matched_len().len() > 1
         && let Filter::TestSet(set) = suite.filter()
         && !set.all()
     {
@@ -48,13 +48,13 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
         eyre::bail!(OperationFailure);
     }
 
-    for test in suite.matched() {
+    for test in suite.matched_len() {
         if let Test::Unit(test) = test {
             test.delete(&project)?;
         }
     }
 
-    let len = suite.matched().len();
+    let len = suite.matched_len().len();
 
     let mut w = ctx.ui.stderr();
     write!(w, "Deleted ")?;

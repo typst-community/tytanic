@@ -25,7 +25,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
 
     let mut temp = 0;
     let mut persistent = 0;
-    for test in suite.matched().unit_tests() {
+    for test in suite.iter_tests().unit_tests() {
         test.delete_temporary_directories(&project)?;
         if args.include_persistent_references && test.kind().is_persistent() {
             test.delete_reference_document(&project)?;

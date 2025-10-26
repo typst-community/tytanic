@@ -7,13 +7,12 @@ use typst::diag::Warned;
 use typst_syntax::FileId;
 use typst_syntax::Source;
 use typst_syntax::VirtualPath;
-use tytanic_core::doc::Document;
-use tytanic_core::doc::render::ppi_to_ppp;
-use tytanic_core::test::Id;
+use tytanic_core::analysis::ppi_to_ppp;
+// use tytanic_core::test::DEFAULT_TEST_INPUT;
+use tytanic_core::test::Ident;
+use tytanic_core::test::Kind;
+// use tytanic_core::test::Reference;
 use tytanic_core::test::UnitTest;
-use tytanic_core::test::unit::DEFAULT_TEST_INPUT;
-use tytanic_core::test::unit::Kind;
-use tytanic_core::test::unit::Reference;
 
 use super::CompileOptions;
 use super::Context;
@@ -57,11 +56,11 @@ pub struct Args {
 
     /// The name of the new test.
     #[arg(value_name = "NAME")]
-    pub test: Id,
+    pub test: Ident,
 }
 
 pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
-    if args.test == Id::template() {
+    if args.test == Ident::template() {
         writeln!(ctx.ui.error()?, "Cannot create template test")?;
         eyre::bail!(OperationFailure);
     }
@@ -73,7 +72,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
         let mut w = ctx.ui.error()?;
 
         write!(w, "Test ")?;
-        ui::write_test_id(&mut w, &args.test)?;
+        ui::write_test_ident(&mut w, &args.test)?;
         writeln!(w, " already exists")?;
         eyre::bail!(OperationFailure);
     }

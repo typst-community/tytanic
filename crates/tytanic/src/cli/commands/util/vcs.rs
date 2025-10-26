@@ -2,6 +2,7 @@ use std::io::Write;
 
 use color_eyre::eyre;
 use termcolor::Color;
+use tytanic_core::config::{ProjectConfig, SettingsConfig, TestConfig};
 use tytanic_utils::fmt::Term;
 
 use super::Context;
@@ -14,6 +15,17 @@ pub struct Args {
     /// The sub command to run.
     #[command(subcommand)]
     pub cmd: Command,
+}
+
+impl Args {
+    /// Adds the CLI arguments to the CLI config layer.
+    pub fn cli_config_layer(
+        &self,
+        _settings: &mut SettingsConfig,
+        _project: &mut ProjectConfig,
+        _test: &mut TestConfig,
+    ) {
+    }
 }
 
 #[derive(clap::Subcommand, Debug, Clone)]

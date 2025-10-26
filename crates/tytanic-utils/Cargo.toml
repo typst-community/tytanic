@@ -1,6 +1,6 @@
 [package]
 name = "tytanic-utils"
-description = "Helper functions, types and traits for the tytanic test runner."
+description = "Helper functions, types and traits for Tytanic."
 version.workspace = true
 rust-version.workspace = true
 authors.workspace = true
@@ -12,9 +12,52 @@ categories.workspace = true
 keywords.workspace = true
 readme.workspace = true
 
+[lints]
+workspace = true
+
+[features]
+default = [
+  "terminal-ui",
+  "typst-world-builder",
+  "typst-world-builder-default",
+  "typst-manifest-builder",
+]
+
+# Enables Terminal UI helpers.
+terminal-ui = ["dep:termcolor"]
+
+# Enables the Typst world builder traits.
+typst-world-builder = ["dep:typst", "dep:typst-kit"]
+
+# Enables default implementations for the Typst world builder traits.
+typst-world-builder-default = [
+  "typst-world-builder",
+  "dep:typst",
+  "dep:typst-kit",
+  "typst-kit/embed-fonts",
+  "dep:chrono",
+]
+
+# Enables the Typst manifest builders.
+typst-manifest-builder = ["dep:typst", "dep:typst-syntax"]
+
 [dependencies]
 ecow.workspace = true
 temp-dir.workspace = true
 toml.workspace = true
 tracing.workspace = true
-typst-syntax.workspace = true
+
+# Used for `terminal-ui`.
+termcolor = { workspace = true, optional = true }
+
+# Used for:
+# - `typst-manifest-builder`
+# - `typst-world-builder`
+# - `typst-world-builder-default`
+chrono = { workspace = true, optional = true }
+typst = { workspace = true, optional = true }
+typst-kit = { workspace = true, optional = true }
+typst-syntax = { workspace = true, optional = true }
+
+[dev-dependencies]
+insta.workspace = true

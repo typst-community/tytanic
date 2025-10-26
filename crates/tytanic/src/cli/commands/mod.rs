@@ -8,9 +8,12 @@ use clap::Parser;
 use clap::ValueEnum;
 use color_eyre::eyre;
 use tytanic_core::config::Direction;
-use tytanic_core::doc::compile::Warnings;
-use tytanic_core::test::Id;
-use tytanic_core::test::unit::Kind;
+use tytanic_core::config::ProjectConfig;
+use tytanic_core::config::SettingsConfig;
+use tytanic_core::config::TestConfig;
+use tytanic_core::config::Warnings;
+use tytanic_core::test::Ident;
+use tytanic_core::test::UnitKind;
 
 use super::Context;
 
@@ -54,13 +57,13 @@ pub enum KindOption {
 }
 
 impl OptionDelegate for KindOption {
-    type Native = Kind;
+    type Native = UnitKind;
 
     fn into_native(self) -> Self::Native {
         match self {
-            Self::Persistent => Kind::Persistent,
-            Self::Ephemeral => Kind::Ephemeral,
-            Self::CompileOnly => Kind::CompileOnly,
+            Self::Persistent => UnitKind::Persistent,
+            Self::Ephemeral => UnitKind::Ephemeral,
+            Self::CompileOnly => UnitKind::CompileOnly,
         }
     }
 }
@@ -299,6 +302,84 @@ pub struct CliArguments {
     pub output: OutputArgs,
 }
 
+impl CliArguments {
+    /// Adds the CLI arguments to the CLI config layer.
+    pub fn cli_config_layer(
+        &self,
+        settings: &mut SettingsConfig,
+        project: &mut ProjectConfig,
+        test: &mut TestConfig,
+    ) {
+        if let Some(value) = self.font.use_embedded_fonts.get() {
+            test.use_embedded_fonts = Some(value);
+        }
+
+        if let Some(value) = self.font.use_system_fonts.get() {
+            test.use_system_fonts = Some(value);
+        }
+
+        if !self.font.font_paths.is_empty() {
+            project.font_paths = Some(self.font.font_paths.clone());
+        }
+
+        if let Some(path) = self.package.package_path.as_ref() {
+            settings.package_path = Some(path.clone());
+        }
+
+        if let Some(path) = self.package.package_cache_path.as_ref() {
+            settings.package_cache_path = Some(path.clone());
+        }
+
+        match &self.cmd {
+            Command::Status(status::Args { json: _ }) => {}
+            Command::List(list::Args { json: _, filter: _ }) => {}
+            Command::Run(run::Args {
+                compile,
+                compare,
+                export,
+                runner,
+                filter: _,
+            }) => {
+                compile.cli_config_layer(settings, project, test);
+                compare.cli_config_layer(settings, project, test);
+                export.cli_config_layer(settings, project, test);
+                runner.cli_config_layer(settings, project, test);
+            }
+            Command::Update(update::Args {
+                compile,
+                compare,
+                export,
+                runner,
+                filter: _,
+                force: _,
+            }) => {
+                compile.cli_config_layer(settings, project, test);
+                compare.cli_config_layer(settings, project, test);
+                export.cli_config_layer(settings, project, test);
+                runner.cli_config_layer(settings, project, test);
+            }
+            Command::New(new::Args {
+                kind: _,
+                persistent: _,
+                ephemeral: _,
+                compile_only: _,
+                template,
+                compile,
+                export,
+                test: _,
+            }) => {
+                settings.template = template.get();
+                compile.cli_config_layer(settings, project, test);
+                export.cli_config_layer(settings, project, test);
+            }
+            Command::Delete(delete::Args { filter: _ }) => {}
+            Command::Util(args) => {
+                args.cli_config_layer(settings, project, test);
+            }
+        }
+    }
+}
+
 /// The VCS to use.
 #[derive(Debug, Default, Clone, Copy, ValueEnum)]
 pub enum Vcs {
@@ -306,13 +387,19 @@ pub enum Vcs {
     /// Auto detect the VCS from the current directory.
     Auto,
 
-    /// Git-compatible VCS'.
+    /// The Git VCS.
     Git,
 
-    /// Mercurial-compatible VCS'.
+    /// The git-compatible Jujutsu VCS.
+    Jujutsu,
+
+    /// The git-compatible Sapling VCS.
+    Sapling,
+
+    /// The Mercurial VCS.
     Mercurial,
 
-    /// Shorthand for `mercurual`.
+    /// Shorthand for `mercurial`.
     Hg,
 }
 
@@ -335,7 +422,25 @@ pub struct FontOptions {
         value_delimiter = ENV_PATH_SEP,
         global = true,
     )]
-    pub font_paths: Vec<PathBuf>,
+    pub font_paths: Vec<String>,
+}
+
+impl FontOptions {
+    /// Adds the CLI arguments to the CLI config layer.
+    pub fn cli_config_layer(
+        &self,
+        _settings: &mut SettingsConfig,
+        project: &mut ProjectConfig,
+        test: &mut TestConfig,
+    ) {
+        project.font_paths = if !self.font_paths.is_empty() {
+            Some(self.font_paths.clone())
+        } else {
+            None
+        };
+        test.use_embedded_fonts = self.use_embedded_fonts.get();
+        test.use_system_fonts = self.use_system_fonts.get();
+    }
 }
 
 /// Options for configuring how to store and load packages.
@@ -345,7 +450,7 @@ pub struct FontOptions {
 pub struct PackageOptions {
     /// Custom path to local packages, defaults to system-dependent location.
     #[clap(long, env = "TYPST_PACKAGE_PATH", value_name = "DIR", global = true)]
-    pub package_path: Option<PathBuf>,
+    pub package_path: Option<String>,
 
     /// Custom path to package cache, defaults to system-dependent location.
     #[clap(
@@ -354,11 +459,24 @@ pub struct PackageOptions {
         value_name = "DIR",
         global = true
     )]
-    pub package_cache_path: Option<PathBuf>,
+    pub package_cache_path: Option<String>,
 
     /// Path to a custom CA certificate to use when making network requests.
     #[clap(long, visible_alias = "cert", env = "TYPST_CERT", global = true)]
-    pub certificate: Option<PathBuf>,
+    pub certificate: Option<String>,
+}
+
+impl PackageOptions {
+    /// Adds the CLI arguments to the CLI config layer.
+    pub fn cli_config_layer(
+        &self,
+        settings: &mut SettingsConfig,
+        _project: &mut ProjectConfig,
+        _test: &mut TestConfig,
+    ) {
+        settings.package_cache_path = self.package_cache_path.clone();
+        settings.package_path = self.package_path.clone();
+    }
 }
 
 /// Options for filtering/selecting tests.
@@ -381,7 +499,7 @@ pub struct FilterOptions {
     /// Implies `--no-skip`. Equivalent to passing
     /// `--expression 'exact:a | exact:b | ...'`.
     #[arg(required = false, conflicts_with = "expression", value_name = "TEST")]
-    pub tests: Vec<Id>,
+    pub tests: Vec<Ident>,
 }
 
 fn parse_source_date_epoch(raw: &str) -> Result<DateTime<Utc>, String> {
@@ -403,19 +521,35 @@ pub struct CompileOptions {
     ///
     /// For more information, see
     /// <https://reproducible-builds.org/specs/source-date-epoch/>.
+    ///
+    /// Defaults to `0`, can be configured in the manifest.
     #[arg(
         long,
         env = "SOURCE_DATE_EPOCH",
         value_name = "now|<UNIX_TIMESTAMP>",
-        default_value = "0",
         value_parser = parse_source_date_epoch,
         global = true,
     )]
-    pub timestamp: DateTime<Utc>,
+    pub timestamp: Option<DateTime<Utc>>,
 
     /// How to handle warnings.
-    #[arg(long, default_value = "emit", value_name = "WHAT")]
-    pub warnings: WarningsOption,
+    ///
+    /// Defaults to `emit`, can be configured in the manifest.
+    #[arg(long, value_name = "WHAT")]
+    pub warnings: Option<WarningsOption>,
+}
+
+impl CompileOptions {
+    /// Adds the CLI arguments to the CLI config layer.
+    pub fn cli_config_layer(
+        &self,
+        _settings: &mut SettingsConfig,
+        _project: &mut ProjectConfig,
+        test: &mut TestConfig,
+    ) {
+        test.timestamp = self.timestamp;
+        test.warnings = self.warnings.map(OptionDelegate::into_native);
+    }
 }
 
 /// Options for document rendering and export.
@@ -441,6 +575,21 @@ pub struct ExportOptions {
 
     #[command(flatten)]
     pub optimize_refs: OptimizeRefsSwitch,
+}
+
+impl ExportOptions {
+    /// Adds the CLI arguments to the CLI config layer.
+    pub fn cli_config_layer(
+        &self,
+        settings: &mut SettingsConfig,
+        project: &mut ProjectConfig,
+        test: &mut TestConfig,
+    ) {
+        settings.export_ephemeral = self.export_ephemeral.get();
+        project.optimize_refs = self.optimize_refs.get();
+        test.pixel_per_inch = self.ppi;
+        test.direction = self.dir.map(OptionDelegate::into_native);
+    }
 }
 
 /// The reading direction of a document.
@@ -490,11 +639,37 @@ pub struct CompareOptions {
     pub max_deviations: Option<usize>,
 }
 
+impl CompareOptions {
+    /// Adds the CLI arguments to the CLI config layer.
+    pub fn cli_config_layer(
+        &self,
+        _settings: &mut SettingsConfig,
+        _project: &mut ProjectConfig,
+        test: &mut TestConfig,
+    ) {
+        test.compare = self.compare.get();
+        test.max_delta = self.max_delta;
+        test.max_deviations = self.max_deviations;
+    }
+}
+
 /// Options for configuring the test runner.
 #[derive(Args, Debug, Clone)]
 pub struct RunnerOptions {
     #[command(flatten)]
     pub fail_fast: FailFastSwitch,
+}
+
+impl RunnerOptions {
+    /// Adds the CLI arguments to the CLI config layer.
+    pub fn cli_config_layer(
+        &self,
+        settings: &mut SettingsConfig,
+        _project: &mut ProjectConfig,
+        _test: &mut TestConfig,
+    ) {
+        settings.fail_fast = self.fail_fast.get();
+    }
 }
 
 /// Options for configuring the CLI output.

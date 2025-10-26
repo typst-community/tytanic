@@ -69,7 +69,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
     let suite = ctx.collect_tests_with_filter(&project, filter)?;
 
     let mut illegal_tests = vec![];
-    for test in suite.matched() {
+    for test in suite.matched_len() {
         if !test
             .as_unit_test()
             .is_some_and(|t| t.kind().is_persistent())
@@ -82,7 +82,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
         let mut w = ctx.ui.error()?;
         writeln!(w, "Cannot update tests:")?;
         for test in illegal_tests {
-            ui::write_test_id(&mut w, test.id())?;
+            ui::write_test_ident(&mut w, test.id())?;
             writeln!(w)?;
         }
         eyre::bail!(OperationFailure);

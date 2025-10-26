@@ -1,687 +1,544 @@
-//! Discovering, loading and managing typst projects.
+//! Projects represent the context in which a test suite run is executed.
+//!
+//! A project is usually identified by its `typst.toml` manifest file, most
+//! often in the case of packages.
+//!
+//! For the purposes of storage access and artifact generation the VCS used by
+//! the consumer is also of importance. A user may provide configuration though
+//! files or CLI options which should alter the behavior of the test runner.
+//!
+//! A [`ProjectContext`] bundles this contextual information, such that it can
+//! be easily passed around between components of Tytanic.
 
-use std::collections::BTreeMap;
-use std::fs;
 use std::io;
-use std::ops::Deref;
-use std::path::Component;
 use std::path::Path;
 use std::path::PathBuf;
 
-use ecow::EcoString;
-use serde::Deserialize;
+use store::Kind;
+use store::MigrateError;
 use thiserror::Error;
-use typst::syntax::package::PackageManifest;
-use typst::syntax::package::PackageSpec;
-use tytanic_utils::result::ResultEx;
-use tytanic_utils::result::io_not_found;
+use typst_syntax::package::PackageManifest;
 
-use crate::TOOL_NAME;
+use crate::config::ConfigSource;
+use crate::config::LayeredConfig;
+use crate::config::PartialConfigSource;
 use crate::config::ProjectConfig;
-use crate::test::Id;
+use crate::config::ReadError;
+use crate::config::ValidationError;
+use crate::config::validate_project_path;
+use crate::project::store::Store;
+use crate::project::vcs::Vcs;
+use crate::test::UnitIdent;
 
-mod vcs;
-
-pub use vcs::Kind as VcsKind;
-pub use vcs::Vcs;
+pub mod store;
+pub mod vcs;
 
 /// The name of the manifest file which is used to discover the project root
 /// automatically.
 pub const MANIFEST_FILE: &str = "typst.toml";
 
-/// Represents a "shallow" unloaded project, it contains the base paths required
-/// to load a project.
-#[derive(Debug, Clone)]
-pub struct ShallowProject {
+/// The project context provides information about a config.
+#[derive(Debug)]
+pub struct ProjectContext {
     root: PathBuf,
     vcs: Option<Vcs>,
+    manifest: Option<Box<PackageManifest>>,
+    config: Box<LayeredConfig>,
+    store: Store,
 }
 
-impl ShallowProject {
-    /// Create a new project with the given roots.
+impl ProjectContext {
+    /// Creates a project context at from the given start directory.
     ///
-    /// It is recommended to canonicalize them, but it is not strictly necessary.
-    pub fn new<P, V>(project: P, vcs: V) -> Self
+    /// This will climb up the directory tree until it finds all necessary root
+    /// directories.
+    ///
+    /// Returns `None` if no project root is found.
+    ///
+    /// # Errors
+    /// May return an error if the PWD or its ancestors are inaccessible.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// # use std::path::Path;
+    /// # use tytanic_core::config::LayeredConfig;
+    /// # use tytanic_core::project::ProjectContext;
+    /// # use tytanic_core::project::vcs::Kind;
+    /// # use tytanic_core::project::vcs::Vcs;
+    /// // From within a sub diretory of /home/user/src/monorepo/my-package
+    /// let cwd = std::env::current_dir()?;
+    /// let ctx = ProjectContext::discover_project_and_vcs(
+    ///     cwd,
+    ///     Box::new(LayeredConfig::new()),
+    /// )?.unwrap();
+    ///
+    /// assert_eq!(ctx.root(), Path::new("/home/user/src/monorepo/my-package"));
+    /// assert_eq!(ctx.vcs().map(Vcs::kind), Some(Kind::Git));
+    /// assert_eq!(
+    ///     ctx.vcs().and_then(|vcs| vcs.root()),
+    ///     Some(Path::new("/home/user/src/monorepo")),
+    /// );
+    /// # Ok::<_, Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn discover_project_and_vcs<P>(
+        start: P,
+        config: Box<LayeredConfig>,
+    ) -> Result<Option<Self>, LoadError>
     where
-        P: Into<PathBuf>,
-        V: Into<Option<Vcs>>,
+        P: AsRef<Path>,
     {
-        Self {
-            root: project.into(),
-            vcs: vcs.into(),
+        fn inner(
+            start: &Path,
+            config: Box<LayeredConfig>,
+        ) -> Result<Option<ProjectContext>, LoadError> {
+            let mut project_root = None;
+            let mut vcs = None;
+
+            for ancestor in start.ancestors() {
+                if project_root.is_none() && ancestor.join(MANIFEST_FILE).try_exists()? {
+                    project_root = Some(ancestor.to_path_buf());
+                }
+
+                if vcs.is_none() && let Some(kind) = Vcs::try_infer_kind(ancestor)? {
+                    vcs = Some(Vcs::new(ancestor, kind));
+                }
+
+                if project_root.is_some() && vcs.is_some() {
+                    break;
+                }
+            }
+
+            let Some(project_root) = project_root else {
+                return Ok(None);
+            };
+
+            ProjectContext::load(project_root, vcs, config).map(Some)
         }
+
+        inner(start.as_ref(), config)
     }
 
-    /// Attempt to discover various paths for a directory.
+    /// Creates a project config at the given project root and config.
     ///
-    /// If `search_manifest` is `true`, then this will attempt to find the
-    /// project root by looking for a Typst manifest and return `None` if no
-    /// manifest is found. If it is `true`, then `dir` is used as the project
-    /// root.
-    #[tracing::instrument(skip(dir) fields(dir = ?dir.as_ref()), ret)]
-    pub fn discover<P: AsRef<Path>>(
-        dir: P,
-        search_manifest: bool,
-    ) -> Result<Option<Self>, io::Error> {
-        let dir = dir.as_ref();
+    /// This will climb up the directory tree until it finds the VCS root
+    /// directory.
+    ///
+    /// The project layer of the config will be set to the values parsed from
+    /// the project manifest.
+    ///
+    /// # Errors
+    /// May return an error if the project root or its ancestors are
+    /// inaccessible.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// # use std::path::Path;
+    /// # use tytanic_core::config::LayeredConfig;
+    /// # use tytanic_core::project::ProjectContext;
+    /// # use tytanic_core::project::vcs::Kind;
+    /// # use tytanic_core::project::vcs::Vcs;
+    /// let ctx = ProjectContext::discover_vcs(
+    ///     "/home/user/src/monorepo/my-package",
+    ///     Box::new(LayeredConfig::new()),
+    /// )?.unwrap();
+    ///
+    /// assert_eq!(ctx.root(), Path::new("/home/user/src/monorepo/my-package"));
+    /// assert_eq!(ctx.vcs().map(Vcs::kind), Some(Kind::Git));
+    /// assert_eq!(
+    ///     ctx.vcs().and_then(|vcs| vcs.root()),
+    ///     Some(Path::new("/home/user/src/monorepo")),
+    /// );
+    /// # Ok::<_, Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn discover_vcs<P>(project_root: P, config: Box<LayeredConfig>) -> Result<Self, LoadError>
+    where
+        P: AsRef<Path>,
+    {
+        fn inner(
+            project_root: &Path,
+            config: Box<LayeredConfig>,
+        ) -> Result<ProjectContext, LoadError> {
+            let mut vcs = None;
 
-        let mut project = search_manifest.then(|| dir.to_path_buf());
-        let mut vcs = None;
+            for ancestor in project_root.ancestors() {
+                if vcs.is_none() {
+                    if let Some(kind) = Vcs::try_infer_kind(ancestor)? {
+                        vcs = Some(Vcs::new(ancestor, kind));
+                    }
+                }
 
-        for dir in dir.ancestors() {
-            if project.is_none() && Project::exists_at(dir)? {
-                tracing::debug!(project_root = ?dir, "found project");
-                project = Some(dir.to_path_buf());
+                if vcs.is_some() {
+                    break;
+                }
             }
 
-            // TODO(tinger): Currently we keep searching for a project even when
-            // we find a VCS root, I'm not sure if this makes sense, stopping at
-            // the VCS root is likely the most sensible behavior.
-            if vcs.is_none()
-                && let Some(kind) = Vcs::exists_at(dir)?
-            {
-                tracing::debug!(vcs = ?kind, root = ?dir, "found vcs");
-                vcs = Some(Vcs::new(dir.to_path_buf(), kind));
-            }
-
-            if project.is_some() && vcs.is_some() {
-                break;
-            }
+            ProjectContext::load(project_root, vcs, config)
         }
 
-        let Some(project) = project else {
-            return Ok(None);
-        };
-
-        Ok(Some(Self { root: project, vcs }))
+        inner(project_root.as_ref(), config)
     }
-}
 
-impl ShallowProject {
-    /// Loads the manifest, configuration, and unit test template of a project.
-    #[tracing::instrument]
-    pub fn load(self) -> Result<Project, LoadError> {
-        let manifest = self.parse_manifest()?;
-        let config = manifest
+    /// Loads a project context at the given root.
+    ///
+    /// The project layer of the config will be set to the values parsed from
+    /// the project manifest.
+    ///
+    /// # Errors
+    /// May return an error if the project root or its ancestors are
+    /// inaccessible.
+    ///
+    /// # Examples
+    /// ```no_run
+    /// # use std::path::Path;
+    /// # use tytanic_core::config::LayeredConfig;
+    /// # use tytanic_core::project::ProjectContext;
+    /// # use tytanic_core::project::vcs::Kind;
+    /// # use tytanic_core::project::vcs::Vcs;
+    /// let ctx = ProjectContext::load(
+    ///     "/home/user/src/monorepo/my-package",
+    ///     Vcs::new("/home/user/src/monorepo", Kind::Git),
+    ///     Box::new(LayeredConfig::new()),
+    /// )?.unwrap();
+    ///
+    /// assert_eq!(ctx.root(), Path::new("/home/user/src/monorepo/my-package"));
+    /// assert_eq!(ctx.vcs().map(Vcs::kind), Some(Kind::Git));
+    /// assert_eq!(
+    ///     ctx.vcs().and_then(|vcs| vcs.root()),
+    ///     Some(Path::new("/home/user/src/monorepo")),
+    /// );
+    /// # Ok::<_, Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn load<P>(
+        project_root: P,
+        vcs: Option<Vcs>,
+        config: Box<LayeredConfig>,
+    ) -> Result<Self, LoadError>
+    where
+        P: AsRef<Path>,
+    {
+        fn inner(
+            project_root: &Path,
+            vcs: Option<Vcs>,
+            mut config: Box<LayeredConfig>,
+        ) -> Result<ProjectContext, LoadError> {
+            let manifest = std::fs::read_to_string(project_root.join(MANIFEST_FILE))?;
+            let manifest = toml::from_str(&manifest)
+                .map_err(ReadError::Parsing)
+                .map_err(LoadError::Manifest)?;
+
+            ProjectContext::validate_manifest(project_root, &manifest)
+                .map_err(ReadError::Validation)
+                .map_err(LoadError::Manifest)?;
+
+            let project_config = ProjectConfig::from_manifest(&manifest)
+                .map_err(ReadError::Parsing)
+                .map_err(LoadError::Manifest)?;
+
+            if let Some(project_config) = &project_config {
+                ProjectContext::validate_manifest_config(project_root, project_config)
+                    .map_err(ReadError::Validation)
+                    .map_err(LoadError::Manifest)?;
+            }
+
+            // TODO: do we allow settings in the project?
+            config.with_project_layer(None, project_config);
+
+            let store = Store::with_config(project_root, &config)?;
+
+            Ok(ProjectContext {
+                root: project_root.to_path_buf(),
+                vcs,
+                manifest: Some(Box::new(manifest)),
+                config,
+                store,
+            })
+        }
+
+        inner(project_root.as_ref(), vcs, config)
+    }
+
+    /// Creates a new project context.
+    pub fn new<P>(
+        root: P,
+        vcs: Option<Vcs>,
+        manifest: Option<Box<PackageManifest>>,
+        config: Box<LayeredConfig>,
+        store_kind: Kind,
+    ) -> Self
+    where
+        P: Into<PathBuf> + AsRef<Path>,
+    {
+        debug_assert!(root.as_ref().is_absolute(), "project root must be absolute");
+
+        let store_root = root
             .as_ref()
-            .map(|m| self.parse_config(m))
-            .transpose()?
-            .flatten()
-            .unwrap_or_default();
+            .join(config.get_project_config_member(ProjectConfig::STORE_ROOT, ()));
 
-        let unit_test_template = self.read_unit_test_template(&config)?;
+        let template_root = config
+            .get_project_config_member(ProjectConfig::TEMPLATE_PATH, ())
+            .map(|template_path| root.as_ref().join(template_path));
 
-        Ok(Project {
-            base: self,
+        let store = Store::new(root.as_ref(), store_root, template_root, store_kind);
+
+        Self {
+            root: root.into(),
+            vcs,
             manifest,
             config,
-            unit_test_template,
-        })
-    }
-
-    /// Parses the project manifest if it exists. Returns `None` if no
-    /// manifest is found.
-    #[tracing::instrument]
-    pub fn parse_manifest(&self) -> Result<Option<PackageManifest>, ManifestError> {
-        let manifest = fs::read_to_string(self.manifest_file())
-            .ignore(io_not_found)?
-            .as_deref()
-            .map(toml::from_str)
-            .transpose()?;
-
-        if let Some(manifest) = &manifest {
-            validate_manifest(&self.root, manifest)?;
+            store,
         }
-
-        Ok(manifest)
     }
 
-    /// Parses the manifest config from the tool section. Returns `None` if no
-    /// tool section found.
-    #[tracing::instrument]
-    pub fn parse_config(
-        &self,
+    /// Validates a parsed manifest within a project root.
+    pub fn validate_manifest(
+        root: &Path,
         manifest: &PackageManifest,
-    ) -> Result<Option<ProjectConfig>, ManifestError> {
-        let config = manifest
-            .tool
-            .sections
-            .get(TOOL_NAME)
-            .cloned()
-            .map(ProjectConfig::deserialize)
-            .transpose()?;
+    ) -> Result<(), ValidationError> {
+        let PackageManifest {
+            package,
+            template,
+            tool: _,
+            unknown_fields: _,
+        } = manifest;
 
-        if let Some(config) = &config {
-            validate_config(&self.root, config)?;
-        }
+        validate_project_path(
+            ConfigSource::ConfigFile {
+                path: root.join(MANIFEST_FILE),
+                key: "package.entrypoint".into(),
+            },
+            root,
+            Path::new(package.entrypoint.as_str()),
+        )?;
 
-        Ok(config)
+        let Some(template) = template else {
+            return Ok(());
+        };
+
+        validate_project_path(
+            ConfigSource::ConfigFile {
+                path: root.join(MANIFEST_FILE),
+                key: "template.path".into(),
+            },
+            root,
+            Path::new(template.path.as_str()),
+        )?;
+        validate_project_path(
+            ConfigSource::ConfigFile {
+                path: root.join(MANIFEST_FILE),
+                key: "template.entrypoint".into(),
+            },
+            root,
+            &Path::new(template.path.as_str()).join(template.entrypoint.as_str()),
+        )?;
+
+        Ok(())
     }
 
-    /// Reads the project's unit test template if it exists. Returns `None` if
-    /// no template was found.
-    #[tracing::instrument]
-    pub fn read_unit_test_template(
-        &self,
+    /// Validates a parsed manifest config within a project root.
+    pub fn validate_manifest_config(
+        root: &Path,
         config: &ProjectConfig,
-    ) -> Result<Option<String>, io::Error> {
-        let root = Path::new(&config.unit_tests_root);
-        let template = root.join("template.typ");
-
-        fs::read_to_string(template).ignore(io_not_found)
+    ) -> Result<(), ValidationError> {
+        config.validate(
+            root,
+            PartialConfigSource::ConfigFile {
+                path: root.join(MANIFEST_FILE),
+                manifest: true,
+            },
+        )
     }
 }
 
-impl ShallowProject {
-    /// Returns the path to the project root.
+impl ProjectContext {
+    /// The absolute project root path.
     ///
-    /// The project root is used to resolve absolute paths in typst when
-    /// executing tests.
+    /// This path is used as the root for unit test compilations.
     pub fn root(&self) -> &Path {
         &self.root
     }
 
-    /// Returns the path to the project manifest (`typst.toml`).
-    pub fn manifest_file(&self) -> PathBuf {
-        self.root.join(MANIFEST_FILE)
+    /// The VCS type and root if both are set.
+    pub fn vcs(&self) -> Option<&Vcs> {
+        self.vcs.as_ref()
     }
 
-    /// Returns the path to the VCS root.
-    ///
-    /// The VCS root is used for properly handling non-persistent storage of
-    /// tests.
-    pub fn vcs_root(&self) -> Option<&Path> {
-        self.vcs.as_ref().and_then(Vcs::root)
-    }
-}
-
-/// A fully loaded project, this can be constructed from [`ShallowProject`],
-/// which can be used to discover project paths without loading any
-/// configuration or manifests.
-#[derive(Debug, Clone)]
-pub struct Project {
-    base: ShallowProject,
-    manifest: Option<PackageManifest>,
-    config: ProjectConfig,
-    unit_test_template: Option<String>,
-}
-
-impl Project {
-    /// Create a new empty project.
-    pub fn new<P: Into<PathBuf>>(root: P) -> Self {
-        Self {
-            base: ShallowProject {
-                root: root.into(),
-                vcs: None,
-            },
-            manifest: None,
-            config: ProjectConfig::default(),
-            unit_test_template: None,
-        }
-    }
-
-    /// Attach a version control system to this project.
-    pub fn with_vcs(mut self, vcs: Option<Vcs>) -> Self {
-        self.base.vcs = vcs;
-        self
-    }
-
-    /// Attach a parsed manifest to this project.
-    pub fn with_manifest(mut self, manifest: Option<PackageManifest>) -> Self {
-        self.manifest = manifest;
-        self
-    }
-
-    /// Attach a parsed project config to this project.
-    pub fn with_config(mut self, config: ProjectConfig) -> Self {
-        self.config = config;
-        self
-    }
-
-    /// Attach a unit test template to this project.
-    pub fn with_unit_test_template(mut self, unit_test_template: Option<String>) -> Self {
-        self.unit_test_template = unit_test_template;
-        self
-    }
-
-    /// Checks the given directory for a project root, returning `true` if it
-    /// was found.
-    pub fn exists_at(dir: &Path) -> io::Result<bool> {
-        if dir.join(MANIFEST_FILE).try_exists()? {
-            return Ok(true);
-        }
-
-        Ok(false)
-    }
-}
-
-impl Project {
-    /// Returns the shallow base object for this project.
-    pub fn base(&self) -> &ShallowProject {
-        &self.base
-    }
-
-    /// The fully parsed project manifest.
+    /// The package manifest, if the project is a package.
     pub fn manifest(&self) -> Option<&PackageManifest> {
-        self.manifest.as_ref()
+        self.manifest.as_deref()
     }
 
-    /// A package spec for this package itself, this is used by template tests
-    /// refer to themselves without attempting to download the package.
-    pub fn package_spec(&self) -> Option<PackageSpec> {
-        self.manifest.as_ref().map(|m| PackageSpec {
-            namespace: "preview".into(),
-            name: m.package.name.clone(),
-            version: m.package.version,
-        })
-    }
-
-    /// The fully parsed project config layer.
-    pub fn config(&self) -> &ProjectConfig {
+    /// The active configurations.
+    pub fn config(&self) -> &LayeredConfig {
         &self.config
     }
 
-    /// Returns the unit test template, that is, the source template to
-    /// use when generating new unit tests.
-    pub fn unit_test_template(&self) -> Option<&str> {
-        self.unit_test_template.as_deref()
-    }
-
-    /// Returns the [`Vcs`] this project is managed by or `None` if no supported
-    /// Vcs was found.
-    pub fn vcs(&self) -> Option<&Vcs> {
-        self.base.vcs.as_ref()
+    /// The store of this project.
+    pub fn store(&self) -> &Store {
+        &self.store
     }
 }
 
-impl Project {
-    /// Returns the path to the test root. That is the path within the project
-    /// root where the test suite is located.
-    ///
-    /// The test root is used to resolve test identifiers.
-    pub fn unit_tests_root(&self) -> PathBuf {
-        self.root().join(&self.config.unit_tests_root)
-    }
-
-    /// Returns the root path of the template directory.
-    pub fn template_root(&self) -> Option<PathBuf> {
-        self.manifest
-            .as_ref()
-            .and_then(|m| m.template.as_ref())
-            .map(|t| self.root().join(t.path.as_str()))
-    }
-
-    /// Returns the entrypoint script inside the template directory.
-    pub fn template_entrypoint(&self) -> Option<PathBuf> {
-        self.manifest
-            .as_ref()
-            .and_then(|m| m.template.as_ref())
-            .map(|t| {
-                let mut root = self.root().to_path_buf();
-                root.push(t.path.as_str());
-                root.push(t.entrypoint.as_str());
-                root
-            })
-    }
-
-    /// Returns the path to the unit test template, that is, the source template to
-    /// use when generating new unit tests.
-    pub fn unit_test_template_file(&self) -> PathBuf {
-        let mut dir = self.unit_tests_root();
-        dir.push("template.typ");
-        dir
-    }
-
-    /// Create a path to the test directory for the given identifier.
-    pub fn unit_test_dir(&self, id: &Id) -> PathBuf {
-        let mut dir = self.unit_tests_root();
-        dir.extend(id.components());
-        dir
-    }
-
-    /// Create a path to the test script for the given identifier.
-    pub fn unit_test_script(&self, id: &Id) -> PathBuf {
-        let mut dir = self.unit_test_dir(id);
-        dir.push("test.typ");
-        dir
-    }
-
-    /// Create a path to the reference script for the given identifier.
-    pub fn unit_test_ref_script(&self, id: &Id) -> PathBuf {
-        let mut dir = self.unit_test_dir(id);
-        dir.push("ref.typ");
-        dir
-    }
-
-    /// Create a path to the reference directory for the given identifier.
-    pub fn unit_test_ref_dir(&self, id: &Id) -> PathBuf {
-        let mut dir = self.unit_test_dir(id);
-        dir.push("ref");
-        dir
-    }
-
-    /// Create a path to the output directory for the given identifier.
-    pub fn unit_test_out_dir(&self, id: &Id) -> PathBuf {
-        let mut dir = self.unit_test_dir(id);
-        dir.push("out");
-        dir
-    }
-
-    /// Create a path to the difference directory for the given identifier.
-    pub fn unit_test_diff_dir(&self, id: &Id) -> PathBuf {
-        let mut dir = self.unit_test_dir(id);
-        dir.push("diff");
-        dir
+impl ProjectContext {
+    /// Migrate the store from legacy to V1 or do nothing if there already is a
+    /// V1 store.
+    pub fn migrate_store<I>(&mut self, tests: I) -> Result<(), MigrateError>
+    where
+        I: IntoIterator<Item = UnitIdent>,
+    {
+        self.store.migrate(tests)?;
+        Ok(())
     }
 }
 
-impl Deref for Project {
-    type Target = ShallowProject;
-
-    fn deref(&self) -> &Self::Target {
-        self.base()
-    }
-}
-
-fn validate_manifest(root: &Path, manifest: &PackageManifest) -> Result<(), ValidationError> {
-    let PackageManifest {
-        package: _,
-        template,
-        tool: _,
-        unknown_fields: _,
-    } = manifest;
-
-    let Some(template) = template else {
-        return Ok(());
-    };
-
-    let mut error = ValidationError {
-        errors: BTreeMap::new(),
-    };
-
-    if !is_trivial_path(template.path.as_str()) {
-        error.errors.insert(
-            "template.path".into(),
-            ValidationErrorCause::NonTrivialPath {
-                field: template.path.clone(),
-            },
-        );
-    } else {
-        let path = root.join(template.path.as_str());
-
-        if !path.exists() {
-            error.errors.insert(
-                "template.path".into(),
-                ValidationErrorCause::DoesNotExist {
-                    field: template.path.clone(),
-                    resolved: path,
-                },
-            );
-        }
-    }
-
-    if !is_trivial_path(template.entrypoint.as_str()) {
-        error.errors.insert(
-            "template.entrypoint".into(),
-            ValidationErrorCause::NonTrivialPath {
-                field: template.entrypoint.clone(),
-            },
-        );
-    } else {
-        let mut path = root.join(template.path.as_str());
-        path.push(template.entrypoint.as_str());
-
-        if !path.exists() {
-            error.errors.insert(
-                "template.entrypoint".into(),
-                ValidationErrorCause::DoesNotExist {
-                    field: template.entrypoint.clone(),
-                    resolved: path,
-                },
-            );
-        }
-    }
-
-    if !error.errors.is_empty() {
-        return Err(error);
-    }
-
-    Ok(())
-}
-
-fn validate_config(root: &Path, config: &ProjectConfig) -> Result<(), ValidationError> {
-    let ProjectConfig {
-        unit_tests_root,
-        defaults: _,
-    } = config;
-
-    let mut error = ValidationError {
-        errors: BTreeMap::new(),
-    };
-
-    if !is_trivial_path(unit_tests_root.as_str()) {
-        error.errors.insert(
-            "tests".into(),
-            ValidationErrorCause::NonTrivialPath {
-                field: unit_tests_root.into(),
-            },
-        );
-    } else {
-        let path = root.join(unit_tests_root);
-
-        if !path.exists() {
-            error.errors.insert(
-                "tests".into(),
-                ValidationErrorCause::DoesNotExist {
-                    field: unit_tests_root.into(),
-                    resolved: path,
-                },
-            );
-        }
-    }
-
-    if !error.errors.is_empty() {
-        return Err(error);
-    }
-
-    Ok(())
-}
-
-fn is_trivial_path<P: AsRef<Path>>(path: P) -> bool {
-    let path = path.as_ref();
-    path.is_relative() && path.components().all(|c| matches!(c, Component::Normal(_)))
-}
-
-/// Returned by [`ShallowProject::load`].
+/// Returned by [`ProjectContext::detect_project_and_vcs`].
 #[derive(Debug, Error)]
 pub enum LoadError {
-    /// An error occurred while parsing the project manifest.
-    #[error("an error occurred while parsing the project manifest")]
-    Manifest(#[from] ManifestError),
+    /// Failed to open package manifest.
+    #[error("failed to read package manifest")]
+    Manifest(ReadError),
 
-    /// An error occurred while parsing the project config.
-    #[error("an error occurred while parsing the project config")]
-    Config(#[from] ConfigError),
-
-    /// An IO error occurred.
-    #[error("an io error occurred")]
-    Io(#[from] io::Error),
-}
-
-/// Contained in [`ConfigError`] and [`ManifestError`].
-#[derive(Debug, Error)]
-#[error("encountered {} errors while validating", errors.len())]
-pub struct ValidationError {
-    /// The inner errors for each field.
-    pub errors: BTreeMap<EcoString, ValidationErrorCause>,
-}
-
-/// The cause for a validation error of an individual field.
-#[derive(Debug, Error, Clone, PartialEq, Eq, Hash)]
-pub enum ValidationErrorCause {
-    /// A path was not trivial when it must be, i.e. it contained components
-    /// such as `.` or `..`.
-    #[error("the path was invalid: {field:?}")]
-    NonTrivialPath {
-        /// The field as it was set in the config.
-        field: EcoString,
-    },
-
-    /// A configured path did not exist.
-    #[error("the path did not exist: {field:?} ({resolved:?})")]
-    DoesNotExist {
-        /// The field as it was set in the config.
-        field: EcoString,
-
-        /// The field as it was resolved.
-        resolved: PathBuf,
-    },
-}
-
-/// Returned by [`ShallowProject::parse_config`].
-#[derive(Debug, Error)]
-pub enum ConfigError {
-    /// An error occurred while validating the project config.
-    #[error("an error occurred while validating project config")]
-    Invalid(#[from] ValidationError),
-
-    /// An error occurred while parsing the project config.
-    #[error("an error occurred while parsing the project config")]
-    Parse(#[from] toml::de::Error),
+    /// Failed to read a non-manifest config.
+    #[error("failed to read manifest config")]
+    Config(ReadError),
 
     /// An IO error occurred.
-    #[error("an io error occurred")]
-    Io(#[from] io::Error),
-}
-
-/// Returned by [`ShallowProject::parse_manifest`].
-#[derive(Debug, Error)]
-pub enum ManifestError {
-    /// An error occurred while validating the project manifest.
-    #[error("an error occurred while validating project manifest")]
-    Invalid(#[from] ValidationError),
-
-    /// An error occurred while parsing the project manifest.
-    #[error("an error occurred while parsing the project manifest")]
-    Parse(#[from] toml::de::Error),
-
-    /// An io error occurred.
-    #[error("an io error occurred")]
+    #[error("an IO error occurred")]
     Io(#[from] io::Error),
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::project::store::Kind as StoreKind;
+    use crate::project::vcs::Kind as VcsKind;
     use tytanic_utils::fs::TempTestEnv;
-    use tytanic_utils::typst::PackageManifestBuilder;
-    use tytanic_utils::typst::TemplateInfoBuilder;
+    use tytanic_utils::typst::manifest::PackageManifestBuilder;
+    use tytanic_utils::typst::manifest::TemplateInfoBuilder;
 
     use super::*;
 
     #[test]
-    fn test_template_paths() {
-        let project = Project::new("root").with_manifest(Some(
-            PackageManifestBuilder::new()
-                .template(
-                    TemplateInfoBuilder::new()
-                        .path("foo")
-                        .entrypoint("bar.typ")
-                        .build(),
-                )
-                .build(),
-        ));
-
-        assert_eq!(
-            project.template_root(),
-            Some(PathBuf::from_iter(["root", "foo"]))
-        );
-        assert_eq!(
-            project.template_entrypoint(),
-            Some(PathBuf::from_iter(["root", "foo", "bar.typ"]))
-        );
-    }
-
-    #[test]
-    fn test_unit_test_paths() {
-        let project = Project::new("root");
-        let id = Id::new("a/b").unwrap();
-
-        assert_eq!(
-            project.unit_tests_root(),
-            PathBuf::from_iter(["root", "tests"])
-        );
-        assert_eq!(
-            project.unit_test_dir(&id),
-            PathBuf::from_iter(["root", "tests", "a", "b"])
-        );
-        assert_eq!(
-            project.unit_test_script(&id),
-            PathBuf::from_iter(["root", "tests", "a", "b", "test.typ"])
-        );
-
-        let project = Project::new("root").with_config(ProjectConfig {
-            unit_tests_root: "foo".into(),
-            ..Default::default()
-        });
-
-        assert_eq!(
-            project.unit_test_ref_script(&id),
-            PathBuf::from_iter(["root", "foo", "a", "b", "ref.typ"])
-        );
-        assert_eq!(
-            project.unit_test_ref_dir(&id),
-            PathBuf::from_iter(["root", "foo", "a", "b", "ref"])
-        );
-        assert_eq!(
-            project.unit_test_out_dir(&id),
-            PathBuf::from_iter(["root", "foo", "a", "b", "out"])
-        );
-        assert_eq!(
-            project.unit_test_diff_dir(&id),
-            PathBuf::from_iter(["root", "foo", "a", "b", "diff"])
-        );
-    }
-
-    #[test]
-    fn test_validation_default() {
+    fn test_detect_project_and_vcs() {
         TempTestEnv::run_no_check(
-            |root| root.setup_dir("tests"),
             |root| {
-                let config = ProjectConfig::default();
-                validate_config(root, &config).unwrap();
+                root.setup_dir("repo/.git")
+                    .setup_dir("repo/pkg/src")
+                    .setup_file(
+                        "repo/pkg/typst.toml",
+                        include_str!("../../../../assets/test-package/typst.toml"),
+                    )
+                    .setup_file_empty("repo/pkg/template/main.typ")
+                    .setup_file_empty("repo/pkg/lib.typ")
+            },
+            |root| {
+                let ctx = ProjectContext::discover_project_and_vcs(
+                    root.join("repo/pkg/src"),
+                    Box::new(LayeredConfig::new()),
+                )
+                .unwrap()
+                .unwrap();
+
+                assert_eq!(ctx.root(), root.join("repo/pkg"));
+                assert_eq!(ctx.vcs(), Some(&Vcs::new(root.join("repo"), VcsKind::Git)));
             },
         );
     }
 
     #[test]
-    fn test_validation_trivial_existing_paths() {
+    fn test_detect_legacy_store() {
         TempTestEnv::run_no_check(
-            |root| root.setup_dir("qux").setup_file_empty("foo/bar.typ"),
+            |root| {
+                root.setup_dir("tests")
+                    .setup_file(
+                        "typst.toml",
+                        include_str!("../../../../assets/test-package/typst.toml"),
+                    )
+                    .setup_file_empty("template/main.typ")
+                    .setup_file_empty("lib.typ")
+            },
+            |root| {
+                let ctx = ProjectContext::discover_project_and_vcs(
+                    root.join("repo/pkg/src"),
+                    Box::new(LayeredConfig::new()),
+                )
+                .unwrap()
+                .unwrap();
+
+                assert_eq!(ctx.store().kind(), StoreKind::Legacy);
+                assert_eq!(ctx.store().src_root(), root.join("tests"));
+            },
+        );
+    }
+
+    #[test]
+    fn test_detect_v1_store() {
+        TempTestEnv::run_no_check(
+            |root| {
+                root.setup_dir("tests")
+                    .setup_file(
+                        "typst.toml",
+                        include_str!("../../../../assets/test-package/typst.toml"),
+                    )
+                    .setup_file_empty("template/main.typ")
+                    .setup_file_empty("lib.typ")
+            },
+            |root| {
+                let ctx = ProjectContext::discover_project_and_vcs(
+                    root.join("repo/pkg/src"),
+                    Box::new(LayeredConfig::new()),
+                )
+                .unwrap()
+                .unwrap();
+
+                assert_eq!(ctx.store().kind(), StoreKind::Legacy);
+                assert_eq!(ctx.store().src_root(), root.join("tests"));
+            },
+        );
+    }
+
+    #[test]
+    fn test_config_validation_default() {
+        TempTestEnv::run_no_check(
+            |root| root.setup_dir("tests"),
+            |root| {
+                let config = ProjectConfig::default();
+                ProjectContext::validate_manifest_config(root, &config).unwrap();
+            },
+        );
+    }
+
+    #[test]
+    fn test_manifest_validation_trivial_existing_paths() {
+        TempTestEnv::run_no_check(
+            |root| {
+                root.setup_dir("qux")
+                    .setup_file_empty("src/lib.typ")
+                    .setup_file_empty("template/main.typ")
+            },
             |root| {
                 let manifest = PackageManifestBuilder::new()
                     .template(
                         TemplateInfoBuilder::new()
-                            .path("foo")
-                            .entrypoint("bar.typ")
+                            .path("template")
+                            .entrypoint("main.typ")
                             .build(),
                     )
                     .build();
 
                 let config = ProjectConfig {
-                    unit_tests_root: "qux".into(),
+                    store_root: Some("qux".into()),
                     ..Default::default()
                 };
 
-                validate_manifest(root, &manifest).unwrap();
-                validate_config(root, &config).unwrap();
+                ProjectContext::validate_manifest(root, &manifest).unwrap();
+                ProjectContext::validate_manifest_config(root, &config).unwrap();
             },
         );
     }
 
     #[test]
-    fn test_validation_non_trivial_paths() {
+    fn test_manifest_validation_non_trivial_paths() {
         TempTestEnv::run_no_check(
-            |root| root,
+            |root| root.setup_file_empty("src/lib.typ"),
             |root| {
                 let manifest = PackageManifestBuilder::new()
                     .template(
@@ -693,77 +550,68 @@ mod tests {
                     .build();
 
                 let config = ProjectConfig {
-                    unit_tests_root: "/.".into(),
+                    store_root: Some("/.".into()),
                     ..Default::default()
                 };
 
-                let manifest = validate_manifest(root, &manifest).unwrap_err();
-                let config = validate_config(root, &config).unwrap_err();
-
-                assert_eq!(manifest.errors.len(), 2);
-                assert_eq!(config.errors.len(), 1);
-
                 assert_eq!(
-                    manifest.errors.get("template.path").unwrap(),
-                    &ValidationErrorCause::NonTrivialPath { field: "..".into() }
+                    ProjectContext::validate_manifest(root, &manifest)
+                        .unwrap_err()
+                        .source(),
+                    &ConfigSource::ConfigFile {
+                        path: root.join(MANIFEST_FILE),
+                        key: "template.path".into()
+                    },
                 );
                 assert_eq!(
-                    manifest.errors.get("template.entrypoint").unwrap(),
-                    &ValidationErrorCause::NonTrivialPath { field: ".".into() }
-                );
-                assert_eq!(
-                    config.errors.get("tests").unwrap(),
-                    &ValidationErrorCause::NonTrivialPath { field: "/.".into() }
+                    ProjectContext::validate_manifest_config(root, &config)
+                        .unwrap_err()
+                        .source(),
+                    &ConfigSource::ConfigFile {
+                        path: root.join(MANIFEST_FILE),
+                        key: "tool.tytanic.tests".into()
+                    },
                 );
             },
         );
     }
 
     #[test]
-    fn test_validation_non_existent_paths() {
+    fn test_manifest_validation_non_existent_paths() {
         TempTestEnv::run_no_check(
-            |root| root,
+            |root| root.setup_file_empty("src/lib.typ"),
             |root| {
                 let manifest = PackageManifestBuilder::new()
                     .template(
                         TemplateInfoBuilder::new()
-                            .path("foo")
-                            .entrypoint("bar.typ")
+                            .path("template")
+                            .entrypoint("main.typ")
                             .build(),
                     )
                     .build();
 
                 let config = ProjectConfig {
-                    unit_tests_root: "qux".into(),
+                    store_root: Some("tests".into()),
                     ..Default::default()
                 };
 
-                let manifest = validate_manifest(root, &manifest).unwrap_err();
-                let config = validate_config(root, &config).unwrap_err();
-
-                assert_eq!(manifest.errors.len(), 2);
-                assert_eq!(config.errors.len(), 1);
-
                 assert_eq!(
-                    manifest.errors.get("template.path").unwrap(),
-                    &ValidationErrorCause::DoesNotExist {
-                        field: "foo".into(),
-                        resolved: root.join("foo")
-                    }
+                    ProjectContext::validate_manifest(root, &manifest)
+                        .unwrap_err()
+                        .source(),
+                    &ConfigSource::ConfigFile {
+                        path: root.join(MANIFEST_FILE),
+                        key: "template.path".into()
+                    },
                 );
                 assert_eq!(
-                    manifest.errors.get("template.entrypoint").unwrap(),
-                    &ValidationErrorCause::DoesNotExist {
-                        field: "bar.typ".into(),
-                        resolved: root.join("foo/bar.typ")
-                    }
-                );
-                assert_eq!(
-                    config.errors.get("tests").unwrap(),
-                    &ValidationErrorCause::DoesNotExist {
-                        field: "qux".into(),
-                        resolved: root.join("qux")
-                    }
+                    ProjectContext::validate_manifest_config(root, &config)
+                        .unwrap_err()
+                        .source(),
+                    &ConfigSource::ConfigFile {
+                        path: root.join(MANIFEST_FILE),
+                        key: "tool.tytanic.tests".into()
+                    },
                 );
             },
         );

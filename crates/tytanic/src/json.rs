@@ -5,35 +5,39 @@ use std::path::PathBuf;
 use serde::Serialize;
 use typst_syntax::package::PackageManifest;
 use typst_syntax::package::PackageVersion;
-use tytanic_core::TemplateTest;
-use tytanic_core::UnitTest;
-use tytanic_core::project::Project;
+use tytanic_core::project::ProjectContext;
 use tytanic_core::suite::Suite;
+use tytanic_core::test::TemplateTest;
 use tytanic_core::test::Test;
+use tytanic_core::test::UnitTest;
 
 #[derive(Debug, Serialize)]
 pub struct ProjectJson<'m, 's> {
     pub package: Option<PackageJson<'m>>,
     pub vcs: Option<String>,
-    pub tests: Vec<UnitTestJson<'s>>,
     pub template_test: Option<TemplateTestJson<'s>>,
+    pub unit_tests: Vec<UnitTestJson<'s>>,
 }
 
 impl<'m, 's> ProjectJson<'m, 's> {
-    pub fn new(project: &Project, manifest: Option<&'m PackageManifest>, suite: &'s Suite) -> Self {
+    pub fn new(
+        project: &ProjectContext,
+        manifest: Option<&'m PackageManifest>,
+        suite: &'s Suite,
+    ) -> Self {
         Self {
             package: manifest.map(|m| PackageJson {
                 name: &m.package.name,
                 version: &m.package.version,
             }),
             vcs: project.vcs().map(|vcs| vcs.to_string()),
-            tests: suite
-                .unit_tests()
-                .map(|test| UnitTestJson::new(project, test))
-                .collect(),
             template_test: suite
                 .template_test()
                 .map(|test| TemplateTestJson::new(project, test)),
+            unit_tests: suite
+                .unit_tests()
+                .map(|test| UnitTestJson::new(project, test))
+                .collect(),
         }
     }
 }
@@ -47,18 +51,34 @@ pub struct PackageJson<'p> {
 #[derive(Debug, Serialize)]
 #[serde(tag = "type", content = "test")]
 pub enum TestJson<'t> {
-    #[serde(rename = "unit")]
-    Unit(UnitTestJson<'t>),
-
     #[serde(rename = "template")]
     Template(TemplateTestJson<'t>),
+
+    #[serde(rename = "unit")]
+    Unit(UnitTestJson<'t>),
 }
 
 impl<'t> TestJson<'t> {
-    pub fn new(project: &Project, test: &'t Test) -> Self {
+    pub fn new(project: &ProjectContext, test: &'t Test) -> Self {
         match test {
-            Test::Unit(test) => Self::Unit(UnitTestJson::new(project, test)),
             Test::Template(test) => Self::Template(TemplateTestJson::new(project, test)),
+            Test::Unit(test) => Self::Unit(UnitTestJson::new(project, test)),
+            Test::Doc(_) => todo!(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct TemplateTestJson<'t> {
+    pub id: &'t str,
+    pub path: PathBuf,
+}
+
+impl<'t> TemplateTestJson<'t> {
+    pub fn new(project: &ProjectContext, test: &'t TemplateTest) -> Self {
+        Self {
+            id: test.ident().as_str(),
+            path: project.manifest().unwrap(),
         }
     }
 }
@@ -72,27 +92,12 @@ pub struct UnitTestJson<'t> {
 }
 
 impl<'t> UnitTestJson<'t> {
-    pub fn new(project: &Project, test: &'t UnitTest) -> Self {
+    pub fn new(project: &ProjectContext, test: &'t UnitTest) -> Self {
         Self {
-            id: test.id().as_str(),
+            id: test.ident().as_str(),
             kind: test.kind().as_str(),
             is_skip: test.is_skip(),
-            path: project.unit_test_dir(test.id()),
-        }
-    }
-}
-
-#[derive(Debug, Serialize)]
-pub struct TemplateTestJson<'t> {
-    pub id: &'t str,
-    pub path: PathBuf,
-}
-
-impl<'t> TemplateTestJson<'t> {
-    pub fn new(project: &Project, test: &'t TemplateTest) -> Self {
-        Self {
-            id: test.id().as_str(),
-            path: project.template_root().unwrap(),
+            path: project.store().unit_test_src_path(test.ident()),
         }
     }
 }

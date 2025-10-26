@@ -1,20 +1,23 @@
-//! The core library of the Tytanic test runner.
+//! # `tytanic-core`
+//! This crate contains core data types for Tytanic such as test identifiers,
+//! test suites, strongly typed paths, and VCS types.
+//!
+//! # Features
+//! The following features are provided:
+//! - `terminal-diagnostics` to include terminal diagnostic formatting.
+//! - `default-world-builder` to include default implementations in the
+//!   [`world`] module.
 
+pub mod analysis;
 pub mod config;
-pub mod doc;
-pub mod dsl;
-pub mod library;
+#[cfg(feature = "terminal-diagnostics")]
+pub mod diag;
+pub mod filter;
 pub mod project;
+pub mod result;
+pub mod runner;
 pub mod suite;
 pub mod test;
-pub mod world_builder;
-
-pub use project::Project;
-pub use suite::FilteredSuite;
-pub use suite::Suite;
-pub use test::Id;
-pub use test::TemplateTest;
-pub use test::UnitTest;
 
 /// The tool name, this is used in various places like config file directories,
 /// manifest tool sections, and more.

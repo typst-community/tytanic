@@ -1,0 +1,25 @@
+[package]
+name = "tytanic-library"
+description = "The extended Typst standard library for Tytanic."
+version.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+categories.workspace = true
+keywords.workspace = true
+readme.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+ecow.workspace = true
+tracing.workspace = true
+typst.workspace = true
+typst-library.workspace = true
+
+[dev-dependencies]
+typst-assets.workspace = true

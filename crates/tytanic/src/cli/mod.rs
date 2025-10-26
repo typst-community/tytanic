@@ -1,40 +1,39 @@
 use std::env;
 use std::io;
 use std::io::Write;
-use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 
 use color_eyre::eyre;
 use color_eyre::eyre::WrapErr;
-use commands::CompileOptions;
-use commands::FontOptions;
-use commands::PackageOptions;
 use termcolor::Color;
 use thiserror::Error;
-use tytanic_core::doc;
-use tytanic_core::dsl;
-use tytanic_core::project::ConfigError;
-use tytanic_core::project::ManifestError;
-use tytanic_core::project::Project;
-use tytanic_core::project::ShallowProject;
-use tytanic_core::project::Vcs;
-use tytanic_core::project::VcsKind;
-use tytanic_core::suite::Filter;
-use tytanic_core::suite::FilterError;
-use tytanic_core::suite::FilteredSuite;
+use tytanic_core::config::LayeredConfig;
+use tytanic_core::config::ProjectConfig;
+use tytanic_core::config::ReadError;
+use tytanic_core::config::SettingsConfig;
+use tytanic_core::config::TestConfig;
+use tytanic_core::project::LoadError;
+use tytanic_core::project::ProjectContext;
+use tytanic_core::project::store::PersistentReferencesError;
+use tytanic_core::project::vcs::Kind as VcsKind;
+use tytanic_core::project::vcs::Vcs;
+use tytanic_core::suite::SearchOptions;
 use tytanic_core::suite::Suite;
 use tytanic_core::test;
-use tytanic_core::test::ParseIdError;
-use tytanic_filter::ExpressionFilter;
-use tytanic_filter::eval;
+use tytanic_core::test::ParseIdentError;
+use tytanic_filter::CombinedFilter;
+use tytanic_filter::exact::ExactFilter;
+use tytanic_filter::test_set::ExpressionFilter;
+use tytanic_filter::test_set::builtin;
+use tytanic_filter::test_set::builtin::dsl;
+use tytanic_filter::test_set::eval;
+use tytanic_utils::cwrite;
 
-use self::commands::CliArguments;
-use self::commands::FilterOptions;
-use self::commands::Switch;
-use crate::cwrite;
-use crate::ui;
+use crate::cli::commands::CliArguments;
+use crate::cli::commands::FilterOptions;
+use crate::cli::commands::Switch;
 use crate::ui::Ui;
-use crate::world::Providers;
+use crate::ui::write_test_ident;
 
 pub mod commands;
 
@@ -92,28 +91,57 @@ impl Context<'_> {
 
 // TODO(tinger): Cache these values.
 impl Context<'_> {
-    /// Resolve the current root.
+    /// Discover the current and ensure it is initialized.
     #[tracing::instrument(skip_all)]
-    pub fn root(&self) -> eyre::Result<PathBuf> {
-        Ok(match &self.args.root {
-            Some(root) => {
+    pub fn project(&self) -> eyre::Result<ProjectContext> {
+        let mut config = Box::new(LayeredConfig::new());
+        config.with_user_layer(SettingsConfig::collect_user().map_err(LoadError::Config)?);
+
+        let mut settings = SettingsConfig::default();
+        let mut project = ProjectConfig::default();
+        let mut test = TestConfig::default();
+
+        self.args
+            .cli_config_layer(&mut settings, &mut project, &mut test);
+
+        config.with_cli_layer(Some(settings), Some(project), Some(test));
+
+        let ctx = match &self.args.root {
+            Some(root) => Some({
                 if !root.try_exists()? {
                     writeln!(self.ui.error()?, "Root '{}' not found", root.display())?;
                     eyre::bail!(OperationFailure);
                 }
 
-                root.canonicalize()?
+                match self.args.vcs {
+                    commands::Vcs::Auto => ProjectContext::discover_vcs(root, config)?,
+                    commands::Vcs::Git => {
+                        ProjectContext::load(root, Some(Vcs::new_rootless(VcsKind::Git)), config)?
+                    }
+                    commands::Vcs::Jujutsu => ProjectContext::load(
+                        root,
+                        Some(Vcs::new_rootless(VcsKind::Jujutsu)),
+                        config,
+                    )?,
+                    commands::Vcs::Sapling => ProjectContext::load(
+                        root,
+                        Some(Vcs::new_rootless(VcsKind::Sapling)),
+                        config,
+                    )?,
+                    commands::Vcs::Hg | commands::Vcs::Mercurial => ProjectContext::load(
+                        root,
+                        Some(Vcs::new_rootless(VcsKind::Mercurial)),
+                        config,
+                    )?,
+                }
+            }),
+            None => {
+                let cwd = env::current_dir().wrap_err("reading PWD")?;
+                ProjectContext::discover_project_and_vcs(cwd, config)?
             }
-            None => env::current_dir().wrap_err("reading PWD")?,
-        })
-    }
+        };
 
-    /// Discover the current and ensure it is initialized.
-    #[tracing::instrument(skip_all)]
-    pub fn project(&self) -> eyre::Result<Project> {
-        let root = self.root()?;
-
-        let Some(project) = ShallowProject::discover(root, self.args.root.is_some())? else {
+        let Some(ctx) = ctx else {
             writeln!(self.ui.error()?, "Must be in a typst project")?;
 
             let mut w = self.ui.hint()?;
@@ -123,60 +151,47 @@ impl Context<'_> {
             eyre::bail!(OperationFailure);
         };
 
-        let mut project = project.load()?;
-
-        'vcs: {
-            let kind = match self.args.vcs {
-                commands::Vcs::Auto => break 'vcs,
-                commands::Vcs::Git => VcsKind::Git,
-                commands::Vcs::Hg | commands::Vcs::Mercurial => VcsKind::Mercurial,
-            };
-
-            if let Some(detected) = project.vcs().map(Vcs::kind) {
-                if kind != detected {
-                    project = project.with_vcs(Some(Vcs::new_rootless(kind)));
-                }
-            } else {
-                project = project.with_vcs(Some(Vcs::new_rootless(kind)));
-            }
-        }
-
-        Ok(project)
+        Ok(ctx)
     }
 
     /// Create a new filter from given arguments.
     #[tracing::instrument(skip_all)]
-    pub fn filter(&self, filter: &FilterOptions) -> eyre::Result<Filter> {
+    pub fn filter(&self, filter: &FilterOptions) -> eyre::Result<CombinedFilter> {
+        let mut combined = CombinedFilter::default();
+
         if !filter.tests.is_empty() {
-            Ok(Filter::Explicit(filter.tests.iter().cloned().collect()))
+            combined.with_exact(ExactFilter::new(filter.tests.iter().map(Clone::clone)));
         } else {
-            let ctx = dsl::context();
-            let mut set = ExpressionFilter::new(ctx, &filter.expression)?;
+            let ctx = builtin::context();
+            let mut test_set = ExpressionFilter::new(ctx, &filter.expression)?;
 
             if filter.skip.get_or_default() {
-                set = set.map(|set| eval::Set::expr_diff(set, dsl::built_in::skip()));
+                test_set = test_set.map(|set| eval::Set::expr_diff(set, dsl::set_skip()));
             }
 
-            Ok(Filter::TestSet(set))
+            combined.with_test_set(test_set);
         }
+
+        Ok(combined)
     }
 
     /// Collect and filter tests for the given project.
     #[tracing::instrument(skip_all)]
     pub fn collect_tests_with_filter(
         &self,
-        project: &Project,
-        filter: Filter,
-    ) -> eyre::Result<FilteredSuite> {
-        let suite = self.collect_tests(project)?;
+        project_ctx: &ProjectContext,
+        filter: CombinedFilter,
+        options: &SearchOptions,
+    ) -> eyre::Result<Suite> {
+        let mut suite = self.collect_tests(project_ctx, options)?;
 
         if suite.is_empty() {
             writeln!(self.ui.warn()?, "Suite is empty")?;
         }
 
-        let suite = suite.filter(filter)?;
+        suite.apply_filter(project_ctx, filter)?;
 
-        if suite.matched().is_empty() {
+        if suite.matched_len() == 0 {
             writeln!(self.ui.warn()?, "Test set matched no tests")?;
         }
 
@@ -185,45 +200,13 @@ impl Context<'_> {
 
     /// Collect all tests for the given project.
     #[tracing::instrument(skip_all)]
-    pub fn collect_tests(&self, project: &Project) -> eyre::Result<Suite> {
-        let suite = Suite::collect(project)?;
-
-        if !suite.nested().is_empty() {
-            writeln!(self.ui.error()?, "Found nested tests")?;
-
-            let mut w = self.ui.hint()?;
-            writeln!(w, "This is no longer supported")?;
-            writeln!(
-                w,
-                "Your nested tests will be silently ignored in future versions!",
-            )?;
-
-            let mut w = self.ui.hint()?;
-            write!(w, "You can run ")?;
-            cwrite!(colored(w, Color::Cyan), "tt util migrate")?;
-            writeln!(w, " to automatically move the tests")?;
-
-            eyre::bail!(OperationFailure);
-        }
-
-        Ok(suite)
-    }
-
-    /// Create a SystemWorld from the given args.
-    #[tracing::instrument(skip_all)]
-    pub fn providers(
+    pub fn collect_tests(
         &self,
-        project: &Project,
-        package_opts: &PackageOptions,
-        font_opts: &FontOptions,
-        compile_opts: &CompileOptions,
-    ) -> eyre::Result<Providers> {
-        Ok(Providers::new(
-            project,
-            package_opts,
-            font_opts,
-            compile_opts,
-        ))
+        project_ctx: &ProjectContext,
+        options: &SearchOptions,
+    ) -> eyre::Result<Suite> {
+        let suite = Suite::collect(project_ctx, options)?;
+        Ok(suite)
     }
 }
 
@@ -235,9 +218,13 @@ impl Context<'_> {
             return Ok(());
         };
 
+        // TODO: remove this in favor of actual error types
+
         for error in error.chain() {
             // TODO(tinger): Attach test id.
-            if let Some(doc::LoadError::MissingPages(pages)) = error.downcast_ref() {
+            if let Some(PersistentReferencesError::MissingReferences { indices: pages }) =
+                error.downcast_ref()
+            {
                 if pages.is_empty() {
                     writeln!(self.ui.error()?, "References had zero pages")?;
                 } else {
@@ -251,15 +238,28 @@ impl Context<'_> {
             }
 
             // TODO(tinger): Attach test id.
-            if let Some(error) = error.downcast_ref::<ParseIdError>() {
+            if let Some(error) = error.downcast_ref::<ParseIdentError>() {
                 match error {
-                    ParseIdError::InvalidFragment => {
+                    ParseIdentError::UnexpectedKind { expected, given } => {
                         writeln!(
                             self.ui.error()?,
-                            "A test identifier must not contain other characters than non-alphanumeric, hyphens and underscores"
+                            "expected a {expected} identifier, got a {given} identifier"
                         )?;
                     }
-                    ParseIdError::Empty => {
+                    ParseIdentError::NotUtf8(path) => {
+                        writeln!(
+                            self.ui.error()?,
+                            "the path {path:?} could not be turned into a valid identifier"
+                        )?;
+                    }
+                    ParseIdentError::Invalid(str) => {
+                        writeln!(self.ui.error()?, "{str:?} is not a valid identifier")?;
+                        writeln!(
+                            self.ui.hint()?,
+                            "identifiers must not contain other characters than non-alphanumeric, hyphens and underscores"
+                        )?;
+                    }
+                    ParseIdentError::Empty => {
                         writeln!(self.ui.error()?, "A test identifier must not be empty")?;
                     }
                 }
@@ -273,31 +273,23 @@ impl Context<'_> {
                 eyre::bail!(OperationFailure);
             }
 
-            if let Some(error) = error.downcast_ref::<ManifestError>() {
+            if let Some(error) = error.downcast_ref::<LoadError>() {
                 match error {
-                    ManifestError::Parse(error) => {
+                    LoadError::Manifest(ReadError::Parsing(error)) => {
                         writeln!(self.ui.error()?, "Failed to parse manifest:\n{error}")?;
                         eyre::bail!(OperationFailure);
                     }
-                    ManifestError::Invalid(error) => {
+                    LoadError::Manifest(ReadError::Validation(error)) => {
                         let mut w = self.ui.error()?;
                         writeln!(w, "Failed to validate manifest:")?;
-                        for (key, cause) in &error.errors {
-                            writeln!(w, "`{key}`: {cause}")?;
-                        }
+                        writeln!(w, "{error}")?;
                         eyre::bail!(OperationFailure);
                     }
-                    _ => {}
-                }
-            }
-
-            if let Some(error) = error.downcast_ref::<ConfigError>() {
-                match error {
-                    ConfigError::Parse(error) => {
+                    LoadError::Config(ReadError::Parsing(error)) => {
                         writeln!(self.ui.error()?, "Failed to parse config:\n{error}")?;
                         eyre::bail!(OperationFailure);
                     }
-                    ConfigError::Invalid(error) => {
+                    LoadError::Config(ReadError::Validation(error)) => {
                         writeln!(self.ui.error()?, "Failed to validate config:\n{error}")?;
                         eyre::bail!(OperationFailure);
                     }
@@ -305,12 +297,12 @@ impl Context<'_> {
                 }
             }
 
-            if let Some(error) = error.downcast_ref::<tytanic_filter::Error>() {
+            if let Some(error) = error.downcast_ref::<tytanic_filter::test_set::Error>() {
                 match error {
-                    tytanic_filter::Error::Parse(error) => {
+                    tytanic_filter::test_set::Error::Parse(error) => {
                         writeln!(self.ui.error()?, "Couldn't parse test set:\n{error}")?;
                     }
-                    tytanic_filter::Error::Eval(error) => {
+                    tytanic_filter::test_set::Error::Eval(error) => {
                         writeln!(self.ui.error()?, "Couldn't evaluate test set:\n{error}")?;
                     }
                 }
@@ -318,17 +310,17 @@ impl Context<'_> {
                 eyre::bail!(OperationFailure);
             }
 
-            if let Some(error) = error.downcast_ref::<FilterError>() {
+            if let Some(error) = error.downcast_ref::<tytanic_filter::Error>() {
                 match error {
-                    FilterError::TestSet(error) => {
+                    tytanic_filter::Error::TestSet(error) => {
                         writeln!(self.ui.error()?, "Couldn't evaluate test set:\n{error}")?;
                     }
-                    FilterError::Missing(missing) => {
+                    tytanic_filter::Error::Exact(missing) => {
                         let mut w = self.ui.error()?;
 
-                        for id in missing {
+                        for ident in &missing.missing {
                             write!(w, "Test ")?;
-                            ui::write_test_id(&mut w, id)?;
+                            write_test_ident(&mut w, ident)?;
                             writeln!(w, " not found")?;
                         }
                     }

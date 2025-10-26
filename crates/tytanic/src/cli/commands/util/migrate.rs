@@ -59,9 +59,9 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
         } else {
             write!(w, "  ")?;
         }
-        ui::write_test_id(&mut w, old)?;
+        ui::write_test_ident(&mut w, old)?;
         write!(w, " -> ")?;
-        ui::write_test_id(&mut w, new)?;
+        ui::write_test_ident(&mut w, new)?;
         writeln!(w)?;
     }
 

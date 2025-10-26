@@ -26,6 +26,7 @@ pkg-fmt = "zip"
 [dependencies]
 tytanic-core.workspace = true
 tytanic-filter.workspace = true
+tytanic-runner.workspace = true
 tytanic-utils.workspace = true
 
 chrono = { workspace = true, features = ["serde"] }
@@ -50,6 +51,7 @@ tracing.workspace = true
 typst-kit.workspace = true
 typst-syntax.workspace = true
 typst.workspace = true
+uuid.workspace = true
 
 [build-dependencies]
 toml.workspace = true

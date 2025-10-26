@@ -1,7 +1,6 @@
 use color_eyre::eyre;
-use tytanic_core::doc::compare::Strategy;
-use tytanic_core::doc::render;
-use tytanic_core::doc::render::Origin;
+use tytanic_core::analysis::Origin;
+use tytanic_core::analysis::ppi_to_ppp;
 
 use super::CompareOptions;
 use super::CompileOptions;
@@ -53,7 +52,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
         Direction::Rtl => Origin::TopRight,
     };
 
-    let pixel_per_pt = render::ppi_to_ppp(args.export.ppi.unwrap_or(project.config().defaults.ppi));
+    let pixel_per_pt = ppi_to_ppp(args.export.ppi.unwrap_or(project.config().defaults.ppi));
 
     let max_delta = args
         .compare
