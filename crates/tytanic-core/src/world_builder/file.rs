@@ -12,6 +12,7 @@ use typst::diag::PackageError;
 use typst::foundations::Bytes;
 use typst::syntax::FileId;
 use typst::syntax::Source;
+use typst::syntax::package::PackageSpec;
 use typst_kit::download::Progress;
 use typst_kit::package::PackageStorage;
 
@@ -135,6 +136,7 @@ impl VirtualFileSlot {
 #[derive(Debug)]
 pub struct FilesystemFileProvider {
     root: PathBuf,
+    overrides: HashMap<PackageSpec, PathBuf>,
     slots: Mutex<HashMap<FileId, FileSlot>>,
     package_storage: Option<PackageStorage>,
 }
@@ -149,6 +151,30 @@ impl FilesystemFileProvider {
     {
         Self {
             root: root.into(),
+            overrides: HashMap::new(),
+            slots: Mutex::new(HashMap::new()),
+            package_storage,
+        }
+    }
+
+    /// Creates a new file provider for the given project root.
+    ///
+    /// The map of package specs to root paths can be used to re-route package
+    /// imports, pointing them to local roots instead.
+    ///
+    /// The package storage will be used to download and prepare packages.
+    pub fn with_overrides<P, I>(
+        root: P,
+        overrides: I,
+        package_storage: Option<PackageStorage>,
+    ) -> Self
+    where
+        P: Into<PathBuf>,
+        I: IntoIterator<Item = (PackageSpec, PathBuf)>,
+    {
+        Self {
+            root: root.into(),
+            overrides: HashMap::from_iter(overrides),
             slots: Mutex::new(HashMap::new()),
             package_storage,
         }
@@ -159,6 +185,11 @@ impl FilesystemFileProvider {
     /// The project root.
     pub fn root(&self) -> &Path {
         &self.root
+    }
+
+    /// The package spec overrides of this file provider.
+    pub fn overrides(&self) -> &HashMap<PackageSpec, PathBuf> {
+        &self.overrides
     }
 
     /// The slots used to store file contents.
@@ -198,13 +229,23 @@ impl FilesystemFileProvider {
 impl ProvideFile for FilesystemFileProvider {
     fn provide_source(&self, id: FileId, progress: &mut dyn Progress) -> FileResult<Source> {
         self.slot(id, |slot| {
-            slot.source(self.root(), self.package_storage(), progress)
+            slot.source(
+                self.root(),
+                &self.overrides,
+                self.package_storage(),
+                progress,
+            )
         })
     }
 
     fn provide_bytes(&self, id: FileId, progress: &mut dyn Progress) -> FileResult<Bytes> {
         self.slot(id, |slot| {
-            slot.bytes(self.root(), self.package_storage(), progress)
+            slot.bytes(
+                self.root(),
+                &self.overrides,
+                self.package_storage(),
+                progress,
+            )
         })
     }
 
@@ -247,11 +288,12 @@ impl FileSlot {
     pub fn source(
         &mut self,
         root: &Path,
+        overrides: &HashMap<PackageSpec, PathBuf>,
         package_storage: Option<&PackageStorage>,
         progress: &mut dyn Progress,
     ) -> FileResult<Source> {
         self.source.get_or_init(
-            || read(self.id, root, package_storage, progress),
+            || read(self.id, root, overrides, package_storage, progress),
             |data, prev| {
                 let text = decode_utf8(&data)?;
                 if let Some(mut prev) = prev {
@@ -268,11 +310,12 @@ impl FileSlot {
     pub fn bytes(
         &mut self,
         root: &Path,
+        overrides: &HashMap<PackageSpec, PathBuf>,
         package_storage: Option<&PackageStorage>,
         progress: &mut dyn Progress,
     ) -> FileResult<Bytes> {
         self.file.get_or_init(
-            || read(self.id, root, package_storage, progress),
+            || read(self.id, root, overrides, package_storage, progress),
             |data, _| Ok(Bytes::new(data)),
         )
     }
@@ -342,6 +385,7 @@ impl<T: Clone> SlotCell<T> {
 fn system_path(
     root: &Path,
     id: FileId,
+    overrides: &HashMap<PackageSpec, PathBuf>,
     package_storage: Option<&PackageStorage>,
     progress: &mut dyn Progress,
 ) -> FileResult<PathBuf> {
@@ -350,19 +394,23 @@ fn system_path(
     let buf;
     let mut root = root;
 
-    match (id.package(), package_storage) {
-        (Some(spec), Some(storage)) => {
+    if let Some(spec) = id.package() {
+        if let Some(local_root) = overrides.get(spec) {
+            tracing::trace!(?spec, ?local_root, "resolving self reference locally");
+            root = local_root;
+        } else if let Some(storage) = package_storage {
             tracing::trace!(?spec, "preparing package");
             buf = storage.prepare_package(spec, progress)?;
             root = &buf;
-        }
-        (Some(spec), None) => {
-            tracing::error!(?spec, "cannot prepare package, no package storage provided");
+        } else {
+            tracing::error!(
+                ?spec,
+                "cannot prepare package, no package storage or local root provided"
+            );
             return Err(FileError::Package(PackageError::Other(Some(eco_format!(
                 "cannot access package {spec}"
             )))));
         }
-        (None, _) => {}
     }
 
     // Join the path to the root. If it tries to escape, deny
@@ -377,10 +425,17 @@ fn system_path(
 fn read(
     id: FileId,
     root: &Path,
+    overrides: &HashMap<PackageSpec, PathBuf>,
     package_storage: Option<&PackageStorage>,
     progress: &mut dyn Progress,
 ) -> FileResult<Vec<u8>> {
-    read_from_disk(&system_path(root, id, package_storage, progress)?)
+    read_from_disk(&system_path(
+        root,
+        id,
+        overrides,
+        package_storage,
+        progress,
+    )?)
 }
 
 /// Read a file from disk.
@@ -399,4 +454,78 @@ fn decode_utf8(buf: &[u8]) -> FileResult<&str> {
     Ok(std::str::from_utf8(
         buf.strip_prefix(b"\xef\xbb\xbf").unwrap_or(buf),
     )?)
+}
+
+#[cfg(test)]
+mod tests {
+    use typst::syntax::VirtualPath;
+    use typst::syntax::package::PackageVersion;
+    use typst_kit::download::ProgressSink;
+    use tytanic_utils::fs::TempTestEnv;
+
+    use super::*;
+
+    #[test]
+    fn test_overrides() {
+        TempTestEnv::run_no_check(
+            |root| {
+                root.setup_file("template/main.typ", "template-main")
+                    .setup_file("template/lib.typ", "template-lib")
+                    .setup_file("lib.typ", "src-lib")
+            },
+            |root| {
+                let spec = PackageSpec {
+                    namespace: "preview".into(),
+                    name: "self".into(),
+                    version: PackageVersion {
+                        major: 0,
+                        minor: 0,
+                        patch: 1,
+                    },
+                };
+
+                let files = FilesystemFileProvider::with_overrides(
+                    root.join("template"),
+                    [(spec.clone(), root.to_path_buf())],
+                    None,
+                );
+
+                // lib.typ is available inside the template
+                assert_eq!(
+                    files
+                        .provide_source(
+                            FileId::new(None, VirtualPath::new("lib.typ")),
+                            &mut ProgressSink
+                        )
+                        .unwrap()
+                        .text(),
+                    "template-lib",
+                );
+
+                // main.typ is available inside the template
+                assert_eq!(
+                    files
+                        .provide_source(
+                            FileId::new(None, VirtualPath::new("main.typ")),
+                            &mut ProgressSink
+                        )
+                        .unwrap()
+                        .text(),
+                    "template-main",
+                );
+
+                // lib.typ is also available from the project
+                assert_eq!(
+                    files
+                        .provide_source(
+                            FileId::new(Some(spec), VirtualPath::new("lib.typ")),
+                            &mut ProgressSink
+                        )
+                        .unwrap()
+                        .text(),
+                    "src-lib",
+                );
+            },
+        );
+    }
 }
