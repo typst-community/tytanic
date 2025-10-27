@@ -1,5 +1,3 @@
-use std::sync::OnceLock;
-
 use typst::Library;
 use typst::World;
 use typst::diag::FileResult;
@@ -7,7 +5,6 @@ use typst::foundations::Bytes;
 use typst::foundations::Datetime;
 use typst::syntax::FileId;
 use typst::syntax::Source;
-use typst::syntax::package::PackageSpec;
 use typst::text::Font;
 use typst::text::FontBook;
 use typst::utils::LazyHash;
@@ -56,111 +53,6 @@ forward_trait! {
         fn reset_all(&self) {
             W::reset_all(self)
         }
-    }
-}
-
-/// A template file provider shim.
-///
-/// This provides template access through the preview import directly if the
-/// version matches and stores access to older versions for diagnostics.
-#[derive(Debug)]
-pub struct TemplateFileProviderShim<P, T> {
-    project: P,
-    template: T,
-    spec: PackageSpec,
-    old: OnceLock<PackageSpec>,
-}
-
-impl<P, T> TemplateFileProviderShim<P, T> {
-    /// Creates a new template file provider shim.
-    pub fn new(project: P, template: T, spec: PackageSpec) -> Self {
-        Self {
-            project,
-            template,
-            spec,
-            old: OnceLock::new(),
-        }
-    }
-}
-
-impl<P, T> TemplateFileProviderShim<P, T> {
-    /// The base provider used for all other files.
-    pub fn project_provider(&self) -> &P {
-        &self.project
-    }
-
-    /// The target provider used for files in the spec.
-    pub fn template_provider(&self) -> &T {
-        &self.template
-    }
-
-    /// The spec to re-route the imports for.
-    pub fn spec(&self) -> &PackageSpec {
-        &self.spec
-    }
-
-    /// The older spec that was accessed from this provider.
-    pub fn old(&self) -> Option<&PackageSpec> {
-        self.old.get()
-    }
-}
-
-impl<B, T> TemplateFileProviderShim<B, T> {
-    /// Record accesses to older versions of the current package spec.
-    fn record_access(&self, spec: &PackageSpec) {
-        if spec.namespace == self.spec.namespace
-            && spec.name == self.spec.name
-            && spec.version < self.spec.version
-        {
-            _ = self.old.set(spec.clone());
-        }
-    }
-}
-
-impl<B, T> ProvideFile for TemplateFileProviderShim<B, T>
-where
-    B: ProvideFile,
-    T: ProvideFile,
-{
-    fn provide_source(&self, id: FileId, progress: &mut dyn Progress) -> FileResult<Source> {
-        let Some(spec) = id.package() else {
-            return self.template.provide_source(id, progress);
-        };
-
-        self.record_access(spec);
-
-        if spec.namespace == self.spec.namespace
-            && spec.name == self.spec.name
-            && spec.version == self.spec.version
-        {
-            let id = FileId::new(None, id.vpath().clone());
-            self.project.provide_source(id, progress)
-        } else {
-            self.template.provide_source(id, progress)
-        }
-    }
-
-    fn provide_bytes(&self, id: FileId, progress: &mut dyn Progress) -> FileResult<Bytes> {
-        let Some(spec) = id.package() else {
-            return self.template.provide_bytes(id, progress);
-        };
-
-        self.record_access(spec);
-
-        if spec.namespace == self.spec.namespace
-            && spec.name == self.spec.name
-            && spec.version == self.spec.version
-        {
-            let id = FileId::new(None, id.vpath().clone());
-            self.project.provide_bytes(id, progress)
-        } else {
-            self.template.provide_bytes(id, progress)
-        }
-    }
-
-    fn reset_all(&self) {
-        self.project.reset_all();
-        self.template.reset_all();
     }
 }
 
@@ -426,95 +318,5 @@ pub(crate) mod test_utils {
             .library_provider(library)
             .datetime_provider(&*TEST_DATETIME_PROVIDER)
             .build(source.id())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::collections::HashMap;
-
-    use typst::syntax::VirtualPath;
-    use typst::syntax::package::PackageVersion;
-
-    use super::*;
-    use crate::world_builder::file::VirtualFileProvider;
-    use crate::world_builder::file::VirtualFileSlot;
-
-    #[test]
-    fn test_template_file_provider_shim() {
-        let spec = PackageSpec {
-            namespace: "preview".into(),
-            name: "self".into(),
-            version: PackageVersion {
-                major: 0,
-                minor: 1,
-                patch: 0,
-            },
-        };
-
-        let project_lib_id = FileId::new(None, VirtualPath::new("lib.typ"));
-        let template_lib_id = FileId::new(None, VirtualPath::new("lib.typ"));
-        let template_main_id = FileId::new(None, VirtualPath::new("main.typ"));
-
-        let project_lib = Source::new(project_lib_id, "#let foo(bar) = bar".into());
-        let template_lib = Source::new(template_lib_id, "#let bar = [qux]".into());
-        let template_main = Source::new(
-            template_main_id,
-            "#import \"@preview/self:0.1.0\"\n#show foo".into(),
-        );
-
-        let mut project = HashMap::new();
-        let mut template = HashMap::new();
-
-        project.insert(
-            project_lib.id(),
-            VirtualFileSlot::from_source(project_lib.clone()),
-        );
-        template.insert(
-            template_lib.id(),
-            VirtualFileSlot::from_source(template_lib.clone()),
-        );
-        template.insert(
-            template_main.id(),
-            VirtualFileSlot::from_source(template_main.clone()),
-        );
-
-        let project = VirtualFileProvider::from_slots(project);
-        let template = VirtualFileProvider::from_slots(template);
-
-        let shim = TemplateFileProviderShim::new(project, template, spec.clone());
-
-        // lib.typ is available inside the template
-        assert_eq!(
-            shim.provide_source(
-                FileId::new(None, VirtualPath::new("lib.typ")),
-                &mut ProgressSink
-            )
-            .unwrap()
-            .text(),
-            template_lib.text()
-        );
-
-        // main.typ is available inside the template
-        assert_eq!(
-            shim.provide_source(
-                FileId::new(None, VirtualPath::new("main.typ")),
-                &mut ProgressSink
-            )
-            .unwrap()
-            .text(),
-            template_main.text()
-        );
-
-        // lib.typ is also available from the project
-        assert_eq!(
-            shim.provide_source(
-                FileId::new(Some(spec), VirtualPath::new("lib.typ")),
-                &mut ProgressSink
-            )
-            .unwrap()
-            .text(),
-            project_lib.text()
-        );
     }
 }

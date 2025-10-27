@@ -1,5 +1,5 @@
 [package]
-entrypoint = "lib.typ"
+entrypoint = "src/lib.typ"
 name = "template"
 version = "0.1.0"
 authors = ["John Doe <john@doe.com>"]

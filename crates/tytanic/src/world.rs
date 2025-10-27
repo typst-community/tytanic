@@ -31,7 +31,6 @@ use tytanic_core::world_builder::ProvideDatetime;
 use tytanic_core::world_builder::ProvideFile;
 use tytanic_core::world_builder::ProvideFont;
 use tytanic_core::world_builder::ProvideLibrary;
-use tytanic_core::world_builder::TemplateFileProviderShim;
 use tytanic_core::world_builder::datetime::FixedDateProvider;
 use tytanic_core::world_builder::file::FilesystemFileProvider;
 use tytanic_core::world_builder::font::FilesystemFontProvider;
@@ -94,14 +93,11 @@ pub fn template_file_provider(
         version: manifest.package.version,
     };
 
-    Box::new(TemplateFileProviderShim::new(
-        FilesystemFileProvider::new(project.root(), Some(package_storage(package_opts))),
-        FilesystemFileProvider::new(
-            project.template_root().unwrap(),
-            Some(package_storage(package_opts)),
-        ),
-        spec,
-    )) as _
+    Box::new(FilesystemFileProvider::with_overrides(
+        project.template_root().unwrap(),
+        [(spec, project.root().to_path_buf())],
+        Some(package_storage(package_opts)),
+    ))
 }
 
 /// A font provider that provides embedded and system fonts.
