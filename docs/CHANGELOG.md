@@ -7,6 +7,12 @@
 
 ---
 
+# [v0.3.1](https://github.com/typst-community/tytanic/releases/tag/v0.3.1)
+## Fixes
+- Correctly resolve self-referential template paths.
+
+---
+
 # [v0.3.0](https://github.com/typst-community/tytanic/releases/tag/v0.3.0)
 ## Highlights
 Tytanic now supports running templates as tests, these are available automatically as new test with the special `@template` identifier.
