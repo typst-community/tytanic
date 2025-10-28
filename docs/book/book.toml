@@ -3,7 +3,6 @@ title = "tytanic"
 description = "A guide and reference document for tytanic."
 authors = ["tingerrr <tinger@tinger.dev>"]
 language = "en"
-multilingual = false
 src = "src"
 
 [build]
