@@ -34,7 +34,7 @@ To install Tytanic from source, you must have a Rust toolchain (Rust **v1.88.0+*
 
 #### Stable
 ```shell
-cargo install --locked tytanic@0.3.0
+cargo install --locked tytanic@0.3.1
 ```
 
 #### Nightly
@@ -47,7 +47,7 @@ This method usually doesn't require manually placing the `tt` binary in your `$P
 ### Nix Flake
 #### Stable
 ```shell
-nix run github:typst-community/tytanic/v0.3.0
+nix run github:typst-community/tytanic/v0.3.1
 ```
 
 #### Nightly
@@ -60,7 +60,7 @@ This method doesn't require any extraction or `$PATH` modifications.
 ### Using docker
 Every release is automatically added to the GitHub Container Registry `ghcr.io` and can be pulled like so:
 ```shell
-docker pull ghcr.io/typst-community/tytanic:v0.3.0
+docker pull ghcr.io/typst-community/tytanic:v0.3.1
 ```
 
 Check out the [package][docker] for platform specific builds.
