@@ -22,7 +22,7 @@ pub struct Args {
 pub enum Command {
     /// Print information about this program.
     #[command()]
-    About,
+    About(about::Args),
 
     /// Remove test output artifacts.
     #[command()]
@@ -52,7 +52,7 @@ pub enum Command {
 impl Command {
     pub fn run(&self, ctx: &mut Context) -> eyre::Result<()> {
         match self {
-            Command::About => about::run(ctx),
+            Command::About(args) => about::run(ctx, args),
             Command::Clean(args) => clean::run(ctx, args),
             Command::Completion(args) => completion::run(ctx, args),
             Command::Manpage(args) => manpage::run(ctx, args),
