@@ -53,7 +53,7 @@ pub struct ProjectConfig {
     pub unit_tests_root: String,
 
     /// The project wide defaults.
-    #[serde(rename = "default")]
+    #[serde(rename = "default", default)]
     pub defaults: ProjectDefaults,
 }
 
@@ -146,4 +146,37 @@ pub enum Error {
     /// An io error occurred.
     #[error("an io error occurred")]
     Io(#[from] io::Error),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Verify that the `tool.tytanic.default` section in `typst.toml` is optional.
+    #[test]
+    fn config_defaults_section_is_optional() {
+        let config = r#"
+        [package]
+        name = "testpackage"
+        version = "0.1.0"
+        entrypoint = "lib.typ"
+
+        [tool.tytanic]
+        tests = "test_dir"
+        "#;
+
+        let manifest = toml::from_str::<typst::syntax::package::PackageManifest>(config).unwrap();
+        let project_config = ProjectConfig::deserialize(
+            manifest
+                .tool
+                .sections
+                .get(crate::TOOL_NAME)
+                .unwrap()
+                .to_owned(),
+        )
+        .unwrap();
+
+        assert_eq!(project_config.unit_tests_root, "test_dir");
+        assert_eq!(project_config.defaults.ppi, ProjectDefaults::default().ppi);
+    }
 }
