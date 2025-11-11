@@ -1,11 +1,14 @@
-use std::{env, io::Write, path::PathBuf};
+use std::env;
+use std::io::Write;
+use std::path::PathBuf;
 
 use color_eyre::eyre;
 use termcolor::Color;
 
-use crate::{cli::commands::Switch, cwrite, cwriteln};
-
 use super::Context;
+use crate::cli::commands::Switch;
+use crate::cwrite;
+use crate::cwriteln;
 
 struct About<'a> {
     build: Build,
@@ -104,7 +107,7 @@ struct Environment {
 
 impl Environment {
     /// Retrieves the environment informations.
-    /// 
+    ///
     /// Unset or invalid env vars will be set to `None`.
     fn new() -> Self {
         Self {

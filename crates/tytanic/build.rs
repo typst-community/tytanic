@@ -1,4 +1,5 @@
-use std::{borrow::Cow, process::Command};
+use std::borrow::Cow;
+use std::process::Command;
 
 fn main() {
     println!("cargo:rustc-env=TYTANIC_VERSION={}", tytanic_version());
