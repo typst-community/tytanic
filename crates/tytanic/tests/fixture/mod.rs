@@ -8,6 +8,11 @@ use std::process;
 use std::process::ExitStatus;
 
 use assert_cmd::Command;
+#[expect(
+    deprecated,
+    reason = "cargo_bin is deprecated, cargo_bin! is not, see https://github.com/rust-lang/rust/issues/148426"
+)]
+use assert_cmd::cargo::cargo_bin;
 use tempdir::TempDir;
 use tytanic_utils::fs::TEMP_DIR_PREFIX;
 use tytanic_utils::result::ResultEx;
@@ -67,7 +72,7 @@ impl Environment {
     where
         F: FnOnce(&mut Command) -> &mut Command,
     {
-        let mut cmd = Command::cargo_bin("tt").unwrap();
+        let mut cmd = Command::new(cargo_bin!("tt"));
         cmd.current_dir(self.root());
 
         f(&mut cmd);
