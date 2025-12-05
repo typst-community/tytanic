@@ -355,10 +355,10 @@ impl<T: Clone> SlotCell<T> {
         f: impl FnOnce(Vec<u8>, Option<T>) -> FileResult<T>,
     ) -> FileResult<T> {
         // If we accessed the file already in this compilation, retrieve it.
-        if std::mem::replace(&mut self.accessed, true) {
-            if let Some(data) = &self.data {
-                return data.clone();
-            }
+        if std::mem::replace(&mut self.accessed, true)
+            && let Some(data) = &self.data
+        {
+            return data.clone();
         }
 
         // Read and hash the file.
@@ -366,10 +366,10 @@ impl<T: Clone> SlotCell<T> {
         let fingerprint = typst::utils::hash128(&result);
 
         // If the file contents didn't change, yield the old processed data.
-        if std::mem::replace(&mut self.fingerprint, fingerprint) == fingerprint {
-            if let Some(data) = &self.data {
-                return data.clone();
-            }
+        if std::mem::replace(&mut self.fingerprint, fingerprint) == fingerprint
+            && let Some(data) = &self.data
+        {
+            return data.clone();
         }
 
         let prev = self.data.take().and_then(Result::ok);
