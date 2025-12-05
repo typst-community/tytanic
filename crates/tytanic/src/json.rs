@@ -109,16 +109,3 @@ pub struct FontJson<'f> {
     pub name: &'f str,
     pub variants: Vec<FontVariantJson>,
 }
-
-#[derive(Serialize)]
-pub struct FailedJson {
-    pub compilation: usize,
-    pub comparison: usize,
-    pub otherwise: usize,
-}
-
-#[derive(Serialize)]
-pub struct DurationJson {
-    pub seconds: u64,
-    pub nanoseconds: u32,
-}
