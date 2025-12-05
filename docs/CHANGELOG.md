@@ -3,6 +3,7 @@
 
 ## Changes
 - Update MSRV to `1.89`
+- Update Typst to `0.14.1`
 
 ## Fixes
 
