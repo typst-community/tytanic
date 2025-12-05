@@ -77,11 +77,11 @@ impl ShallowProject {
             // TODO(tinger): Currently we keep searching for a project even when
             // we find a VCS root, I'm not sure if this makes sense, stopping at
             // the VCS root is likely the most sensible behavior.
-            if vcs.is_none() {
-                if let Some(kind) = Vcs::exists_at(dir)? {
-                    tracing::debug!(vcs = ?kind, root = ?dir, "found vcs");
-                    vcs = Some(Vcs::new(dir.to_path_buf(), kind));
-                }
+            if vcs.is_none()
+                && let Some(kind) = Vcs::exists_at(dir)?
+            {
+                tracing::debug!(vcs = ?kind, root = ?dir, "found vcs");
+                vcs = Some(Vcs::new(dir.to_path_buf(), kind));
             }
 
             if project.is_some() && vcs.is_some() {

@@ -193,10 +193,10 @@ impl UnitTestRunner<'_, '_, '_> {
                             self.export_diff_doc(&diff)?;
                         }
 
-                        if let Some(strategy) = strategy {
-                            if let Err(err) = self.compare(&output, &reference, strategy) {
-                                eyre::bail!(err);
-                            }
+                        if let Some(strategy) = strategy
+                            && let Err(err) = self.compare(&output, &reference, strategy)
+                        {
+                            eyre::bail!(err);
                         }
                     }
                     Kind::Persistent => {
@@ -210,10 +210,10 @@ impl UnitTestRunner<'_, '_, '_> {
                             self.export_diff_doc(&diff)?;
                         }
 
-                        if let Some(strategy) = strategy {
-                            if let Err(err) = self.compare(&output, &reference, strategy) {
-                                eyre::bail!(err);
-                            }
+                        if let Some(strategy) = strategy
+                            && let Err(err) = self.compare(&output, &reference, strategy)
+                        {
+                            eyre::bail!(err);
                         }
                     }
                     Kind::CompileOnly => {}
@@ -267,10 +267,10 @@ impl UnitTestRunner<'_, '_, '_> {
         self.cleanup()?;
         self.result.end();
 
-        if let Err(err) = res {
-            if !err.chain().any(|s| s.is::<TestFailure>()) {
-                eyre::bail!(err);
-            }
+        if let Err(err) = res
+            && !err.chain().any(|s| s.is::<TestFailure>())
+        {
+            eyre::bail!(err);
         }
 
         Ok(self.result)
@@ -528,10 +528,10 @@ impl TemplateTestRunner<'_, '_, '_> {
         self.cleanup()?;
         self.result.end();
 
-        if let Err(err) = res {
-            if !err.chain().any(|s| s.is::<TestFailure>()) {
-                eyre::bail!(err);
-            }
+        if let Err(err) = res
+            && !err.chain().any(|s| s.is::<TestFailure>())
+        {
+            eyre::bail!(err);
         }
 
         Ok(self.result)

@@ -317,10 +317,10 @@ impl TempTestEnv {
             if let Some(found) = self.found.remove(&expected_path) {
                 let expected = expected_value.unwrap_or_default();
                 let found = found.unwrap_or_default();
-                if let Some(expected) = expected {
-                    if expected != found {
-                        not_matched.insert(expected_path, (found, expected));
-                    }
+                if let Some(expected) = expected
+                    && expected != found
+                {
+                    not_matched.insert(expected_path, (found, expected));
                 }
             } else {
                 not_found.insert(expected_path);

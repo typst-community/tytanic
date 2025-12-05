@@ -2,6 +2,7 @@
 ## Highlights
 
 ## Changes
+- Update MSRV to `1.89`
 
 ## Fixes
 

@@ -30,7 +30,7 @@ You can use one of the other installation methods for those versions.
 </div>
 
 ### Installation From Source
-To install Tytanic from source, you must have a Rust toolchain (Rust **v1.88.0+**) and `cargo` installed, you can get these using [`rustup`][rustup].
+To install Tytanic from source, you must have a Rust toolchain (Rust **v1.89.0+**) and `cargo` installed, you can get these using [`rustup`][rustup].
 
 #### Stable
 ```shell

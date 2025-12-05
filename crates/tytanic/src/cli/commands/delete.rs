@@ -40,13 +40,12 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
 
     let suite = ctx.collect_tests_with_filter(&project, filter)?;
 
-    if suite.matched().len() > 1 {
-        if let Filter::TestSet(set) = suite.filter() {
-            if !set.all() {
-                ctx.error_too_many_tests(&args.filter.expression)?;
-                eyre::bail!(OperationFailure);
-            }
-        }
+    if suite.matched().len() > 1
+        && let Filter::TestSet(set) = suite.filter()
+        && !set.all()
+    {
+        ctx.error_too_many_tests(&args.filter.expression)?;
+        eyre::bail!(OperationFailure);
     }
 
     for test in suite.matched() {
