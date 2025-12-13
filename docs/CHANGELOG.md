@@ -7,6 +7,12 @@
 
 ---
 
+# [v0.3.3](https://github.com/typst-community/tytanic/releases/tag/v0.3.3)
+## Changes
+- Update Typst to `0.14.2`
+
+---
+
 # [v0.3.2](https://github.com/typst-community/tytanic/releases/tag/v0.3.2)
 ## Changes
 - Update MSRV to `1.89`
