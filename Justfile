@@ -1,6 +1,6 @@
 book-src := justfile_directory() / 'docs' / 'book'
 
-CI-SET-ENV := 'export RUSTFLAGS="-Dwarnings" RUSTDOCFLAGS="-Dwarnings"'
+CI-SET-ENV := 'export RUSTFLAGS="-Dwarnings ${RUSTFLAGS:- }" RUSTDOCFLAGS="-Dwarnings ${RUSTDOCFLAGS:- }"'
 
 [private]
 default:
