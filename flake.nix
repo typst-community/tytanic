@@ -49,11 +49,11 @@
           pname = "tytanic";
           version = cargoToml.workspace.package.version;
 
-          rust-toolchain = (fenix.packages.${system}.fromManifestFile rust-manifest).defaultToolchain;
+          rust-toolchain = fenix.packages.${system}.fromManifestFile rust-manifest;
 
           # Crane-based Nix flake configuration.
           # Based on https://github.com/ipetkov/crane/blob/master/examples/trunk-workspace/flake.nix
-          craneLib = (crane.mkLib pkgs).overrideToolchain rust-toolchain;
+          craneLib = (crane.mkLib pkgs).overrideToolchain rust-toolchain.defaultToolchain;
 
           # Tytanic files to include in the derivation.
           # Here we include Rust files.
@@ -145,9 +145,12 @@
             checks = self'.checks;
             inputsFrom = [ tytanic ];
 
-            buildInputs = with pkgs; [
-              rust-analyzer
+            buildInputs = [
+              rust-toolchain.rust-analyzer
+              rust-toolchain.rust-src
             ];
+
+            RUST_SRC_PATH = "${rust-toolchain.rust-src}/lib/rustlib/src/rust/library";
           };
         };
     };
