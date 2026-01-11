@@ -11,6 +11,7 @@ updates:
     cargo-dependencies:
       patterns:
       - "*"
+  labels: []
 
 - package-ecosystem: "github-actions"
   directory: "/"
@@ -22,3 +23,4 @@ updates:
     github-dependencies:
       patterns:
       - "*"
+  labels: []
