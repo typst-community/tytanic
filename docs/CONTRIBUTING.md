@@ -5,6 +5,9 @@ If there's an issue you're working on let others know by leaving a comment, don'
 
 **If you're contributing for the first time to Tytanic, please familiarize yourself with the workflow below.**
 
+## Getting Started
+See [dev-setup.md] for instructions on setting up your development environment.
+
 ## Opening a PR
 When you open a PR, it can be as messy as you want, but once you request review make sure you've brought it into a state at which you would merge it yourself.
 Don't sweat it if you don't get the details right every time!
@@ -12,3 +15,4 @@ Don't sweat it if you don't get the details right every time!
 See [commit-guidelines.md] for guidelines on commit structure and messages.
 
 [commit-guidelines.md]: ./commit-guidelines.md
+[dev-setup.md]: ./dev-setup.md
