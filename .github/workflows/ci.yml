@@ -32,7 +32,7 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@1.89
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --workspace --no-run
@@ -42,7 +42,7 @@ jobs:
     name: Test Book
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: Install latest mdbook
       run: |
         tag=$(curl 'https://api.github.com/repos/rust-lang/mdbook/releases/latest' | jq -r '.tag_name')
@@ -59,7 +59,7 @@ jobs:
     name: Check minimum supported Rust version
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@1.89
       - uses: Swatinem/rust-cache@v2
       - run: cargo check --workspace
@@ -68,7 +68,7 @@ jobs:
     name: Check clippy, formatting, and documentation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@1.89
         with:
           components: clippy, rustfmt
