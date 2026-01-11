@@ -29,6 +29,31 @@ You can use one of the other installation methods for those versions.
 
 </div>
 
+### Using asdf
+
+You can also use the [asdf-tytanic plugin][asdf-tytanic] with [asdf][asdf-vm] to manage multiple versions of `tytanic`.
+See [asdf getting started][asdf-getting-started] for instructions on how to install `asdf`.
+
+Once you have `asdf` installed and configured, you can install the `tytanic` plugin and use it to install `tytanic`:
+```shell
+asdf plugin add tytanic https://github.com/typst-community/asdf-tytanic.git
+
+# Show all installable versions
+asdf list all tytanic
+
+# Install specific version
+asdf install tytanic latest
+
+# Set a version in the current working directory (.tool-versions file)
+asdf set tytanic latest
+
+# Now tytanic commands are available
+tt --version
+```
+
+> [!IMPORTANT]
+> Any issues with the `asdf-tytanic` plugin should be reported at the [asdf-tytanic issues page][asdf-tytanic-issues].
+
 ### Installation From Source
 To install Tytanic from source, you must have a Rust toolchain (Rust **v1.89.0+**) and `cargo` installed, you can get these using [`rustup`][rustup].
 
@@ -87,3 +112,7 @@ This avoids the need for it on the operating system.
 [rustup]: https://www.rust-lang.org/tools/install
 [docker]: https://github.com/users/typst-community/packages/container/tytanic
 [universe]: https://typst.app/universe
+[asdf-tytanic]: https://github.com/typst-community/asdf-tytanic
+[asdf-tytanic-issues]: https://github.com/typst-community/asdf-tytanic/issues
+[asdf-vm]: https://asdf-vm.com/
+[asdf-getting-started]: https://asdf-vm.com/guide/getting-started.html
