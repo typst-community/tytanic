@@ -33,7 +33,7 @@ jobs:
           echo "IMAGE_NAME=${REGISTRY}/${GITHUB_REPOSITORY@L}" >> $GITHUB_ENV
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Get current date
         run: echo "TYTANIC_BUILD_DATE=\"$(date -u +'%Y-%m-%dT%H:%M:%SZ')\" >> $GITHUB_ENV"
@@ -76,7 +76,7 @@ jobs:
           touch "/tmp/digests/${digest#sha256:}"
 
       - name: Upload digest
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: digests-${{ env.PLATFORM_PAIR }}
           path: /tmp/digests/*
@@ -99,7 +99,7 @@ jobs:
           echo "IMAGE_NAME=${REGISTRY}/${GITHUB_REPOSITORY@L}" >> $GITHUB_ENV
 
       - name: Download digests
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           path: /tmp/digests
           pattern: digests-*
