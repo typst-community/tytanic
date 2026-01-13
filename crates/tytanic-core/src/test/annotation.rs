@@ -46,6 +46,9 @@ pub enum ParseAnnotationError {
     #[error("the annotation {0} expected an argument, but received none")]
     MissingArg(&'static str),
 
+    #[error("the annotation {0} requires a key-value separator")]
+    MissingInputSeparator(EcoString),
+
     /// An error occurred while parsing the annotation.
     #[error("an error occurred while parsing the annotation")]
     Other(#[source] Box<dyn std::error::Error + Sync + Send + 'static>),
@@ -73,6 +76,9 @@ pub enum Annotation {
 
     /// The maximum allowed amount of deviations to use for comparison.
     MaxDeviations(usize),
+
+    /// A key-value pair to expose in `sys.inputs` for the code running the test.
+    Input { key: String, value: String },
 }
 
 impl Annotation {
@@ -154,6 +160,16 @@ impl FromStr for Annotation {
                 },
                 None => Err(ParseAnnotationError::MissingArg("max-deviations")),
             },
+            "input" => match arg {
+                Some(arg) => match arg.trim().split_once('=') {
+                    Some((key, value)) => Ok(Annotation::Input {
+                        key: key.to_string(),
+                        value: value.to_string(),
+                    }),
+                    None => Err(ParseAnnotationError::MissingInputSeparator(arg.into())),
+                },
+                None => Err(ParseAnnotationError::MissingArg("input")),
+            },
             _ => Err(ParseAnnotationError::Unknown(id.into())),
         }
     }
@@ -193,6 +209,46 @@ mod tests {
         assert_eq!(
             Annotation::from_str("[ppi: 42.5]").unwrap(),
             Annotation::Ppi(42.5)
+        );
+    }
+
+    #[test]
+    fn test_annotation_input() {
+        assert_eq!(
+            Annotation::from_str("[input: FOO=BAR]").unwrap(),
+            Annotation::Input {
+                key: "FOO".to_string(),
+                value: "BAR".to_string()
+            },
+        );
+
+        let ret = Annotation::from_str("[input: NO_VALUE]");
+        assert!(matches!(
+            ret,
+            Err(ParseAnnotationError::MissingInputSeparator(_))
+        ));
+    }
+
+    #[test]
+    fn test_annotation_multiple() {
+        let source = r#"
+/// [input: THIS=should]
+/// [input: WORK = well]
+"#;
+        dbg!(&source);
+
+        assert_eq!(
+            Annotation::collect(source).unwrap(),
+            [
+                Annotation::Input {
+                    key: "THIS".to_string(),
+                    value: "should".to_string()
+                },
+                Annotation::Input {
+                    key: "WORK ".to_string(),
+                    value: " well".to_string()
+                },
+            ]
         );
     }
 
