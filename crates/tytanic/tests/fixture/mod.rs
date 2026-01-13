@@ -13,7 +13,7 @@ use assert_cmd::Command;
     reason = "cargo_bin is deprecated, cargo_bin! is not, see https://github.com/rust-lang/rust/issues/148426"
 )]
 use assert_cmd::cargo::cargo_bin;
-use tempdir::TempDir;
+use temp_dir::TempDir;
 use tytanic_utils::fs::TEMP_DIR_PREFIX;
 use tytanic_utils::result::ResultEx;
 
@@ -33,7 +33,7 @@ impl Environment {
     /// Creates a new empty test environment.
     pub fn new() -> Self {
         Self {
-            dir: TempDir::new(TEMP_DIR_PREFIX).unwrap(),
+            dir: TempDir::with_prefix(TEMP_DIR_PREFIX).unwrap(),
         }
     }
 
@@ -62,7 +62,9 @@ impl Environment {
 
     /// Persists the temporary directory.
     pub fn persist(self) -> PathBuf {
-        self.dir.into_path()
+        let path = self.dir.path().to_path_buf();
+        self.dir.leak();
+        path
     }
 }
 

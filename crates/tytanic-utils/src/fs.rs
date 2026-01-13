@@ -9,7 +9,7 @@ use std::io;
 use std::path::Path;
 use std::path::PathBuf;
 
-use tempdir::TempDir;
+use temp_dir::TempDir;
 
 use crate::result::ResultEx;
 use crate::result::io_not_found;
@@ -234,7 +234,7 @@ impl TempTestEnv {
         expect: impl FnOnce(&mut Expect) -> &mut Expect,
     ) {
         let dir = Self {
-            root: TempDir::new(TEMP_DIR_PREFIX).unwrap(),
+            root: TempDir::with_prefix(TEMP_DIR_PREFIX).unwrap(),
             found: BTreeMap::new(),
             expected: BTreeMap::new(),
         };
@@ -259,7 +259,7 @@ impl TempTestEnv {
     /// resulting directory structure.
     pub fn run_no_check(setup: impl FnOnce(&mut Setup) -> &mut Setup, test: impl FnOnce(&Path)) {
         let dir = Self {
-            root: TempDir::new(TEMP_DIR_PREFIX).unwrap(),
+            root: TempDir::with_prefix(TEMP_DIR_PREFIX).unwrap(),
             found: BTreeMap::new(),
             expected: BTreeMap::new(),
         };
