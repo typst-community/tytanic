@@ -5,6 +5,9 @@ use std::sync::atomic::Ordering;
 use color_eyre::eyre;
 use color_eyre::eyre::WrapErr;
 use typst::diag::Warned;
+use typst::foundations::Dict;
+use typst::foundations::Str;
+use typst::foundations::Value;
 use typst::layout::PagedDocument;
 use tytanic_core::TemplateTest;
 use tytanic_core::UnitTest;
@@ -27,6 +30,7 @@ use crate::DEFAULT_OPTIMIZE_OPTIONS;
 use crate::cli::TestFailure;
 use crate::report::Reporter;
 use crate::world::Providers;
+use crate::world::augmented_library_provider_with_inputs;
 
 #[derive(Debug, Clone)]
 pub enum Action {
@@ -378,11 +382,27 @@ impl UnitTestRunner<'_, '_, '_> {
     }
 
     fn compile_inner(&mut self, is_reference: bool) -> eyre::Result<PagedDocument> {
+        // Assemble additional inputs based on test annotations.
+        let inputs = self
+            .test
+            .annotations()
+            .iter()
+            .filter_map(|kind| match kind {
+                Annotation::Input { key, value } => Some((
+                    Str::from(key.as_str()),
+                    Value::Str(Str::from(value.as_str())),
+                )),
+                _ => None,
+            })
+            .collect::<Dict>();
+        let library = augmented_library_provider_with_inputs(inputs);
+
         let Warned { output, warnings } = compile::compile(
             &self.project_runner.providers.unit_world(
                 self.project_runner.project,
                 self.test,
                 is_reference,
+                Some(&*library),
             ),
             self.project_runner.config.warnings,
         );

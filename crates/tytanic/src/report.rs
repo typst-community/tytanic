@@ -245,7 +245,7 @@ impl Reporter<'_, '_> {
         writeln!(w)?;
 
         let world = match test {
-            Test::Unit(test) => self.providers.unit_world(project, test, false),
+            Test::Unit(test) => self.providers.unit_world(project, test, false, None),
             Test::Template(test) => self.providers.template_world(project, test),
         };
 

@@ -12,6 +12,7 @@ use typst::World;
 use typst::diag::FileResult;
 use typst::foundations::Bytes;
 use typst::foundations::Datetime;
+use typst::foundations::Dict;
 use typst::syntax::FileId;
 use typst::text::Font;
 use typst::text::FontBook;
@@ -26,6 +27,7 @@ use tytanic_core::Project;
 use tytanic_core::TemplateTest;
 use tytanic_core::UnitTest;
 use tytanic_core::library::augmented_default_library;
+use tytanic_core::library::augmented_library;
 use tytanic_core::world_builder::ComposedWorld;
 use tytanic_core::world_builder::ProvideDatetime;
 use tytanic_core::world_builder::ProvideFile;
@@ -127,6 +129,18 @@ pub fn augmented_library_provider() -> Box<dyn ProvideLibrary> {
     Box::new(LibraryProvider::with_library(augmented_default_library())) as _
 }
 
+/// A library provider that provides the augmented library with additional inputs.
+///
+/// Inputs are exposed to the world/test via `sys.inputs`.
+///
+/// See also [`augmented_library_provider`].
+#[tracing::instrument]
+pub fn augmented_library_provider_with_inputs(inputs: Dict) -> Box<dyn ProvideLibrary> {
+    Box::new(LibraryProvider::with_library(augmented_library(
+        |builder| builder.with_inputs(inputs),
+    ))) as _
+}
+
 /// A library providers that provides the default library.
 #[tracing::instrument]
 pub fn default_library_provider() -> Box<dyn ProvideLibrary> {
@@ -180,11 +194,15 @@ impl Providers {
     }
 
     /// Constructs a world for unit tests.
+    ///
+    /// The `alternative_library` argument can be assembled by test code to e.g. provide additional
+    /// system inputs.
     pub fn unit_world<'w>(
         &'w self,
         project: &Project,
         test: &'w UnitTest,
         is_ref: bool,
+        alternative_library: Option<&'w dyn ProvideLibrary>,
     ) -> ComposedWorld<'w> {
         // TODO(tinger): Implement more fail safe path handling to ensure we
         // don't use absolute paths here.
@@ -204,8 +222,14 @@ impl Providers {
             ),
         );
 
+        let library = if let Some(library) = alternative_library {
+            library
+        } else {
+            &*self.augmented_library
+        };
+
         ComposedWorld::builder()
-            .library_provider(&*self.augmented_library)
+            .library_provider(library)
             .file_provider(&*self.project_files)
             .font_provider(&*self.fonts)
             .datetime_provider(&*self.datetime)
