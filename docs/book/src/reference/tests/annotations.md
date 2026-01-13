@@ -34,7 +34,36 @@ The following annotations are available:
 |`ppi`|Sets the pixel per inch used for exporting and comparing documents, expects a floating point value as an argument.|
 |`max-delta`|Sets the maximum allowed per-pixel delta, expects an integer between 0 and 255 as an argument.|
 |`max-deviations`|Sets the maximum allowed deviations, expects an integer as an argument.|
+|`input`|Add additional key-value pairs to `sys.inputs` for the tested document. See below for more details.|
 
 ## Skip
 The skip annotation adds a test to the `skip()` test set, this is a special test set that is automatically wrapped around the `--expression` option `(...) ~ skip()`.
 This implicit skip set can be disabled using `--no-skip`.
+
+## Input
+> [!IMPORTANT]
+> Key-value pairs added this way are currently not picked up by development tools such as LSP integrations.
+> As a consequence, your IDE or editor may report errors when in fact the tests run fine according to Tytanic.
+
+The `input` annotation extends the `sys.inputs` dictionary for the file being tested with arbitrary key-value pairs.
+It is the equivalent to the `typst compile --input ...` command line argument for Typst.
+Key and value must be separated by `=`, any whitespace is retained verbatim.
+If multiple `=` occur, the key is split off at the first one, the rest becomes the value.
+Multiple key-value pairs can be provided in separate annotations.
+Here is an example:
+
+```typst
+/// [input: SIMPLE=example]
+/// [input: KEEP = my_whitespace ]
+/// [input: MULTIPLE=separators=okay]
+
+#assert.eq(
+    sys.inputs,
+    (
+        "SIMPLE": "example",
+        "KEEP ": " my_whitespace",
+        "MULTIPLE": "separators=okay",
+    )
+)
+```
+
