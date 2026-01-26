@@ -32,7 +32,7 @@ book *args='--open':
 ci:
 	{{ CI-SET-ENV }} && cargo fmt --all --check
 	{{ CI-SET-ENV }} && cargo clippy --workspace
-	{{ CI-SET-ENV }} && cargo test --workspace
+	{{ CI-SET-ENV }} && cargo test --workspace --no-fail-fast
 	{{ CI-SET-ENV }} && cargo doc --workspace --no-deps
 	@echo ""
 	@echo These checks are not exactly the same as CI, but should get you there most of the way.

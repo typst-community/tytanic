@@ -3,16 +3,15 @@ use std::fmt::Debug;
 use ecow::eco_vec;
 use pest::iterators::Pair;
 
-use super::Error;
-use super::PairExt;
-use super::Rule;
-use crate::eval;
-use crate::eval::Context;
-use crate::eval::Eval;
-use crate::eval::Test;
-use crate::eval::TryFromValue;
-use crate::eval::Type;
-use crate::eval::Value;
+use crate::test_set::ast::Error;
+use crate::test_set::ast::PairExt;
+use crate::test_set::ast::Rule;
+use crate::test_set::eval;
+use crate::test_set::eval::Context;
+use crate::test_set::eval::Eval;
+use crate::test_set::eval::TryFromValue;
+use crate::test_set::eval::Type;
+use crate::test_set::eval::Value;
 
 /// A number literal node.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -36,14 +35,14 @@ impl From<Num> for usize {
     }
 }
 
-impl<T: Test> Eval<T> for Num {
-    fn eval(&self, _ctx: &Context<T>) -> Result<Value<T>, eval::Error> {
+impl Eval for Num {
+    fn eval(&self, _ctx: &Context) -> Result<Value, eval::Error> {
         Ok(Value::Num(*self))
     }
 }
 
-impl<T> TryFromValue<T> for Num {
-    fn try_from_value(value: Value<T>) -> Result<Self, eval::Error> {
+impl TryFromValue for Num {
+    fn try_from_value(value: Value) -> Result<Self, eval::Error> {
         Ok(match value {
             Value::Num(set) => set,
             _ => {

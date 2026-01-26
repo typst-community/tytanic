@@ -69,7 +69,7 @@ pub enum Stage {
 
     /// The test was filtered out by a [`Filter`].
     ///
-    /// [`Filter`]: crate::suite::Filter
+    /// [`Filter`]: crate::filter::Filter
     Filtered,
 
     /// The test failed compilation.

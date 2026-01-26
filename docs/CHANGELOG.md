@@ -3,6 +3,7 @@
 
 ## Changes
 - Update Typst to `0.15.0`
+- The `tytanic-filter` crate is now no longer a dependency of `tytanic-core`, but the other way around
 
 ## Fixes
 
