@@ -2,7 +2,7 @@
 
 pub mod config;
 pub mod doc;
-pub mod dsl;
+pub mod filter;
 pub mod library;
 pub mod project;
 pub mod suite;

@@ -5,7 +5,7 @@ use pest_derive::Parser;
 
 /// A parser for test set expressions.
 #[derive(Parser)]
-#[grammar = "ast/grammar.pest"]
+#[grammar = "test_set/ast/grammar.pest"]
 pub(super) struct ExpressionParser;
 
 use super::InfixOp;

@@ -16,7 +16,6 @@ readme.workspace = true
 workspace = true
 
 [dependencies]
-tytanic-filter.workspace = true
 tytanic-utils.workspace = true
 
 camino.workspace = true

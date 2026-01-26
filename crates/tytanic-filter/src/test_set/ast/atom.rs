@@ -1,12 +1,11 @@
-use super::Id;
-use super::Num;
-use super::Pat;
-use super::Str;
-use crate::eval::Context;
-use crate::eval::Error;
-use crate::eval::Eval;
-use crate::eval::Test;
-use crate::eval::Value;
+use crate::test_set::ast::Id;
+use crate::test_set::ast::Num;
+use crate::test_set::ast::Pat;
+use crate::test_set::ast::Str;
+use crate::test_set::eval::Context;
+use crate::test_set::eval::Error;
+use crate::test_set::eval::Eval;
+use crate::test_set::eval::Value;
 
 /// A leaf node within a test set expression such as an identifier or literal.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -24,8 +23,8 @@ pub enum Atom {
     Pat(Pat),
 }
 
-impl<T: Test> Eval<T> for Atom {
-    fn eval(&self, ctx: &Context<T>) -> Result<Value<T>, Error> {
+impl Eval for Atom {
+    fn eval(&self, ctx: &Context) -> Result<Value, Error> {
         Ok(match self {
             Self::Id(id) => id.eval(ctx)?,
             Self::Num(n) => Value::Num(*n),
