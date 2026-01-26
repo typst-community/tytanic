@@ -12,15 +12,13 @@ use std::time::Duration;
 use std::time::Instant;
 
 use thiserror::Error;
-use tytanic_filter::ExpressionFilter;
-use tytanic_filter::eval;
-use tytanic_utils::fmt::Term;
 use tytanic_utils::result::ResultEx;
 use tytanic_utils::result::io_not_found;
 use uuid::Uuid;
 
+use crate::Project;
 use crate::TemplateTest;
-use crate::project::Project;
+use crate::filter::FilterState;
 use crate::test::Id;
 use crate::test::ParseIdError;
 use crate::test::Test;
@@ -40,6 +38,17 @@ impl Suite {
     pub fn new() -> Self {
         Self {
             tests: BTreeMap::new(),
+            nested: BTreeMap::new(),
+        }
+    }
+
+    /// Creates a new suite with the given tests.
+    pub fn from_tests<I>(tests: I) -> Self
+    where
+        I: IntoIterator<Item = Test>,
+    {
+        Self {
+            tests: tests.into_iter().map(|t| (t.id().clone(), t)).collect(),
             nested: BTreeMap::new(),
         }
     }
@@ -197,7 +206,10 @@ impl Suite {
 
 impl Suite {
     /// Apply a filter to a suite.
-    pub fn filter(self, filter: Filter) -> Result<FilteredSuite, FilterError> {
+    pub fn filter<F>(self, project: &Project, mut filter: F) -> Result<FilteredSuite, F::Error>
+    where
+        F: FilterState,
+    {
         tracing::warn!(
             "ignoring {} nested tests while filtering",
             self.nested.len()
@@ -206,56 +218,21 @@ impl Suite {
         let mut filtered = Suite::new();
         let mut matched = Suite::new();
 
-        match &filter {
-            Filter::TestSet(expr) => {
-                for (id, test) in &self.tests {
-                    if expr.contains(test)? {
-                        matched.tests.insert(id.clone(), test.clone());
-                    } else {
-                        filtered.tests.insert(id.clone(), test.clone());
-                    }
-                }
-
-                tracing::trace!(?matched, ?filtered, "applied test set");
-
-                Ok(FilteredSuite {
-                    raw: self,
-                    filter,
-                    matched,
-                    filtered,
-                })
-            }
-            Filter::Explicit(set) => {
-                let mut tests = self.tests.clone();
-                let mut missing = BTreeSet::new();
-
-                for id in set {
-                    match tests.remove_entry(id) {
-                        Some((id, test)) => {
-                            matched.tests.insert(id, test);
-                        }
-                        None => {
-                            missing.insert(id.clone());
-                        }
-                    }
-                }
-
-                if !missing.is_empty() {
-                    return Err(FilterError::Missing(missing));
-                }
-
-                filtered.tests = tests;
-
-                tracing::trace!(?matched, ?filtered, "applied explicit filter");
-
-                Ok(FilteredSuite {
-                    raw: self,
-                    filter,
-                    matched,
-                    filtered,
-                })
+        for (id, test) in self.tests.clone() {
+            if filter.filter(project, &test)? {
+                matched.tests.insert(id, test);
+            } else {
+                filtered.tests.insert(id, test);
             }
         }
+
+        filter.finish(project)?;
+
+        Ok(FilteredSuite {
+            raw: self,
+            matched,
+            filtered,
+        })
     }
 }
 
@@ -308,22 +285,10 @@ impl<'s> Iterator for UnitTests<'s> {
     }
 }
 
-/// A filter used to restrict which tests in a suite should be run.
-#[derive(Debug, Clone)]
-pub enum Filter {
-    /// A test set expression filter.
-    TestSet(ExpressionFilter<Test>),
-
-    /// An explicit set of test identifiers, if any of these cannot be found the
-    /// filter fails.
-    Explicit(BTreeSet<Id>),
-}
-
 /// A suite of tests with a filter applied to it.
 #[derive(Debug, Clone)]
 pub struct FilteredSuite {
     raw: Suite,
-    filter: Filter,
     matched: Suite,
     filtered: Suite,
 }
@@ -332,11 +297,6 @@ impl FilteredSuite {
     /// The unfiltered inner suite.
     pub fn inner(&self) -> &Suite {
         &self.raw
-    }
-
-    /// The filter that was used to filter the tests.
-    pub fn filter(&self) -> &Filter {
-        &self.filter
     }
 
     /// The matched suite, contains only those test which _weren't_ filtered out.
@@ -348,22 +308,6 @@ impl FilteredSuite {
     pub fn filtered(&self) -> &Suite {
         &self.filtered
     }
-}
-
-/// Returned by [`Suite::filter`].
-#[derive(Debug, Error)]
-pub enum FilterError {
-    /// An error occurred while evaluating an expression filter.
-    #[error("an error occurred while evaluating an expressions filter")]
-    TestSet(#[from] eval::Error),
-
-    /// At least one test given by an explicit filter was missing.
-    #[error(
-        "{} {} given by an explicit filter was missing",
-        .0.len(),
-        Term::simple("test").with(.0.len()),
-    )]
-    Missing(BTreeSet<Id>),
 }
 
 /// Returned by [`Suite::collect`].

@@ -12,21 +12,24 @@ use commands::PackageOptions;
 use termcolor::Color;
 use thiserror::Error;
 use tytanic_core::doc;
-use tytanic_core::dsl;
 use tytanic_core::project::ConfigError;
 use tytanic_core::project::ManifestError;
 use tytanic_core::project::Project;
 use tytanic_core::project::ShallowProject;
 use tytanic_core::project::Vcs;
 use tytanic_core::project::VcsKind;
-use tytanic_core::suite::Filter;
-use tytanic_core::suite::FilterError;
 use tytanic_core::suite::FilteredSuite;
 use tytanic_core::suite::Suite;
 use tytanic_core::test;
 use tytanic_core::test::ParseIdError;
-use tytanic_filter::ExpressionFilter;
-use tytanic_filter::eval;
+use tytanic_filter::CombinedFilter;
+use tytanic_filter::Error as FilterError;
+use tytanic_filter::exact::ExactFilter;
+use tytanic_filter::test_set::ExpressionFilter;
+use tytanic_filter::test_set::ast;
+use tytanic_filter::test_set::builtin;
+use tytanic_filter::test_set::builtin::dsl;
+use tytanic_filter::test_set::eval;
 
 use self::commands::CliArguments;
 use self::commands::FilterOptions;
@@ -146,19 +149,25 @@ impl Context<'_> {
 
     /// Create a new filter from given arguments.
     #[tracing::instrument(skip_all)]
-    pub fn filter(&self, filter: &FilterOptions) -> eyre::Result<Filter> {
-        if !filter.tests.is_empty() {
-            Ok(Filter::Explicit(filter.tests.iter().cloned().collect()))
-        } else {
-            let ctx = dsl::context();
-            let mut set = ExpressionFilter::new(ctx, &filter.expression)?;
+    pub fn filter(&self, filter: &FilterOptions) -> eyre::Result<CombinedFilter> {
+        let exact = ExactFilter::new(filter.tests.iter().cloned());
 
+        let test_set = if let Some(expression) = filter
+            .expression
+            .as_deref()
+            .or_else(|| filter.tests.is_empty().then_some("all()"))
+        {
+            let ctx = builtin::context();
+            let mut test_set = ExpressionFilter::new(ctx, expression)?;
             if filter.skip.get_or_default() {
-                set = set.map(|set| eval::Set::expr_diff(set, dsl::built_in::skip()));
+                test_set = test_set.map(|set| eval::Set::expr_diff(set, dsl::set_skip()));
             }
+            Some(test_set)
+        } else {
+            None
+        };
 
-            Ok(Filter::TestSet(set))
-        }
+        Ok(CombinedFilter::new(test_set, Some(exact)))
     }
 
     /// Collect and filter tests for the given project.
@@ -166,7 +175,7 @@ impl Context<'_> {
     pub fn collect_tests_with_filter(
         &self,
         project: &Project,
-        filter: Filter,
+        filter: CombinedFilter,
     ) -> eyre::Result<FilteredSuite> {
         let suite = self.collect_tests(project)?;
 
@@ -174,7 +183,7 @@ impl Context<'_> {
             writeln!(self.ui.warn()?, "Suite is empty")?;
         }
 
-        let suite = suite.filter(filter)?;
+        let suite = suite.filter(project, filter)?;
 
         if suite.matched().is_empty() {
             writeln!(self.ui.warn()?, "Test set matched no tests")?;
@@ -305,16 +314,8 @@ impl Context<'_> {
                 }
             }
 
-            if let Some(error) = error.downcast_ref::<tytanic_filter::Error>() {
-                match error {
-                    tytanic_filter::Error::Parse(error) => {
-                        writeln!(self.ui.error()?, "Couldn't parse test set:\n{error}")?;
-                    }
-                    tytanic_filter::Error::Eval(error) => {
-                        writeln!(self.ui.error()?, "Couldn't evaluate test set:\n{error}")?;
-                    }
-                }
-
+            if let Some(error) = error.downcast_ref::<ast::Error>() {
+                writeln!(self.ui.error()?, "Couldn't parse test set:\n{error}")?;
                 eyre::bail!(OperationFailure);
             }
 
@@ -323,10 +324,10 @@ impl Context<'_> {
                     FilterError::TestSet(error) => {
                         writeln!(self.ui.error()?, "Couldn't evaluate test set:\n{error}")?;
                     }
-                    FilterError::Missing(missing) => {
+                    FilterError::Exact(error) => {
                         let mut w = self.ui.error()?;
 
-                        for id in missing {
+                        for id in &error.missing {
                             write!(w, "Test ")?;
                             ui::write_test_id(&mut w, id)?;
                             writeln!(w, " not found")?;

@@ -220,12 +220,12 @@ impl_switch! {
 impl_switch! {
     /// The `--[no-]skip` switch.
     SkipSwitch(true) {
-        /// Automatically remove skipped tests (default).
+        /// Automatically remove skipped tests from test sets (default).
         ///
         /// Equivalent to wrapping the test set expression in `(...) ~ skip()`.
         skip = 's',
 
-        /// Don't automatically remove skipped tests.
+        /// Don't automatically remove skipped tests from test sets.
         no_skip = 'S',
     }
 }
@@ -370,17 +370,17 @@ pub struct FilterOptions {
     /// See the language reference and guide at
     /// https://typst-community.github.io/tytanic/index.html
     /// for more info.
-    #[arg(short, long, default_value = "all()", value_name = "EXPR")]
-    pub expression: String,
+    #[arg(short, long, value_name = "EXPR")]
+    pub expression: Option<String>,
 
     #[command(flatten)]
     pub skip: SkipSwitch,
 
-    /// The exact tests to operate on.
+    /// The tests to operate on.
     ///
-    /// Implies `--no-skip`. Equivalent to passing
-    /// `--expression 'exact:a | exact:b | ...'`.
-    #[arg(required = false, conflicts_with = "expression", value_name = "TEST")]
+    /// This will always ignore the `[skip]` annotation and fail if a test can't
+    /// be found.
+    #[arg(required = false, value_name = "TEST")]
     pub tests: Vec<Id>,
 }
 

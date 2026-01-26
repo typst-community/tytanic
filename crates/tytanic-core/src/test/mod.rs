@@ -57,6 +57,10 @@ impl Test {
             Test::Template(test) => Some(test),
         }
     }
+
+    pub fn unwrap(&self) -> Test {
+        todo!()
+    }
 }
 
 /// The stage of a single test run.

@@ -1,121 +1,128 @@
-//! A functional set-based DSL for filtering tests in the `tytanic` test runner.
-//! See the language [reference] and [guide] for more info.
+//! # `tytanic-filter`
+//! Filtering Tytanic test suites effectively.
 //!
-//! Note that this is generic over the test type because it is also used in
-//! internal projects of the author. This means that contribution is welcome,
-//! but may be rejected for various reasons not apparent in `tytanic` only.
+//! This crates provides default implementations for the [`Filter`] trait, these
+//! filters are used in the Tytanic CLI.
 //!
-//! This library is still unstable to some degree, the inner test set types are
-//! very opaque and not easily printed or inspected because of this, this may
-//! change in the future.
+//! ## Exact Filter Sets
+//! Exact filter sets can be turned into [`ExactFilter`], being an exact filter
+//! means they emit errors when expected tests are missing once
+//! [`Filter::finish`] is called.
 //!
-//! [reference]: https://typst-community.github.io/tytanic/reference/test-sets/index.html
-//! [guide]: https://typst-community.github.io/tytanic/guides/test-sets.html
+//! ## Test Set Expressions
+//! Tests sets are expressions in a set-based DSL for filtering tests according
+//! to their identifiers, attributes, and annotations.
+//!
+//! Test sets can be parsed and evaluated into an [`ExpressionFilter`], unlike
+//! explicit filters these are purely additive, i.e. missing tests do not cause
+//! an error.
 
-use ecow::EcoString;
-use eval::Value;
 use thiserror::Error;
 
-use crate::eval::Eval;
-use crate::eval::Test;
+use tytanic_core::filter::FilterState;
+use tytanic_core::project::Project;
+use tytanic_core::test::Test;
 
-pub mod ast;
-pub mod eval;
+use crate::exact::ExactFilter;
+use crate::test_set::ExpressionFilter;
+use crate::test_set::eval;
 
-/// A generic test set expression filter, this filter checks whether a test
-/// should be filtered out by checking it against the inner test set within its
-/// evaluation context.
+pub mod exact;
+pub mod test_set;
+
+/// A combined exact and test set expression filter.
 ///
-/// This also includes extra parsing logic for the special `all:` modifier
-/// prefix, which is not part of the test set grammar, but can be used by the
-/// caller to handle instances where multiple tests match but only one is
-/// usually expected.
-#[derive(Debug, Clone)]
-pub struct ExpressionFilter<T: 'static> {
-    input: EcoString,
-    all: bool,
-    ctx: eval::Context<T>,
-    set: eval::Set<T>,
+/// The exact filter (if set) is applied first, if it does not match, or isn't
+/// set, then the expression filter is applied.
+#[derive(Debug, Default)]
+pub struct CombinedFilter {
+    test_set: Option<ExpressionFilter>,
+    exact: Option<ExactFilter>,
 }
 
-impl<T: Test> ExpressionFilter<T> {
-    /// Parse and evaluate a string into a test set with the given context.
-    pub fn new<S: Into<EcoString>>(ctx: eval::Context<T>, input: S) -> Result<Self, Error> {
-        let input = input.into();
-
-        let (all, expr) = input
-            .strip_prefix("all:")
-            .map(|rest| (true, rest))
-            .unwrap_or((false, &input));
-
-        let set = ast::parse(expr)?.eval(&ctx).and_then(Value::expect_type)?;
-
-        Ok(Self {
-            input,
-            all,
-            ctx,
-            set,
-        })
-    }
-}
-
-impl<T> ExpressionFilter<T> {
-    /// The input expression the inner test set was parsed from.
-    pub fn input(&self) -> &str {
-        &self.input
+impl CombinedFilter {
+    /// Creates a new combined filter from the given test set and exact filters.
+    pub fn new(test_set: Option<ExpressionFilter>, exact: Option<ExactFilter>) -> Self {
+        Self { test_set, exact }
     }
 
-    /// Whether this test set expression has the special `all:` modifier.
-    ///
-    /// Handling this is up to the caller and has no impact on the inner test
-    /// set.
-    pub fn all(&self) -> bool {
-        self.all
-    }
-
-    /// The context used to evaluate the inner test set.
-    pub fn ctx(&self) -> &eval::Context<T> {
-        &self.ctx
-    }
-
-    /// The inner test set.
-    pub fn set(&self) -> &eval::Set<T> {
-        &self.set
-    }
-}
-
-impl<T> ExpressionFilter<T> {
-    /// Applies a function to the inner test set, this is useful for
-    /// optimization or for adding implicit test sets like wrapping a test set
-    /// in `(...) ~ skip()`.
-    pub fn map<F>(self, f: F) -> Self
-    where
-        F: FnOnce(eval::Set<T>) -> eval::Set<T>,
-    {
+    /// Creates a new empty combined filter.
+    pub fn empty() -> Self {
         Self {
-            set: f(self.set),
-            ..self
+            test_set: None,
+            exact: None,
         }
     }
-}
 
-impl<T> ExpressionFilter<T> {
-    /// Whether the given test is contained in this test set. Note that this
-    /// means a return value of `true` should _not_ be filtered out, but
-    /// included in the set of tests to operate on.
-    pub fn contains(&self, test: &T) -> Result<bool, eval::Error> {
-        self.set.contains(&self.ctx, test)
+    /// Adds the test set filter.
+    pub fn with_test_set(&mut self, test_set: ExpressionFilter) -> &mut Self {
+        self.test_set = Some(test_set);
+        self
+    }
+
+    /// Adds the exact filter.
+    pub fn with_exact(&mut self, exact: ExactFilter) -> &mut Self {
+        self.exact = Some(exact);
+        self
+    }
+
+    /// Maps the test set in place.
+    pub fn map_test_set<F>(&mut self, f: F)
+    where
+        F: FnOnce(eval::Set) -> eval::Set,
+    {
+        self.test_set = self.test_set.take().map(|set| set.map(f));
     }
 }
 
-/// Returned by [`ExpressionFilter::new`].
+impl CombinedFilter {
+    /// The test set filter.
+    pub fn test_set(&self) -> Option<&ExpressionFilter> {
+        self.test_set.as_ref()
+    }
+
+    /// The exact filter.
+    pub fn exact(&self) -> Option<&ExactFilter> {
+        self.exact.as_ref()
+    }
+}
+
+impl FilterState for CombinedFilter {
+    type Error = Error;
+
+    fn filter(&mut self, project: &Project, test: &Test) -> Result<bool, Self::Error> {
+        if let Some(exact) = &mut self.exact
+            && exact.filter(project, test)?
+        {
+            return Ok(true);
+        }
+
+        if let Some(test_set) = &mut self.test_set {
+            return Ok(test_set.filter(project, test)?);
+        }
+
+        Ok(false)
+    }
+
+    fn finish(mut self, project: &Project) -> Result<(), Self::Error> {
+        self.test_set
+            .take()
+            .map(|f| f.finish(project))
+            .transpose()?;
+        self.exact.take().map(|f| f.finish(project)).transpose()?;
+
+        Ok(())
+    }
+}
+
+/// Returned by [`CombinedFilter::filter`] or [`CombinedFilter::finish`].
 #[derive(Debug, Error)]
 pub enum Error {
-    /// An error occurred during parsing.
-    #[error(transparent)]
-    Parse(#[from] ast::Error),
+    /// The exact filter emitted an error.
+    #[error("a exact filter error occurred")]
+    Exact(#[from] exact::Error),
 
-    /// An error occurred during evaluation.
-    #[error(transparent)]
-    Eval(#[from] eval::Error),
+    /// The test set expression filter emitted an error.
+    #[error("a test set expression filter evaluation error occurred")]
+    TestSet(#[from] test_set::eval::Error),
 }

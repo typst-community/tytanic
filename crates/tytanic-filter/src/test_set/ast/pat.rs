@@ -2,19 +2,18 @@ use std::hash::Hash;
 
 use pest::iterators::Pair;
 
-use super::Error;
-use super::Glob;
-use super::PairExt;
-use super::PairsExt;
-use super::Regex;
-use super::Rule;
-use super::Str;
-use crate::eval;
-use crate::eval::Context;
-use crate::eval::Eval;
-use crate::eval::Set;
-use crate::eval::Test;
-use crate::eval::Value;
+use crate::test_set::ast::Error;
+use crate::test_set::ast::Glob;
+use crate::test_set::ast::PairExt;
+use crate::test_set::ast::PairsExt;
+use crate::test_set::ast::Regex;
+use crate::test_set::ast::Rule;
+use crate::test_set::ast::Str;
+use crate::test_set::eval;
+use crate::test_set::eval::Context;
+use crate::test_set::eval::Eval;
+use crate::test_set::eval::Set;
+use crate::test_set::eval::Value;
 
 /// A pattern literal node.
 #[derive(Clone, PartialEq, Eq, Hash)]
@@ -52,8 +51,8 @@ impl Pat {
     }
 }
 
-impl<T: Test> Eval<T> for Pat {
-    fn eval(&self, _ctx: &Context<T>) -> Result<Value<T>, eval::Error> {
+impl Eval for Pat {
+    fn eval(&self, _ctx: &Context) -> Result<Value, eval::Error> {
         Ok(Value::Set(Set::coerce_pat(self.clone())))
     }
 }

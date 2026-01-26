@@ -3,17 +3,16 @@ use ecow::eco_vec;
 use pest::iterators::Pair;
 use pest::pratt_parser::PrattParser;
 
-use super::Error;
-use super::Expr;
-use super::Id;
-use super::PairExt;
-use super::PairsExt;
-use super::Rule;
-use crate::eval;
-use crate::eval::Context;
-use crate::eval::Eval;
-use crate::eval::Test;
-use crate::eval::Value;
+use crate::test_set::ast::Error;
+use crate::test_set::ast::Expr;
+use crate::test_set::ast::Id;
+use crate::test_set::ast::PairExt;
+use crate::test_set::ast::PairsExt;
+use crate::test_set::ast::Rule;
+use crate::test_set::eval;
+use crate::test_set::eval::Context;
+use crate::test_set::eval::Eval;
+use crate::test_set::eval::Value;
 
 /// A function call node.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -25,9 +24,9 @@ pub struct Func {
     pub args: EcoVec<Expr>,
 }
 
-impl<T: Test> Eval<T> for Func {
-    fn eval(&self, ctx: &Context<T>) -> Result<Value<T>, eval::Error> {
-        let func: eval::Func<T> = ctx.resolve(&self.id)?.expect_type()?;
+impl Eval for Func {
+    fn eval(&self, ctx: &Context) -> Result<Value, eval::Error> {
+        let func: eval::Func = ctx.resolve(&self.id)?.expect_type()?;
         let args = self
             .args
             .iter()

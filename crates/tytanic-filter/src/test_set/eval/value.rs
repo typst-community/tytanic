@@ -1,20 +1,22 @@
-use super::Error;
-use super::Func;
-use super::Set;
-use crate::ast::Num;
-use crate::ast::Str;
+use tytanic_core::test::Test;
+
+use crate::test_set::ast::Num;
+use crate::test_set::ast::Str;
+use crate::test_set::eval::Error;
+use crate::test_set::eval::Func;
+use crate::test_set::eval::Set;
 
 /// The value of a test set expression.
 #[derive(Debug, Clone)]
-pub enum Value<T> {
+pub enum Value {
     /// A test.
-    Test(T),
+    Test(Test),
 
     /// A test set.
-    Set(Set<T>),
+    Set(Set),
 
     /// A function.
-    Func(Func<T>),
+    Func(Func),
 
     /// An unsigned integer.
     Num(Num),
@@ -23,7 +25,7 @@ pub enum Value<T> {
     Str(Str),
 }
 
-impl<T> Value<T> {
+impl Value {
     /// The type of this expression.
     pub fn as_type(&self) -> Type {
         match self {
@@ -36,41 +38,42 @@ impl<T> Value<T> {
     }
 
     /// Convert this value into a `T` or return an error.
-    pub fn expect_type<V: TryFromValue<T>>(self) -> Result<V, Error>
+    pub fn expect_type<V>(self) -> Result<V, Error>
     where
-        T: Clone,
+        V: TryFromValue,
     {
         V::try_from_value(self)
     }
 }
 
-impl<T> From<Set<T>> for Value<T> {
-    fn from(value: Set<T>) -> Self {
+impl From<Set> for Value {
+    fn from(value: Set) -> Self {
         Self::Set(value)
     }
 }
 
-impl<T> From<Func<T>> for Value<T> {
-    fn from(value: Func<T>) -> Self {
+impl From<Func> for Value {
+    fn from(value: Func) -> Self {
         Self::Func(value)
     }
 }
 
-impl<T> From<Num> for Value<T> {
+impl From<Num> for Value {
     fn from(value: Num) -> Self {
         Self::Num(value)
     }
 }
 
-impl<T> From<Str> for Value<T> {
+impl From<Str> for Value {
     fn from(value: Str) -> Self {
         Self::Str(value)
     }
 }
 
 /// A trait for types which can be unwrapped from a [`Value`].
-pub trait TryFromValue<T>: Sized {
-    fn try_from_value(value: Value<T>) -> Result<Self, Error>;
+pub trait TryFromValue: Sized {
+    /// Attempts to convert the given value into this type.
+    fn try_from_value(value: Value) -> Result<Self, Error>;
 }
 
 /// The type of a value.

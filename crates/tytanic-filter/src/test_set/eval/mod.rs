@@ -9,40 +9,32 @@ use thiserror::Error;
 use tytanic_utils::fmt::Separators;
 use tytanic_utils::fmt::Term;
 
-use super::ast::Id;
+use crate::test_set::ast::Id;
 
 mod func;
 mod set;
 mod value;
 
-pub use self::func::Func;
-pub use self::set::Set;
-pub use self::value::TryFromValue;
-pub use self::value::Type;
-pub use self::value::Value;
-
-/// A marker trait for tests, this is automatically implemented for all cloneable
-/// static types.
-pub trait Test: Clone + 'static {
-    /// The id of a test, this is used for matching on tests using test sets
-    /// created from pattern literals.
-    fn id(&self) -> &str;
-}
+pub use crate::test_set::eval::func::Func;
+pub use crate::test_set::eval::set::Set;
+pub use crate::test_set::eval::value::TryFromValue;
+pub use crate::test_set::eval::value::Type;
+pub use crate::test_set::eval::value::Value;
 
 /// A trait for expressions to be evaluated and matched.
-pub trait Eval<T: Test> {
+pub trait Eval {
     /// Evaluates this expression to a value.
-    fn eval(&self, ctx: &Context<T>) -> Result<Value<T>, Error>;
+    fn eval(&self, ctx: &Context) -> Result<Value, Error>;
 }
 
 /// An evaluation context used to retrieve bindings in test set expressions.
 #[derive(Debug, Clone)]
-pub struct Context<T> {
+pub struct Context {
     /// The bindings available for evaluation.
-    bindings: BTreeMap<Id, Value<T>>,
+    bindings: BTreeMap<Id, Value>,
 }
 
-impl<T> Context<T> {
+impl Context {
     /// Create a new evaluation context with no bindings.
     pub fn new() -> Self {
         Self {
@@ -51,18 +43,21 @@ impl<T> Context<T> {
     }
 }
 
-impl<T> Context<T> {
+impl Context {
     /// Inserts a new binding, possibly overriding an old one, returns the old
     /// binding if there was one.
-    pub fn bind<V: Into<Value<T>>>(&mut self, id: Id, value: V) -> Option<Value<T>> {
+    pub fn bind<V>(&mut self, id: Id, value: V) -> Option<Value>
+    where
+        V: Into<Value>,
+    {
         tracing::trace!(id = %id.as_str(), "binding value into eval context");
         self.bindings.insert(id, value.into())
     }
 
     /// Resolves a binding with the given identifier.
-    pub fn resolve<I: AsRef<str>>(&self, id: I) -> Result<Value<T>, Error>
+    pub fn resolve<I>(&self, id: I) -> Result<Value, Error>
     where
-        T: Clone,
+        I: AsRef<str>,
     {
         tracing::trace!(id = %id.as_ref(), "resolving value from eval context");
         let id = id.as_ref();
@@ -82,7 +77,7 @@ impl<T> Context<T> {
     }
 }
 
-impl<T> Default for Context<T> {
+impl Default for Context {
     fn default() -> Self {
         Self::new()
     }
@@ -174,9 +169,9 @@ impl Display for Error {
     }
 }
 
-/// Ensure Context<T> is thread safe if T is.
+/// Ensure Context is thread safe if T is.
 #[allow(dead_code)]
 fn assert_traits() {
-    tytanic_utils::assert::send::<Context<()>>();
-    tytanic_utils::assert::sync::<Context<()>>();
+    tytanic_utils::assert::send::<Context>();
+    tytanic_utils::assert::sync::<Context>();
 }

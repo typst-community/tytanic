@@ -5,9 +5,8 @@ use tytanic_core::Id;
 use tytanic_core::doc::compare::Strategy;
 use tytanic_core::doc::render;
 use tytanic_core::doc::render::Origin;
-use tytanic_core::dsl;
-use tytanic_core::suite::Filter;
-use tytanic_filter::eval;
+use tytanic_filter::test_set::builtin::dsl;
+use tytanic_filter::test_set::eval;
 
 use super::CompareOptions;
 use super::CompileOptions;
@@ -52,19 +51,17 @@ pub struct Args {
 
 pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
     let project = ctx.project()?;
-    let filter = match ctx.filter(&args.filter)? {
-        Filter::TestSet(set) => Filter::TestSet(
-            set.map(|set| eval::Set::expr_inter(set, dsl::built_in::persistent(), [])),
-        ),
-        Filter::Explicit(explicit) => {
-            if explicit.contains(&Id::template()) {
-                writeln!(ctx.ui.error()?, "Cannot update template test")?;
-                eyre::bail!(OperationFailure);
-            }
 
-            Filter::Explicit(explicit)
-        }
-    };
+    let mut filter = ctx.filter(&args.filter)?;
+
+    if let Some(exact) = filter.exact()
+        && exact.expected().contains(&Id::template())
+    {
+        writeln!(ctx.ui.error()?, "Cannot update template test")?;
+        eyre::bail!(OperationFailure);
+    }
+
+    filter.map_test_set(|set| eval::Set::expr_inter(set, dsl::set_persistent(), []));
 
     let suite = ctx.collect_tests_with_filter(&project, filter)?;
 

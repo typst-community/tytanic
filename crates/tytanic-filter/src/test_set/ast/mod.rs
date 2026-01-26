@@ -23,17 +23,17 @@ mod str;
 // This is an internal re-export and should _never_ leak outside this module.
 use parser::Rule;
 
-pub use self::atom::Atom;
-pub use self::expr::Expr;
-pub use self::expr::InfixOp;
-pub use self::expr::PrefixOp;
-pub use self::func::Func;
-pub use self::glob::Glob;
-pub use self::id::Id;
-pub use self::num::Num;
-pub use self::pat::Pat;
-pub use self::regex::Regex;
-pub use self::str::Str;
+pub use crate::test_set::ast::atom::Atom;
+pub use crate::test_set::ast::expr::Expr;
+pub use crate::test_set::ast::expr::InfixOp;
+pub use crate::test_set::ast::expr::PrefixOp;
+pub use crate::test_set::ast::func::Func;
+pub use crate::test_set::ast::glob::Glob;
+pub use crate::test_set::ast::id::Id;
+pub use crate::test_set::ast::num::Num;
+pub use crate::test_set::ast::pat::Pat;
+pub use crate::test_set::ast::regex::Regex;
+pub use crate::test_set::ast::str::Str;
 
 /// The pratt-parser defining the operator precedence.
 pub(super) static PRATT_PARSER: LazyLock<PrattParser<Rule>> = LazyLock::new(|| {
@@ -162,6 +162,7 @@ where
 
 /// An extension trait for the [`Pair`] type.
 pub trait PairExt<'a> {
+    /// Checks that the pair is of any of the given rules.
     fn expect_rules(&self, rule: &[Rule]) -> Result<(), Error>;
 }
 
