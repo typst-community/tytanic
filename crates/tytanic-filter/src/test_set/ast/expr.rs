@@ -3,20 +3,19 @@ use std::sync::Arc;
 use pest::iterators::Pair;
 use pest::pratt_parser::PrattParser;
 
-use super::Atom;
-use super::Error;
-use super::Func;
-use super::Id;
-use super::Num;
-use super::Pat;
-use super::Rule;
-use super::Str;
-use crate::eval;
-use crate::eval::Context;
-use crate::eval::Eval;
-use crate::eval::Set;
-use crate::eval::Test;
-use crate::eval::Value;
+use crate::test_set::ast::Atom;
+use crate::test_set::ast::Error;
+use crate::test_set::ast::Func;
+use crate::test_set::ast::Id;
+use crate::test_set::ast::Num;
+use crate::test_set::ast::Pat;
+use crate::test_set::ast::Rule;
+use crate::test_set::ast::Str;
+use crate::test_set::eval;
+use crate::test_set::eval::Context;
+use crate::test_set::eval::Eval;
+use crate::test_set::eval::Set;
+use crate::test_set::eval::Value;
 
 /// An unary prefix operator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -74,14 +73,14 @@ pub enum Expr {
 }
 
 // TODO(tinger): Flatten intersection and union chains.
-impl<T: Test> Eval<T> for Expr {
-    fn eval(&self, ctx: &Context<T>) -> Result<Value<T>, eval::Error> {
+impl Eval for Expr {
+    fn eval(&self, ctx: &Context) -> Result<Value, eval::Error> {
         match self {
             Self::Atom(atom) => atom.eval(ctx),
             Self::Func(func) => func.eval(ctx),
             Self::Prefix { op, expr } => {
                 // Unary prefix operator is only valid for test sets.
-                let set: Set<T> = expr.eval(ctx)?.expect_type()?;
+                let set: Set = expr.eval(ctx)?.expect_type()?;
 
                 Ok(Value::Set(match op {
                     PrefixOp::Not => Set::expr_comp(set),
@@ -89,8 +88,8 @@ impl<T: Test> Eval<T> for Expr {
             }
             Self::Infix { op, lhs, rhs } => {
                 // Binary infix operator is only valid for test sets.
-                let lhs: Set<T> = lhs.eval(ctx)?.expect_type()?;
-                let rhs: Set<T> = rhs.eval(ctx)?.expect_type()?;
+                let lhs: Set = lhs.eval(ctx)?.expect_type()?;
+                let rhs: Set = rhs.eval(ctx)?.expect_type()?;
 
                 Ok(Value::Set(match op {
                     InfixOp::Union => Set::expr_union(lhs, rhs, []),

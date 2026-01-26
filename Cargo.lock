@@ -3546,7 +3546,6 @@ dependencies = [
  "typst-kit",
  "typst-library",
  "typst-render",
- "tytanic-filter",
  "tytanic-utils",
  "uuid",
 ]
@@ -3563,6 +3562,7 @@ dependencies = [
  "strsim",
  "thiserror",
  "tracing",
+ "tytanic-core",
  "tytanic-utils",
 ]
 

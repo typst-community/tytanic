@@ -152,7 +152,7 @@ mod tests {
     use crate::test::unit::Kind as TestKind;
 
     fn test(kind: TestKind) -> UnitTest {
-        UnitTest::new_test(Id::new("fancy").unwrap(), kind)
+        UnitTest::new(Id::new("fancy").unwrap(), kind)
     }
 
     #[test]
