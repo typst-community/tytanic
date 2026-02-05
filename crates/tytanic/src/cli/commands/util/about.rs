@@ -3,6 +3,7 @@ use std::io::Write;
 use std::path::PathBuf;
 
 use color_eyre::eyre;
+use serde::Serialize;
 use termcolor::Color;
 
 use super::Context;
@@ -10,6 +11,8 @@ use crate::cli::commands::Switch;
 use crate::cwrite;
 use crate::cwriteln;
 
+#[derive(Serialize)]
+#[serde(rename_all = "kebab-case")]
 struct About<'a> {
     /// The version of tytanic.
     version: &'static str,
@@ -34,6 +37,8 @@ impl<'a> About<'a> {
     }
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "kebab-case")]
 struct Build {
     /// The commmit sha of the current commit when building tytanic.
     commit: &'static str,
@@ -50,6 +55,8 @@ impl Build {
     }
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "kebab-case")]
 struct Platform {
     os: &'static str,
     arch: &'static str,
@@ -64,6 +71,8 @@ impl Platform {
     }
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "kebab-case")]
 struct Fonts<'a> {
     /// The font paths.
     paths: &'a [PathBuf],
@@ -84,6 +93,8 @@ impl<'a> Fonts<'a> {
     }
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "kebab-case")]
 struct Packages {
     package_path: Option<PathBuf>,
     package_cache_path: Option<PathBuf>,
@@ -108,6 +119,8 @@ impl Packages {
     }
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 struct Environment {
     typst_root: Option<String>,
     typst_font_paths: Option<String>,
