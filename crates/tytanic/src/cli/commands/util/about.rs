@@ -11,6 +11,10 @@ use crate::cwrite;
 use crate::cwriteln;
 
 struct About<'a> {
+    /// The version of tytanic.
+    version: &'static str,
+    /// The typst version used in this instance of tytanic.
+    typst_version: &'static str,
     build: Build,
     fonts: Fonts<'a>,
     packages: Packages,
@@ -20,6 +24,8 @@ struct About<'a> {
 impl<'a> About<'a> {
     fn new(ctx: &'a Context) -> Self {
         Self {
+            version: env!("TYTANIC_VERSION"),
+            typst_version: env!("TYTANIC_TYPST_VERSION"),
             build: Build::new(),
             fonts: Fonts::new(ctx),
             packages: Packages::new(ctx),
@@ -29,10 +35,6 @@ impl<'a> About<'a> {
 }
 
 struct Build {
-    /// The version of tytanic.
-    version: &'static str,
-    /// The typst version used in this instance of tytanic.
-    typst_version: &'static str,
     /// The commmit sha of the current commit when building tytanic.
     commit: &'static str,
     os: &'static str,
@@ -43,8 +45,6 @@ impl Build {
     /// Retrieves build informations specified in the `build.rs`
     const fn new() -> Self {
         Self {
-            version: env!("TYTANIC_VERSION"),
-            typst_version: env!("TYTANIC_TYPST_VERSION"),
             commit_sha: env!("TYTANIC_COMMIT_SHA"),
             os: std::env::consts::OS,
             arch: std::env::consts::ARCH,
@@ -144,15 +144,15 @@ pub fn run(ctx: &mut Context) -> eyre::Result<()> {
     // Write build info
     let build = about.build;
     cwrite!(colored(w, Color::Cyan), "Version ")?;
-    cwrite!(colored(w, Color::Green), "{} ", build.version)?;
+    cwrite!(colored(w, Color::Green), "{} ", about.version)?;
     write!(w, "(")?;
-    cwrite!(colored(w, Color::Green), "{}", build.commit_sha)?;
+    cwrite!(colored(w, Color::Green), "{}", build.commit)?;
     write!(w, ", ")?;
     cwrite!(colored(w, Color::Green), "{} ", build.os)?;
     write!(w, "on ")?;
     cwrite!(colored(w, Color::Green), "{}", build.arch)?;
     write!(w, ", typst: ")?;
-    cwrite!(colored(w, Color::Green), "{}", build.typst_version)?;
+    cwrite!(colored(w, Color::Green), "{}", about.typst_version)?;
     writeln!(w, ")")?;
 
     writeln!(w)?;
