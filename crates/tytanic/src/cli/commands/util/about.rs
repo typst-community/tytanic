@@ -241,7 +241,11 @@ impl Environment {
     }
 }
 
-pub fn run(ctx: &mut Context) -> eyre::Result<()> {
+pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
+    const KEY_COLOR: Color = Color::Cyan;
+    const VALUE_COLOR: Color = Color::Green;
+    const SPECIAL_COLOR: Color = Color::Blue;
+
     let about = About::new(ctx);
 
     let mut w = ctx.ui.stderr();
@@ -258,16 +262,16 @@ pub fn run(ctx: &mut Context) -> eyre::Result<()> {
 
     // Write build info
     let build = about.build;
-    cwrite!(colored(w, Color::Cyan), "Version ")?;
-    cwrite!(colored(w, Color::Green), "{} ", about.version)?;
+    cwrite!(colored(w, KEY_COLOR), "Version ")?;
+    cwrite!(colored(w, VALUE_COLOR), "{} ", about.version)?;
     write!(w, "(")?;
-    cwrite!(colored(w, Color::Green), "{}", build.commit)?;
+    cwrite!(colored(w, VALUE_COLOR), "{}", build.commit)?;
     write!(w, ", ")?;
-    cwrite!(colored(w, Color::Green), "{} ", build.platform.os)?;
+    cwrite!(colored(w, VALUE_COLOR), "{} ", build.platform.os)?;
     write!(w, "on ")?;
-    cwrite!(colored(w, Color::Green), "{}", build.platform.arch)?;
+    cwrite!(colored(w, VALUE_COLOR), "{}", build.platform.arch)?;
     write!(w, ", typst: ")?;
-    cwrite!(colored(w, Color::Green), "{}", about.typst_version)?;
+    cwrite!(colored(w, VALUE_COLOR), "{}", about.typst_version)?;
     writeln!(w, ")")?;
 
     writeln!(w)?;
@@ -276,27 +280,27 @@ pub fn run(ctx: &mut Context) -> eyre::Result<()> {
     let fonts = about.fonts;
     writeln!(w, "Fonts")?;
 
-    cwrite!(colored(w, Color::Cyan), "  Custom font paths")?;
+    cwrite!(colored(w, KEY_COLOR), "  Custom font paths")?;
     if fonts.paths.is_empty() {
-        cwriteln!(colored(w, Color::Magenta), " <none>")?;
+        cwriteln!(colored(w, SPECIAL_COLOR), " <none>")?;
     } else {
         writeln!(w)?;
         for path in fonts.paths {
             write!(w, "    - ")?;
-            cwriteln!(colored(w, Color::Green), "{}", path.display())?;
+            cwriteln!(colored(w, VALUE_COLOR), "{}", path.display())?;
         }
     }
 
-    cwrite!(colored(w, Color::Cyan), "  System fonts   ")?;
+    cwrite!(colored(w, KEY_COLOR), "  System fonts      ")?;
     cwriteln!(
-        colored(w, Color::Magenta),
+        colored(w, SPECIAL_COLOR),
         "{}",
         if fonts.system { "on" } else { "off" }
     )?;
 
-    cwrite!(colored(w, Color::Cyan), "  Embedded fonts ")?;
+    cwrite!(colored(w, KEY_COLOR), "  Embedded fonts    ")?;
     cwriteln!(
-        colored(w, Color::Magenta),
+        colored(w, SPECIAL_COLOR),
         "{}",
         if fonts.embedded { "on" } else { "off" }
     )?;
@@ -307,18 +311,18 @@ pub fn run(ctx: &mut Context) -> eyre::Result<()> {
     let packages = about.packages;
     writeln!(w, "Packages")?;
 
-    cwrite!(colored(w, Color::Cyan), "  Package path       ")?;
+    cwrite!(colored(w, KEY_COLOR), "  Package path       ")?;
     if let Some(package_path) = packages.package_path {
-        cwriteln!(colored(w, Color::Green), "{}", package_path.display())?;
+        cwriteln!(colored(w, VALUE_COLOR), "{}", package_path.display())?;
     } else {
-        cwriteln!(colored(w, Color::Magenta), "<none>")?;
+        cwriteln!(colored(w, SPECIAL_COLOR), "<none>")?;
     }
 
-    cwrite!(colored(w, Color::Cyan), "  Package cache path ")?;
+    cwrite!(colored(w, KEY_COLOR), "  Package cache path ")?;
     if let Some(package_cache_path) = packages.package_cache_path {
-        cwriteln!(colored(w, Color::Green), "{}", package_cache_path.display())?;
+        cwriteln!(colored(w, VALUE_COLOR), "{}", package_cache_path.display())?;
     } else {
-        cwriteln!(colored(w, Color::Magenta), "<none>")?;
+        cwriteln!(colored(w, SPECIAL_COLOR), "<none>")?;
     }
 
     writeln!(w)?;
@@ -331,15 +335,15 @@ pub fn run(ctx: &mut Context) -> eyre::Result<()> {
 
     for (name, value) in envs {
         cwrite!(
-            colored(w, Color::Cyan),
+            colored(w, KEY_COLOR),
             "  {:<width$} ",
             name,
             width = padding
         )?;
         if let Some(value) = value {
-            cwriteln!(colored(w, Color::Green), "{}", value)?;
+            cwriteln!(colored(w, VALUE_COLOR), "{}", value)?;
         } else {
-            cwriteln!(colored(w, Color::Magenta), "<unset>")?;
+            cwriteln!(colored(w, SPECIAL_COLOR), "<unset>")?;
         }
     }
 
