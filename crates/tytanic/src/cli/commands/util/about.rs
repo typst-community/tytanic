@@ -2,6 +2,7 @@ use std::env;
 use std::io::Write;
 use std::path::PathBuf;
 
+use clap::ValueEnum;
 use color_eyre::eyre;
 use serde::Serialize;
 use termcolor::Color;
@@ -10,6 +11,29 @@ use super::Context;
 use crate::cli::commands::Switch;
 use crate::cwrite;
 use crate::cwriteln;
+
+#[derive(clap::Args, Debug, Clone)]
+pub struct Args {
+    /// The format to serialize in, if it should be machine-readable.
+    ///
+    /// If no format is passed the output is displayed human-readable. Note that
+    /// human-readable format truncates the build commit hash value.
+    #[arg(long = "format", short = 'f')]
+    pub format: Option<SerializationFormat>,
+
+    /// Whether to pretty-print the serialized output.
+    ///
+    /// Only applies to JSON format.
+    #[clap(long)]
+    pub pretty: bool,
+}
+
+#[derive(ValueEnum, Clone, Default, Debug)]
+pub enum SerializationFormat {
+    #[default]
+    Json,
+    Yaml,
+}
 
 #[derive(Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -221,6 +245,16 @@ pub fn run(ctx: &mut Context) -> eyre::Result<()> {
     let about = About::new(ctx);
 
     let mut w = ctx.ui.stderr();
+
+    if let Some(format) = &args.format {
+        match (format, args.pretty) {
+            (SerializationFormat::Json, true) => serde_json::to_writer_pretty(w, &about)?,
+            (SerializationFormat::Json, false) => serde_json::to_writer(w, &about)?,
+            (SerializationFormat::Yaml, _) => serde_yaml::to_writer(w, &about)?,
+        }
+
+        return Ok(());
+    }
 
     // Write build info
     let build = about.build;

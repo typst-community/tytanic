@@ -3510,6 +3510,7 @@ dependencies = [
  "rayon",
  "serde",
  "serde_json",
+ "serde_yaml",
  "temp-dir",
  "termcolor",
  "thiserror",
