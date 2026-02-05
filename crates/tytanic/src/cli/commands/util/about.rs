@@ -31,7 +31,7 @@ struct Build {
     /// The typst version used in this instance of tytanic.
     typst_version: &'static str,
     /// The commmit sha of the current commit when building tytanic.
-    commit_sha: &'static str,
+    commit: &'static str,
     os: &'static str,
     arch: &'static str,
 }
