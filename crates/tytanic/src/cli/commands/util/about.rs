@@ -122,12 +122,27 @@ impl Packages {
 #[derive(Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 struct Environment {
-    typst_root: Option<String>,
-    typst_font_paths: Option<String>,
-    typst_package_path: Option<String>,
-    typst_package_cache_path: Option<String>,
     typst_cert: Option<String>,
+    typst_font_paths: Option<String>,
+    typst_ignore_system_fonts: Option<String>,
+    typst_ignore_embedded_fonts: Option<String>,
+    typst_package_cache_path: Option<String>,
+    typst_package_path: Option<String>,
+    typst_root: Option<String>,
     source_date_epoch: Option<String>,
+    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "ios")))]
+    xdg_cache_home: Option<String>,
+    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "ios")))]
+    xdg_data_home: Option<String>,
+    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "ios",)))]
+    fontconfig_file: Option<String>,
+    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "ios")))]
+    openssl_conf: Option<String>,
+    no_color: Option<String>,
+    no_proxy: Option<String>,
+    http_proxy: Option<String>,
+    https_proxy: Option<String>,
+    all_proxy: Option<String>,
 }
 
 impl Environment {
@@ -141,13 +156,29 @@ impl Environment {
             typst_package_path: std::env::var("TYPST_PACKAGE_PATH").ok(),
             typst_package_cache_path: std::env::var("TYPST_PACKAGE_CACHE_PATH").ok(),
             typst_cert: std::env::var("TYPST_CERT").ok(),
+            typst_ignore_system_fonts: std::env::var("TYPST_IGNORE_SYSTEM_FONTS").ok(),
+            typst_ignore_embedded_fonts: std::env::var("TYPST_IGNORE_EMBEDDED_FONTS").ok(),
             source_date_epoch: std::env::var("SOURCE_DATE_EPOCH").ok(),
+            #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "ios")))]
+            xdg_cache_home: std::env::var("XDG_CACHE_HOME").ok(),
+            #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "ios")))]
+            xdg_data_home: std::env::var("XDG_DATA_HOME").ok(),
+            #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "ios")))]
+            fontconfig_file: std::env::var("FONTCONFIG_FILE").ok(),
+            #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "ios")))]
+            openssl_conf: std::env::var("OPENSSL_CONF").ok(),
+            no_color: std::env::var("NO_COLOR").ok(),
+            no_proxy: std::env::var("NO_PROXY").ok(),
+            http_proxy: std::env::var("HTTP_PROXY").ok(),
+            https_proxy: std::env::var("HTTPS_PROXY").ok(),
+            all_proxy: std::env::var("ALL_PROXY").ok(),
         }
     }
 
     /// Returns name-value list of the env vars.
     fn vars(&self) -> Vec<(&'static str, Option<&str>)> {
-        vec![
+        #[allow(unused_mut)]
+        let mut vars = vec![
             ("TYPST_ROOT", self.typst_root.as_deref()),
             ("TYPST_FONT_PATHS", self.typst_font_paths.as_deref()),
             ("TYPST_PACKAGE_PATH", self.typst_package_path.as_deref()),
@@ -156,8 +187,33 @@ impl Environment {
                 self.typst_package_cache_path.as_deref(),
             ),
             ("TYPST_CERT", self.typst_cert.as_deref()),
+            (
+                "TYPST_IGNORE_SYSTEM_FONTS",
+                self.typst_ignore_system_fonts.as_deref(),
+            ),
+            (
+                "TYPST_IGNORE_EMBEDDED_FONTS",
+                self.typst_ignore_embedded_fonts.as_deref(),
+            ),
             ("SOURCE_DATE_EPOCH", self.source_date_epoch.as_deref()),
-        ]
+            ("NO_COLOR", self.no_color.as_deref()),
+            ("NO_PROXY", self.no_proxy.as_deref()),
+            ("HTTP_PROXY", self.http_proxy.as_deref()),
+            ("HTTPS_PROXY", self.https_proxy.as_deref()),
+            ("ALL_PROXY", self.all_proxy.as_deref()),
+        ];
+
+        #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "ios")))]
+        {
+            vars.extend_from_slice(&[
+                ("XDG_CACHE_HOME", self.xdg_cache_home.as_deref()),
+                ("XDG_DATA_HOME", self.xdg_data_home.as_deref()),
+                ("FONTCONFIG_FILE", self.fontconfig_file.as_deref()),
+                ("OPENSSL_CONF", self.openssl_conf.as_deref()),
+            ]);
+        }
+
+        vars
     }
 }
 
