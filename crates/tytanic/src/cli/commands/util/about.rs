@@ -37,15 +37,27 @@ impl<'a> About<'a> {
 struct Build {
     /// The commmit sha of the current commit when building tytanic.
     commit: &'static str,
-    os: &'static str,
-    arch: &'static str,
+    platform: Platform,
 }
 
 impl Build {
     /// Retrieves build informations specified in the `build.rs`
     const fn new() -> Self {
         Self {
-            commit_sha: env!("TYTANIC_COMMIT_SHA"),
+            commit: env!("TYTANIC_COMMIT_SHA"),
+            platform: Platform::new(),
+        }
+    }
+}
+
+struct Platform {
+    os: &'static str,
+    arch: &'static str,
+}
+
+impl Platform {
+    const fn new() -> Self {
+        Self {
             os: std::env::consts::OS,
             arch: std::env::consts::ARCH,
         }
@@ -148,9 +160,9 @@ pub fn run(ctx: &mut Context) -> eyre::Result<()> {
     write!(w, "(")?;
     cwrite!(colored(w, Color::Green), "{}", build.commit)?;
     write!(w, ", ")?;
-    cwrite!(colored(w, Color::Green), "{} ", build.os)?;
+    cwrite!(colored(w, Color::Green), "{} ", build.platform.os)?;
     write!(w, "on ")?;
-    cwrite!(colored(w, Color::Green), "{}", build.arch)?;
+    cwrite!(colored(w, Color::Green), "{}", build.platform.arch)?;
     write!(w, ", typst: ")?;
     cwrite!(colored(w, Color::Green), "{}", about.typst_version)?;
     writeln!(w, ")")?;
