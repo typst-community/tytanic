@@ -35,4 +35,4 @@ typst-render.workspace = true
 uuid = { workspace = true, features = ["v4", "serde"] }
 
 [dev-dependencies]
-bytemuck = "1.16.1"
+bytemuck = "1.25.0"
