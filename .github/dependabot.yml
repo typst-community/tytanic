@@ -1,26 +1,26 @@
 version: 2
 
 updates:
-- package-ecosystem: "cargo"
-  directory: "/"
-  schedule:
-    interval: "weekly"
-  commit-message:
-    prefix: "cargo:"
-  groups:
-    cargo-dependencies:
-      patterns:
-      - "*"
-  labels: []
+  # - package-ecosystem: "cargo"
+  #   directory: "/"
+  #   schedule:
+  #     interval: "weekly"
+  #   commit-message:
+  #     prefix: "cargo:"
+  #   groups:
+  #     cargo-dependencies:
+  #       patterns:
+  #       - "*"
+  #   labels: []
 
-- package-ecosystem: "github-actions"
-  directory: "/"
-  schedule:
-    interval: "weekly"
-  commit-message:
-    prefix: "github:"
-  groups:
-    github-dependencies:
-      patterns:
-      - "*"
-  labels: []
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "github:"
+    groups:
+      github-dependencies:
+        patterns:
+          - "*"
+    labels: []
