@@ -4,45 +4,44 @@ use std::sync::Arc;
 
 use ecow::eco_vec;
 
-use super::Context;
-use super::Error;
-use super::TryFromValue;
-use super::Type;
-use super::Value;
+use crate::test_set::eval::Context;
+use crate::test_set::eval::Error;
+use crate::test_set::eval::TryFromValue;
+use crate::test_set::eval::Type;
+use crate::test_set::eval::Value;
 
 /// The backing implementation for a [`Func`].
-type FuncImpl<T> =
-    Arc<dyn Fn(&Context<T>, &[Value<T>]) -> Result<Value<T>, Error> + Send + Sync + 'static>;
+type FuncImpl = Arc<dyn Fn(&Context, &[Value]) -> Result<Value, Error> + Send + Sync + 'static>;
 
 /// A function value, this can be called with a set of positional arguments to
 /// produce a value. This is most commonly used as a constructor for tests sets.
 #[derive(Clone)]
-pub struct Func<T>(FuncImpl<T>);
+pub struct Func(FuncImpl);
 
-impl<T> Func<T> {
+impl Func {
     /// Create a new function with the given implementation.
     pub fn new<F>(f: F) -> Self
     where
-        F: Fn(&Context<T>, &[Value<T>]) -> Result<Value<T>, Error> + Send + Sync + 'static,
+        F: Fn(&Context, &[Value]) -> Result<Value, Error> + Send + Sync + 'static,
     {
         Self(Arc::new(f) as _)
     }
 
     /// Call the given function with the given context and arguments.
-    pub fn call(&self, ctx: &Context<T>, args: &[Value<T>]) -> Result<Value<T>, Error> {
+    pub fn call(&self, ctx: &Context, args: &[Value]) -> Result<Value, Error> {
         (self.0)(ctx, args)
     }
 }
 
-impl<T> Debug for Func<T> {
+impl Debug for Func {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("Func").field(&..).finish()
     }
 }
 
-impl<T> Func<T> {
+impl Func {
     /// Ensure there are no args.
-    pub fn expect_no_args(id: &str, _ctx: &Context<T>, args: &[Value<T>]) -> Result<(), Error> {
+    pub fn expect_no_args(id: &str, _ctx: &Context, args: &[Value]) -> Result<(), Error> {
         if args.is_empty() {
             Ok(())
         } else {
@@ -57,13 +56,13 @@ impl<T> Func<T> {
 
     /// Extract an exact number of values from the given arguments. Validates the
     /// types of all arguments.
-    pub fn expect_args_exact<V: TryFromValue<T> + Debug, const N: usize>(
+    pub fn expect_args_exact<V, const N: usize>(
         func: &str,
-        _ctx: &Context<T>,
-        args: &[Value<T>],
+        _ctx: &Context,
+        args: &[Value],
     ) -> Result<[V; N], Error>
     where
-        T: Clone,
+        V: TryFromValue + Debug,
     {
         if args.len() < N {
             return Err(Error::InvalidArgumentCount {
@@ -86,13 +85,13 @@ impl<T> Func<T> {
 
     /// Extract a variadic number of values with a minimum amount given arguments.
     /// Validates the types of all arguments.
-    pub fn expect_args_min<V: TryFromValue<T> + Debug, const N: usize>(
+    pub fn expect_args_min<V, const N: usize>(
         func: &str,
-        _ctx: &Context<T>,
-        args: &[Value<T>],
+        _ctx: &Context,
+        args: &[Value],
     ) -> Result<([V; N], Vec<V>), Error>
     where
-        T: Clone,
+        V: TryFromValue + Debug,
     {
         if args.len() < N {
             return Err(Error::InvalidArgumentCount {
@@ -123,8 +122,8 @@ impl<T> Func<T> {
     }
 }
 
-impl<T> TryFromValue<T> for Func<T> {
-    fn try_from_value(value: Value<T>) -> Result<Self, Error> {
+impl TryFromValue for Func {
+    fn try_from_value(value: Value) -> Result<Self, Error> {
         Ok(match value {
             Value::Func(set) => set,
             _ => {
@@ -137,20 +136,20 @@ impl<T> TryFromValue<T> for Func<T> {
     }
 }
 
-/// Ensure Func<T> is thread safe if T is.
+/// Ensure Func is thread safe if T is.
 #[allow(dead_code)]
 fn assert_traits() {
-    tytanic_utils::assert::send::<Func<()>>();
-    tytanic_utils::assert::sync::<Func<()>>();
+    tytanic_utils::assert::send::<Func>();
+    tytanic_utils::assert::sync::<Func>();
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::Num;
+    use crate::test_set::ast::Num;
 
     const NUM: Num = Num(0);
-    const VAL: Value<()> = Value::Num(NUM);
+    const VAL: Value = Value::Num(NUM);
 
     #[test]
     fn test_expect_args_variadic_min_length() {

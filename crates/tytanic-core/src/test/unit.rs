@@ -8,6 +8,7 @@ use std::io::Write;
 
 use ecow::EcoString;
 use ecow::EcoVec;
+use ecow::eco_vec;
 use thiserror::Error;
 use typst::syntax::FileId;
 use typst::syntax::Source;
@@ -112,10 +113,8 @@ pub struct Test {
 }
 
 impl Test {
-    #[cfg(test)]
-    pub(crate) fn new_test(id: Id, kind: Kind) -> Self {
-        use ecow::eco_vec;
-
+    /// Creates a new test with no annotations.
+    pub fn new(id: Id, kind: Kind) -> Self {
         Self {
             id,
             kind,
@@ -486,7 +485,7 @@ mod tests {
     }
 
     fn test(test_id: &str, kind: Kind) -> Test {
-        Test::new_test(id(test_id), kind)
+        Test::new(id(test_id), kind)
     }
 
     fn setup_all(root: &mut Setup) -> &mut Setup {

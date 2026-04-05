@@ -74,19 +74,19 @@ pub struct RunnerConfig<'c> {
     pub cancellation: &'c AtomicBool,
 }
 
-pub struct Runner<'c, 'p> {
+pub struct Runner<'c, 'p, F> {
     pub project: &'p Project,
-    pub suite: &'p FilteredSuite,
+    pub suite: &'p FilteredSuite<F>,
     pub providers: &'p Providers,
 
     pub result: SuiteResult,
     pub config: RunnerConfig<'c>,
 }
 
-impl<'c, 'p> Runner<'c, 'p> {
+impl<'c, 'p, F> Runner<'c, 'p, F> {
     pub fn new(
         project: &'p Project,
-        suite: &'p FilteredSuite,
+        suite: &'p FilteredSuite<F>,
         providers: &'p Providers,
         config: RunnerConfig<'c>,
     ) -> Self {
@@ -99,7 +99,7 @@ impl<'c, 'p> Runner<'c, 'p> {
         }
     }
 
-    pub fn unit_test<'s>(&'s self, test: &'p UnitTest) -> UnitTestRunner<'c, 's, 'p> {
+    pub fn unit_test<'s>(&'s self, test: &'p UnitTest) -> UnitTestRunner<'c, 's, 'p, F> {
         UnitTestRunner {
             project_runner: self,
             test,
@@ -107,7 +107,10 @@ impl<'c, 'p> Runner<'c, 'p> {
         }
     }
 
-    pub fn template_test<'s>(&'s self, test: &'p TemplateTest) -> TemplateTestRunner<'c, 's, 'p> {
+    pub fn template_test<'s>(
+        &'s self,
+        test: &'p TemplateTest,
+    ) -> TemplateTestRunner<'c, 's, 'p, F> {
         TemplateTestRunner {
             project_runner: self,
             test,
@@ -162,13 +165,13 @@ impl<'c, 'p> Runner<'c, 'p> {
     }
 }
 
-pub struct UnitTestRunner<'c, 's, 'p> {
-    project_runner: &'s Runner<'c, 'p>,
+pub struct UnitTestRunner<'c, 's, 'p, F> {
+    project_runner: &'s Runner<'c, 'p, F>,
     test: &'p UnitTest,
     result: TestResult,
 }
 
-impl UnitTestRunner<'_, '_, '_> {
+impl<F> UnitTestRunner<'_, '_, '_, F> {
     fn run_inner(&mut self) -> eyre::Result<()> {
         let export = self.project_runner.config.export_ephemeral;
         let strategy = self.project_runner.config.strategy;
@@ -517,13 +520,13 @@ impl UnitTestRunner<'_, '_, '_> {
     }
 }
 
-pub struct TemplateTestRunner<'c, 's, 'p> {
-    project_runner: &'s Runner<'c, 'p>,
+pub struct TemplateTestRunner<'c, 's, 'p, F> {
+    project_runner: &'s Runner<'c, 'p, F>,
     test: &'p TemplateTest,
     result: TestResult,
 }
 
-impl TemplateTestRunner<'_, '_, '_> {
+impl<F> TemplateTestRunner<'_, '_, '_, F> {
     // TODO(tinger): Suite, different world root and lookup behavior.
     fn run_inner(&mut self) -> eyre::Result<()> {
         match self.project_runner.config.action {

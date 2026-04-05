@@ -2,77 +2,86 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 use ecow::eco_vec;
+use tytanic_core::project::Project;
+use tytanic_core::test::Test;
 
-use super::Context;
-use super::Error;
-use super::Test;
-use super::TryFromValue;
-use super::Type;
-use super::Value;
-use crate::ast::Pat;
+use crate::test_set::ast::Pat;
+use crate::test_set::eval::Context;
+use crate::test_set::eval::Error;
+use crate::test_set::eval::TryFromValue;
+use crate::test_set::eval::Type;
+use crate::test_set::eval::Value;
 
 /// The backing implementation for a [`Set`].
-type SetImpl<T> = Arc<dyn Fn(&Context<T>, &T) -> Result<bool, Error> + Send + Sync + 'static>;
+type SetImpl =
+    Arc<dyn Fn(&Project, &Context, &Test) -> Result<bool, Error> + Send + Sync + 'static>;
 
 /// A test set, this can be used to check if a test is contained in it and is
 /// expected to be the top level value in an [`ExpressionFilter`][filter].
 ///
 /// [filter]: crate::ExpressionFilter
 #[derive(Clone)]
-pub struct Set<T>(SetImpl<T>);
+pub struct Set(SetImpl);
 
-impl<T> Set<T> {
+impl Set {
     /// Create a new set with the given implementation.
     pub fn new<F>(f: F) -> Self
     where
-        F: Fn(&Context<T>, &T) -> Result<bool, Error> + Send + Sync + 'static,
+        F: Fn(&Project, &Context, &Test) -> Result<bool, Error> + Send + Sync + 'static,
     {
         Self(Arc::new(f) as _)
     }
 
     /// Whether the given test is contained within this set.
-    pub fn contains(&self, ctx: &Context<T>, test: &T) -> Result<bool, Error> {
-        (self.0)(ctx, test)
+    pub fn contains(
+        &self,
+        project_ctx: &Project,
+        eval_ctx: &Context,
+        test: &Test,
+    ) -> Result<bool, Error> {
+        (self.0)(project_ctx, eval_ctx, test)
     }
 }
 
-impl<T> Debug for Set<T> {
+impl Debug for Set {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_tuple("Set").field(&..).finish()
     }
 }
 
-impl<T: Test> Set<T> {
+impl Set {
     /// Construct a test set which contains all tests matching the given pattern.
     ///
     /// This is the test set created from pattern literals like `r:'foot-(\w-)+'`.
-    pub fn coerce_pat(pat: Pat) -> Set<T> {
-        Set::new(move |_, test: &T| Ok(pat.is_match(test.id())))
+    pub fn coerce_pat(pat: Pat) -> Set {
+        Set::new(move |_, _, test: &Test| Ok(pat.is_match(test.id())))
     }
 }
 
-impl<T: 'static> Set<T> {
+impl Set {
     /// Construct a set which contains all tests _not_ contained in the given
     /// set.
     ///
     /// This is the test set created by `!set`.
-    pub fn expr_comp(set: Set<T>) -> Self {
-        Self::new(move |ctx, test| Ok(!set.contains(ctx, test)?))
+    pub fn expr_comp(set: Set) -> Self {
+        Self::new(move |project_ctx, eval_ctx, test| {
+            Ok(!set.contains(project_ctx, eval_ctx, test)?)
+        })
     }
 
     /// Construct a set which contains all tests which are contained in any of
     /// the given sets.
     ///
     /// This is the test set created by `a | b`.
-    pub fn expr_union<I>(a: Set<T>, b: Set<T>, rest: I) -> Self
+    pub fn expr_union<I>(a: Set, b: Set, rest: I) -> Self
     where
-        I: IntoIterator<Item = Set<T>>,
+        I: IntoIterator<Item = Set>,
     {
         let sets: Vec<_> = [a, b].into_iter().chain(rest).collect();
 
-        Self::new(move |ctx, test| {
+        Self::new(move |project_ctx, eval_ctx, test| {
             for set in &sets {
-                if set.contains(ctx, test)? {
+                if set.contains(project_ctx, eval_ctx, test)? {
                     return Ok(true);
                 }
             }
@@ -85,15 +94,15 @@ impl<T: 'static> Set<T> {
     /// given sets.
     ///
     /// This is the test set created by `a & b`.
-    pub fn expr_inter<I>(a: Set<T>, b: Set<T>, rest: I) -> Self
+    pub fn expr_inter<I>(a: Set, b: Set, rest: I) -> Self
     where
-        I: IntoIterator<Item = Set<T>>,
+        I: IntoIterator<Item = Set>,
     {
         let sets: Vec<_> = [a, b].into_iter().chain(rest).collect();
 
-        Self::new(move |ctx, test| {
+        Self::new(move |project_ctx, eval_ctx, test| {
             for set in &sets {
-                if !set.contains(ctx, test)? {
+                if !set.contains(project_ctx, eval_ctx, test)? {
                     return Ok(false);
                 }
             }
@@ -106,21 +115,27 @@ impl<T: 'static> Set<T> {
     /// first but not the second set.
     ///
     /// This is the test set created by `a ~ b` and is equivalent to `a & !b`.
-    pub fn expr_diff(a: Set<T>, b: Set<T>) -> Self {
-        Self::new(move |ctx, test| Ok(a.contains(ctx, test)? && !b.contains(ctx, test)?))
+    pub fn expr_diff(a: Set, b: Set) -> Self {
+        Self::new(move |project_ctx, eval_ctx, test| {
+            Ok(a.contains(project_ctx, eval_ctx, test)?
+                && !b.contains(project_ctx, eval_ctx, test)?)
+        })
     }
 
     /// Construct a set which contains all tests which are contained in the
     /// either the first or the second, but not both sets.
     ///
     /// This is the test set created by `a ^ b`.
-    pub fn expr_sym_diff(a: Set<T>, b: Set<T>) -> Self {
-        Self::new(move |ctx, test| Ok(a.contains(ctx, test)? ^ b.contains(ctx, test)?))
+    pub fn expr_sym_diff(a: Set, b: Set) -> Self {
+        Self::new(move |project_ctx, eval_ctx, test| {
+            Ok(a.contains(project_ctx, eval_ctx, test)?
+                ^ b.contains(project_ctx, eval_ctx, test)?)
+        })
     }
 }
 
-impl<T> TryFromValue<T> for Set<T> {
-    fn try_from_value(value: Value<T>) -> Result<Self, Error> {
+impl TryFromValue for Set {
+    fn try_from_value(value: Value) -> Result<Self, Error> {
         Ok(match value {
             Value::Set(set) => set,
             _ => {
@@ -133,9 +148,9 @@ impl<T> TryFromValue<T> for Set<T> {
     }
 }
 
-/// Ensure Set<T> is thread safe if T is.
+/// Ensure Set is thread safe if T is.
 #[allow(dead_code)]
 fn assert_traits() {
-    tytanic_utils::assert::send::<Set<()>>();
-    tytanic_utils::assert::sync::<Set<()>>();
+    tytanic_utils::assert::send::<Set>();
+    tytanic_utils::assert::sync::<Set>();
 }

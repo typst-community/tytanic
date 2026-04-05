@@ -5,14 +5,13 @@ use std::ops::Deref;
 use ecow::EcoString;
 use pest::iterators::Pair;
 
-use super::Error;
-use super::PairExt;
-use super::Rule;
-use crate::eval;
-use crate::eval::Context;
-use crate::eval::Eval;
-use crate::eval::Test;
-use crate::eval::Value;
+use crate::test_set::ast::Error;
+use crate::test_set::ast::PairExt;
+use crate::test_set::ast::Rule;
+use crate::test_set::eval;
+use crate::test_set::eval::Context;
+use crate::test_set::eval::Eval;
+use crate::test_set::eval::Value;
 
 /// An identifier node.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -68,8 +67,8 @@ impl From<Id> for EcoString {
     }
 }
 
-impl<T: Test> Eval<T> for Id {
-    fn eval(&self, ctx: &Context<T>) -> Result<Value<T>, eval::Error> {
+impl Eval for Id {
+    fn eval(&self, ctx: &Context) -> Result<Value, eval::Error> {
         ctx.resolve(self)
     }
 }
