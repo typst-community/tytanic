@@ -5,7 +5,7 @@ members = ["crates/*"]
 [workspace.package]
 version = "0.3.3"
 # must match ci.yml
-rust-version = "1.89"
+rust-version = "1.91"
 authors = ["tingerrr <tinger@tinger.dev>"]
 edition = "2024"
 homepage = "https://typst-community.github.io/tytanic/"

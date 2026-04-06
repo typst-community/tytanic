@@ -55,7 +55,7 @@ tt --version
 > Any issues with the `asdf-tytanic` plugin should be reported at the [asdf-tytanic issues page][asdf-tytanic-issues].
 
 ### Installation From Source
-To install Tytanic from source, you must have a Rust toolchain (Rust **v1.89.0+**) and `cargo` installed, you can get these using [`rustup`][rustup].
+To install Tytanic from source, you must have a Rust toolchain (Rust **v1.91.0+**) and `cargo` installed, you can get these using [`rustup`][rustup].
 
 #### Stable
 ```shell
