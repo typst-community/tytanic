@@ -11,6 +11,7 @@ use std::path::Path;
 
 use compile::Warnings;
 use ecow::EcoVec;
+use ecow::eco_vec;
 use thiserror::Error;
 use tiny_skia::Pixmap;
 use typst::World;
@@ -123,6 +124,13 @@ impl Document {
             buffers.insert(page, Pixmap::load_png(path)?);
         }
 
+        if buffers.is_empty() {
+            return Ok(Self {
+                doc: None,
+                buffers: eco_vec![],
+            });
+        }
+
         // Check we got pages starting at 1.
         match buffers.first_key_value() {
             Some((min, _)) if *min != 1 => {
@@ -130,7 +138,7 @@ impl Document {
             }
             Some(_) => {}
             None => {
-                return Err(LoadError::MissingPages(buffers.into_keys().collect()));
+                unreachable!("we checked the length");
             }
         }
 
@@ -141,7 +149,7 @@ impl Document {
             }
             Some(_) => {}
             None => {
-                return Err(LoadError::MissingPages(buffers.into_keys().collect()));
+                unreachable!("we checked the length");
             }
         }
 

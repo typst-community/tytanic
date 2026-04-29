@@ -13,7 +13,7 @@ fn test_status() {
      Project ┌ template:0.1.0
          Vcs ├ none
     Template ├ tests/template.typ
-       Tests ├ 3 persistent
+       Tests ├ 4 persistent
              ├ 3 ephemeral
              └ 2 compile-only
 
