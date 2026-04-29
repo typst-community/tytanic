@@ -16,6 +16,7 @@ fn test_status() {
     failing/ephemeral-compile-failure  ephemeral   
     failing/persistent-compare-failure persistent  
     failing/persistent-compile-failure persistent  
+    failing/persistent-empty           persistent  
     passing/compile                    compile-only
     passing/ephemeral                  ephemeral   
     passing/persistent                 persistent  
