@@ -11,6 +11,10 @@ use camino::Utf8PathBuf;
 use ecow::EcoString;
 use serde::Deserialize;
 use thiserror::Error;
+use typst::syntax::FileId;
+use typst::syntax::RootedPath;
+use typst::syntax::VirtualPath;
+use typst::syntax::VirtualRoot;
 use typst::syntax::package::PackageManifest;
 use typst::syntax::package::PackageSpec;
 use tytanic_utils::result::ResultEx;
@@ -372,6 +376,47 @@ impl Project {
         let mut dir = self.unit_test_dir(id);
         dir.push("diff");
         dir
+    }
+
+    /// Create a file id to the entrypoint script inside the template directory.
+    ///
+    /// Note that this is rooted in the template directory.
+    pub fn template_entrypoint_id(&self) -> Option<FileId> {
+        self.manifest
+            .as_ref()
+            .and_then(|m| m.template.as_ref())
+            .map(|t| {
+                FileId::new(RootedPath::new(
+                    VirtualRoot::Project,
+                    VirtualPath::new(t.entrypoint.as_str()).expect(
+                        "Project::template_entrypoint must never create invalid virtual paths",
+                    ),
+                ))
+            })
+    }
+
+    /// Create a file id to the test script for the given identifier.
+    pub fn unit_test_script_id(&self, id: &Id, project: &Project) -> FileId {
+        FileId::new(RootedPath::new(
+            VirtualRoot::Project,
+            VirtualPath::virtualize(
+                project.root().as_std_path(),
+                self.unit_test_script(id).as_std_path(),
+            )
+            .expect("Project::root and unit::Test::unit_test_script must never create invalid virtual paths"),
+        ))
+    }
+
+    /// Create a file id to the reference script for the given identifier.
+    pub fn unit_test_ref_script_id(&self, id: &Id, project: &Project) -> FileId {
+        FileId::new(RootedPath::new(
+            VirtualRoot::Project,
+            VirtualPath::virtualize(
+                project.root().as_std_path(),
+                self.unit_test_ref_script(id).as_std_path(),
+            )
+            .expect("Project::root and unit::Test::unit_test_ref_script must never create invalid virtual paths"),
+        ))
     }
 }
 

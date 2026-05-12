@@ -62,14 +62,14 @@ pub enum ParseAnnotationError {
 /// Each annotation is on its own line.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Annotation {
-    /// The skip annotation, this adds a test to the built in `skip` test set.
+    /// The skip annotation, this adds a test to the builtin `skip` test set.
     Skip,
 
     /// The direction to use for diffing the documents.
     Dir(Direction),
 
     /// The pixel per inch to use for exporting the documents.
-    Ppi(f32),
+    Ppi(f64),
 
     /// The maximum allowed per pixel delta to use for comparison.
     MaxDelta(u8),

@@ -10,8 +10,10 @@ use ecow::EcoString;
 use ecow::EcoVec;
 use thiserror::Error;
 use typst::syntax::FileId;
+use typst::syntax::RootedPath;
 use typst::syntax::Source;
 use typst::syntax::VirtualPath;
+use typst::syntax::VirtualRoot;
 
 use super::Annotation;
 use super::Id;
@@ -399,14 +401,11 @@ impl Test {
         let test_script = project.unit_test_script(&self.id);
 
         Ok(Source::new(
-            FileId::new(
-                None,
-                VirtualPath::new(
-                    test_script
-                        .strip_prefix(project.root())
-                        .unwrap_or(&test_script),
-                ),
-            ),
+            FileId::new(RootedPath::new(
+                VirtualRoot::Project,
+                VirtualPath::virtualize(project.root().as_std_path(), test_script.as_std_path())
+                    .expect("Project and Test must never emit escaping or invalid paths"),
+            )),
             std::fs::read_to_string(test_script)?,
         ))
     }
@@ -421,14 +420,11 @@ impl Test {
 
         let ref_script = project.unit_test_ref_script(&self.id);
         Ok(Some(Source::new(
-            FileId::new(
-                None,
-                VirtualPath::new(
-                    ref_script
-                        .strip_prefix(project.root())
-                        .unwrap_or(&ref_script),
-                ),
-            ),
+            FileId::new(RootedPath::new(
+                VirtualRoot::Project,
+                VirtualPath::virtualize(project.root().as_std_path(), ref_script.as_std_path())
+                    .expect("Project and Test must never emit escaping or invalid paths"),
+            )),
             std::fs::read_to_string(ref_script)?,
         )))
     }
@@ -648,7 +644,7 @@ mod tests {
 
                 let source = test.load_source(&project).unwrap();
                 assert_eq!(
-                    source.id().vpath().resolve(root.as_std_path()).unwrap(),
+                    source.id().vpath().realize(root.as_std_path()).unwrap(),
                     root.join("tests/fancy/test.typ")
                 );
             },

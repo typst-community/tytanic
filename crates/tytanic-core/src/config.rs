@@ -82,7 +82,7 @@ pub struct ProjectDefaults {
     ///
     /// Defaults to `144.0`.
     #[serde(default = "default_ppi")]
-    pub ppi: f32,
+    pub ppi: f64,
 
     /// The default maximum allowed delta per pixel.
     ///
@@ -112,7 +112,7 @@ fn default_direction() -> Direction {
     Direction::Ltr
 }
 
-fn default_ppi() -> f32 {
+fn default_ppi() -> f64 {
     144.0
 }
 

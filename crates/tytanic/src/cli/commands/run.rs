@@ -1,4 +1,6 @@
 use color_eyre::eyre;
+use typst::utils::Scalar;
+use typst_render::RenderOptions;
 use tytanic_core::doc::compare::Strategy;
 use tytanic_core::doc::render;
 use tytanic_core::doc::render::Origin;
@@ -14,10 +16,12 @@ use super::RunnerOptions;
 use super::Switch;
 use crate::cli::CANCELLED;
 use crate::cli::TestFailure;
+use crate::cli::commands::DiagnosticFormat as CliDiagnosticFormat;
 use crate::report::Reporter;
 use crate::runner::Action;
 use crate::runner::Runner;
 use crate::runner::RunnerConfig;
+use typst_kit::diagnostics::DiagnosticFormat;
 
 #[derive(clap::Args, Debug, Clone)]
 #[group(id = "run-args")]
@@ -73,7 +77,11 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
             warnings: args.compile.warnings.into_native(),
             optimize: args.export.optimize_refs.get_or_default(),
             fail_fast: args.runner.fail_fast.get_or_default(),
-            pixel_per_pt,
+            // TODO: Respect bleed option.
+            render_options: RenderOptions {
+                pixel_per_pt: Scalar::new(pixel_per_pt),
+                render_bleed: false,
+            },
             strategy: args
                 .compare
                 .compare
@@ -93,6 +101,10 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
         ctx.ui,
         &providers,
         ctx.ui.can_live_report() && ctx.args.output.verbose == 0,
+        match args.compile.diagnostic_format {
+            CliDiagnosticFormat::Human => DiagnosticFormat::Human,
+            CliDiagnosticFormat::Short => DiagnosticFormat::Short,
+        },
     );
     let result = runner.run(&reporter)?;
 

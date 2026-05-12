@@ -36,7 +36,6 @@ chrono = { workspace = true, features = ["serde"] }
 clap = { workspace = true, features = ["derive", "env", "wrap_help"] }
 clap_complete.workspace = true
 clap_mangen.workspace = true
-codespan-reporting.workspace = true
 color-eyre.workspace = true
 ctrlc.workspace = true
 ecow.workspace = true
@@ -52,7 +51,9 @@ thiserror.workspace = true
 tracing-subscriber.workspace = true
 tracing-tree.workspace = true
 tracing.workspace = true
-typst-kit.workspace = true
+typst-kit = { workspace = true, features = ["emit-diagnostics"] }
+typst-layout.workspace = true
+typst-render.workspace = true
 typst-syntax.workspace = true
 typst.workspace = true
 
@@ -67,6 +68,23 @@ temp-dir.workspace = true
 toml.workspace = true
 
 [features]
-default = ["embed-fonts"]
-embed-fonts = ["typst-kit/embed-fonts"]
+default = [
+  "embedded-fonts",
+  "scan-fonts",
+  "system-files",
+  "system-packages",
+  "universe-packages",
+  "datetime",
+  "system-downloader",
+]
+
+# Typst-kit mirrored features (some are excluded because they are current unused or disabling them
+# makes no sense).
+embedded-fonts = ["typst-kit/embedded-fonts"]
+scan-fonts = ["typst-kit/scan-fonts"]
+system-files = ["typst-kit/system-files"]
+system-packages = ["typst-kit/system-packages"]
+universe-packages = ["typst-kit/universe-packages"]
+datetime = ["typst-kit/datetime"]
+system-downloader = ["typst-kit/system-downloader"]
 vendor-openssl = ["typst-kit/vendor-openssl"]

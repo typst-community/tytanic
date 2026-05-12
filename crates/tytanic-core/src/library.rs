@@ -118,18 +118,18 @@ fn assert_panic(
 #[cfg(test)]
 mod tests {
     use typst::syntax::Source;
+    use typst_utils::LazyHash;
 
     use super::*;
     use crate::doc::compile;
     use crate::doc::compile::Warnings;
     use crate::world_builder::file::VirtualFileProvider;
-    use crate::world_builder::library::LibraryProvider;
     use crate::world_builder::test_utils;
 
     #[test]
     fn test_catch() {
         let mut files = VirtualFileProvider::new();
-        let library = LibraryProvider::with_library(augmented_default_library());
+        let library = LazyHash::new(augmented_default_library());
 
         let source = Source::detached(
             r#"
@@ -148,7 +148,7 @@ mod tests {
     #[test]
     fn test_assert_panic() {
         let mut files = VirtualFileProvider::new();
-        let library = LibraryProvider::with_library(augmented_default_library());
+        let library = LazyHash::new(augmented_default_library());
 
         let source = Source::detached(
             r#"

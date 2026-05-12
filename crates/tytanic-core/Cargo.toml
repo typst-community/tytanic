@@ -21,7 +21,6 @@ tytanic-utils.workspace = true
 
 camino.workspace = true
 chrono.workspace = true
-comemo.workspace = true
 dirs.workspace = true
 ecow.workspace = true
 oxipng.workspace = true
@@ -34,8 +33,10 @@ toml.workspace = true
 typst.workspace = true
 typst-assets.workspace = true
 typst-kit.workspace = true
+typst-layout.workspace = true
 typst-library.workspace = true
 typst-render.workspace = true
+typst-utils.workspace = true
 uuid = { workspace = true, features = ["v4", "serde"] }
 
 [dev-dependencies]

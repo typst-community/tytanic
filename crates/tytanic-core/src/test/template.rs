@@ -2,8 +2,10 @@ use std::fs;
 use std::io;
 
 use typst::syntax::FileId;
+use typst::syntax::RootedPath;
 use typst::syntax::Source;
 use typst::syntax::VirtualPath;
+use typst::syntax::VirtualRoot;
 
 use super::Id;
 use crate::project::Project;
@@ -39,14 +41,11 @@ impl Test {
             .expect("Existence of template test ensures existence of entrypoint");
 
         Ok(Source::new(
-            FileId::new(
-                None,
-                VirtualPath::new(
-                    test_script
-                        .strip_prefix(project.root())
-                        .unwrap_or(&test_script),
-                ),
-            ),
+            FileId::new(RootedPath::new(
+                VirtualRoot::Project,
+                VirtualPath::virtualize(project.root().as_std_path(), test_script.as_std_path())
+                    .expect("Project::root and Test::templat_entrypoint must never emit escaping or invalid paths"),
+            )),
             fs::read_to_string(test_script)?,
         ))
     }
