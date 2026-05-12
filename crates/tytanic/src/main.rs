@@ -7,7 +7,6 @@ use std::process::ExitCode;
 use std::sync::atomic::Ordering;
 
 use clap::Parser;
-use codespan_reporting::term;
 use color_eyre::eyre;
 use once_cell::sync::Lazy;
 use termcolor::Color;
@@ -57,15 +56,7 @@ fn main_impl() -> eyre::Result<ExitCode> {
         clap::ColorChoice::Never => termcolor::ColorChoice::Never,
     };
 
-    let ui = Ui::new(
-        cc,
-        cc,
-        term::Config {
-            display_style: term::DisplayStyle::Rich,
-            tab_width: 2,
-            ..Default::default()
-        },
-    );
+    let ui = Ui::new(cc, cc);
 
     // Emit deprecation warning for aliases
     if let Some(arg) = env::args().skip(1).find(|arg| !arg.starts_with('-')) {

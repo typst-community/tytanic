@@ -3,18 +3,18 @@ use typst::World;
 use typst::diag::FileResult;
 use typst::foundations::Bytes;
 use typst::foundations::Datetime;
+use typst::foundations::Duration;
 use typst::syntax::FileId;
 use typst::syntax::Source;
 use typst::text::Font;
 use typst::text::FontBook;
 use typst::utils::LazyHash;
-use typst_kit::download::Progress;
-use typst_kit::download::ProgressSink;
+use typst_kit::datetime::Time;
+use typst_kit::diagnostics::DiagnosticWorld;
+use typst_kit::fonts::FontStore;
 
-pub mod datetime;
 pub mod file;
 pub mod font;
-pub mod library;
 
 macro_rules! forward_trait {
     (impl<$pointee:ident> $trait:ident for [$($pointer:ty),+] $funcs:tt) => {
@@ -28,13 +28,13 @@ pub trait ProvideFile: Send + Sync {
     ///
     /// This may download a package, for which the progress callbacks will be
     /// used.
-    fn provide_source(&self, id: FileId, progress: &mut dyn Progress) -> FileResult<Source>;
+    fn provide_source(&self, id: FileId) -> FileResult<Source>;
 
     /// Provides a generic file with the given file id.
     ///
     /// This may download a package, for which the progress callbacks will be
     /// used.
-    fn provide_bytes(&self, id: FileId, progress: &mut dyn Progress) -> FileResult<Bytes>;
+    fn provide_bytes(&self, id: FileId) -> FileResult<Bytes>;
 
     /// Reset the cached files for the next compilation.
     fn reset_all(&self);
@@ -42,12 +42,12 @@ pub trait ProvideFile: Send + Sync {
 
 forward_trait! {
     impl<W> ProvideFile for [std::boxed::Box<W>, std::sync::Arc<W>, &W] {
-        fn provide_source(&self, id: FileId, progress: &mut dyn Progress) -> FileResult<Source> {
-            W::provide_source(self, id, progress)
+        fn provide_source(&self, id: FileId) -> FileResult<Source> {
+            W::provide_source(self, id)
         }
 
-        fn provide_bytes(&self, id: FileId, progress: &mut dyn Progress) -> FileResult<Bytes> {
-            W::provide_bytes(self, id, progress)
+        fn provide_bytes(&self, id: FileId) -> FileResult<Bytes> {
+            W::provide_bytes(self, id)
         }
 
         fn reset_all(&self) {
@@ -77,51 +77,13 @@ forward_trait! {
     }
 }
 
-/// A trait for providing access to libraries.
-pub trait ProvideLibrary: Send + Sync {
-    /// Provides the library.
-    fn provide_library(&self) -> &LazyHash<Library>;
-}
-
-forward_trait! {
-    impl<W> ProvideLibrary for [std::boxed::Box<W>, std::sync::Arc<W>, &W] {
-        fn provide_library(&self) -> &LazyHash<Library> {
-            W::provide_library(self)
-        }
+impl ProvideFont for FontStore {
+    fn provide_font_book(&self) -> &LazyHash<FontBook> {
+        self.book()
     }
-}
 
-/// A trait for providing access to date.
-pub trait ProvideDatetime: Send + Sync {
-    /// Provides the current date.
-    ///
-    /// If no offset is specified, the local date should be chosen. Otherwise,
-    /// the UTC date should be chosen with the corresponding offset in hours.
-    ///
-    /// If this function returns `None`, Typst's `datetime` function will
-    /// return an error.
-    ///
-    /// Note that most implementations should provide a date only or only very
-    /// course time increments to ensure Typst's incremental compilation cache
-    /// is not disrupted too much.
-    fn provide_today(&self, offset: Option<i64>) -> Option<Datetime>;
-
-    /// Reset the current date for the next compilation.
-    ///
-    /// Note that this is only relevant for those providers which actually
-    /// provide the current date.
-    fn reset_today(&self);
-}
-
-forward_trait! {
-    impl<W> ProvideDatetime for [std::boxed::Box<W>, std::sync::Arc<W>, &W] {
-        fn provide_today(&self, offset: Option<i64>) -> Option<Datetime> {
-            W::provide_today(self, offset)
-        }
-
-        fn reset_today(&self) {
-            W::reset_today(self)
-        }
+    fn provide_font(&self, index: usize) -> Option<Font> {
+        self.font(index)
     }
 }
 
@@ -129,8 +91,8 @@ forward_trait! {
 pub struct ComposedWorldBuilder<'w> {
     files: Option<&'w dyn ProvideFile>,
     fonts: Option<&'w dyn ProvideFont>,
-    library: Option<&'w dyn ProvideLibrary>,
-    datetime: Option<&'w dyn ProvideDatetime>,
+    library: Option<&'w LazyHash<Library>>,
+    datetime: Option<&'w Time>,
 }
 
 impl ComposedWorldBuilder<'_> {
@@ -162,16 +124,16 @@ impl<'w> ComposedWorldBuilder<'w> {
         }
     }
 
-    /// Configure the library provider.
-    pub fn library_provider(self, value: &'w dyn ProvideLibrary) -> Self {
+    /// Configure the library.
+    pub fn library_provider(self, value: &'w LazyHash<Library>) -> Self {
         Self {
             library: Some(value),
             ..self
         }
     }
 
-    /// Configure the datetime provider.
-    pub fn datetime_provider(self, value: &'w dyn ProvideDatetime) -> Self {
+    /// Configure the datetime.
+    pub fn datetime_provider(self, value: &'w Time) -> Self {
         Self {
             datetime: Some(value),
             ..self
@@ -210,8 +172,8 @@ impl Default for ComposedWorldBuilder<'_> {
 pub struct ComposedWorld<'w> {
     files: &'w dyn ProvideFile,
     fonts: &'w dyn ProvideFont,
-    library: &'w dyn ProvideLibrary,
-    datetime: &'w dyn ProvideDatetime,
+    library: &'w LazyHash<Library>,
+    datetime: &'w Time,
     id: FileId,
 }
 
@@ -222,19 +184,9 @@ impl<'w> ComposedWorld<'w> {
     }
 }
 
-impl ComposedWorld<'_> {
-    /// Resets the inner providers for the next compilation.
-    pub fn reset(&self) {
-        // TODO(tinger): We probably really want exclusive access here, no
-        // provider should be used while it's being reset.
-        self.files.reset_all();
-        self.datetime.reset_today();
-    }
-}
-
 impl World for ComposedWorld<'_> {
     fn library(&self) -> &LazyHash<Library> {
-        self.library.provide_library()
+        self.library
     }
 
     fn book(&self) -> &LazyHash<FontBook> {
@@ -246,19 +198,25 @@ impl World for ComposedWorld<'_> {
     }
 
     fn source(&self, id: FileId) -> FileResult<Source> {
-        self.files.provide_source(id, &mut ProgressSink)
+        self.files.provide_source(id)
     }
 
     fn file(&self, id: FileId) -> FileResult<Bytes> {
-        self.files.provide_bytes(id, &mut ProgressSink)
+        self.files.provide_bytes(id)
     }
 
     fn font(&self, index: usize) -> Option<Font> {
         self.fonts.provide_font(index)
     }
 
-    fn today(&self, offset: Option<i64>) -> Option<Datetime> {
-        self.datetime.provide_today(offset)
+    fn today(&self, offset: Option<Duration>) -> Option<Datetime> {
+        self.datetime.today(offset)
+    }
+}
+
+impl DiagnosticWorld for ComposedWorld<'_> {
+    fn name(&self, id: FileId) -> String {
+        format!("{id:?}")
     }
 }
 
@@ -268,11 +226,9 @@ pub(crate) mod test_utils {
     use std::collections::HashMap;
     use std::sync::LazyLock;
 
-    use chrono::DateTime;
-    use datetime::FixedDateProvider;
     use file::VirtualFileProvider;
     use font::VirtualFontProvider;
-    use library::LibraryProvider;
+    use typst::LibraryExt;
 
     use super::file::VirtualFileSlot;
     use super::*;
@@ -294,19 +250,19 @@ pub(crate) mod test_utils {
         VirtualFontProvider::new(book, fonts)
     });
 
-    pub(crate) static TEST_DEFAULT_LIBRARY_PROVIDER: LazyLock<LibraryProvider> =
-        LazyLock::new(LibraryProvider::new);
+    pub(crate) static TEST_DEFAULT_LIBRARY_PROVIDER: LazyLock<Library> =
+        LazyLock::new(Library::default);
 
-    pub(crate) static TEST_AUGMENTED_LIBRARY_PROVIDER: LazyLock<LibraryProvider> =
-        LazyLock::new(|| LibraryProvider::with_library(augmented_default_library()));
+    pub(crate) static TEST_AUGMENTED_LIBRARY_PROVIDER: LazyLock<Library> =
+        LazyLock::new(augmented_default_library);
 
-    pub(crate) static TEST_DATETIME_PROVIDER: LazyLock<FixedDateProvider> =
-        LazyLock::new(|| FixedDateProvider::new(DateTime::from_timestamp(0, 0).unwrap()));
+    pub(crate) static TEST_DATETIME_PROVIDER: LazyLock<Time> =
+        LazyLock::new(|| Time::fixed_timestamp(0).unwrap());
 
     pub(crate) fn virtual_world<'w>(
         source: Source,
         files: &'w mut VirtualFileProvider,
-        library: &'w LibraryProvider,
+        library: &'w LazyHash<Library>,
     ) -> ComposedWorld<'w> {
         files
             .slots_mut()
@@ -316,7 +272,7 @@ pub(crate) mod test_utils {
             .file_provider(files)
             .font_provider(&*TEST_FONT_PROVIDER)
             .library_provider(library)
-            .datetime_provider(&*TEST_DATETIME_PROVIDER)
+            .datetime_provider(&TEST_DATETIME_PROVIDER)
             .build(source.id())
     }
 }

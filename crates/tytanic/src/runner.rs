@@ -8,7 +8,9 @@ use typst::diag::Warned;
 use typst::foundations::Dict;
 use typst::foundations::Str;
 use typst::foundations::Value;
-use typst::layout::PagedDocument;
+use typst::utils::Scalar;
+use typst_layout::PagedDocument;
+use typst_render::RenderOptions;
 use tytanic_core::TemplateTest;
 use tytanic_core::UnitTest;
 use tytanic_core::config::Direction;
@@ -55,8 +57,8 @@ pub struct RunnerConfig<'c> {
     /// Whether to stop after the first failure.
     pub fail_fast: bool,
 
-    /// The pixel-per-pt to use when rendering documents.
-    pub pixel_per_pt: f32,
+    /// The render options to use when rendering documents.
+    pub render_options: RenderOptions,
 
     /// The strategy to use when comparing documents.
     pub strategy: Option<Strategy>,
@@ -315,14 +317,14 @@ impl UnitTestRunner<'_, '_, '_> {
     pub fn render_out_doc(&mut self, doc: PagedDocument) -> eyre::Result<Document> {
         tracing::trace!(test = ?self.test.id(), "rendering output document");
 
-        let mut pixel_per_pt = self.project_runner.config.pixel_per_pt;
+        let mut render_options = self.project_runner.config.render_options.clone();
         for annot in self.test.annotations().iter() {
             if let Annotation::Ppi(ppi) = annot {
-                pixel_per_pt = render::ppi_to_ppp(*ppi)
+                render_options.pixel_per_pt = Scalar::new(render::ppi_to_ppp(*ppi));
             }
         }
 
-        Ok(Document::render(doc, pixel_per_pt))
+        Ok(Document::render(doc, &render_options))
     }
 
     pub fn render_ref_doc(&mut self, doc: PagedDocument) -> eyre::Result<Document> {
@@ -332,14 +334,14 @@ impl UnitTestRunner<'_, '_, '_> {
             eyre::bail!("attempted to render reference for non-ephemeral test");
         }
 
-        let mut pixel_per_pt = self.project_runner.config.pixel_per_pt;
+        let mut render_options = self.project_runner.config.render_options.clone();
         for annot in self.test.annotations().iter() {
             if let Annotation::Ppi(ppi) = annot {
-                pixel_per_pt = render::ppi_to_ppp(*ppi)
+                render_options.pixel_per_pt = Scalar::new(render::ppi_to_ppp(*ppi));
             }
         }
 
-        Ok(Document::render(doc, pixel_per_pt))
+        Ok(Document::render(doc, &render_options))
     }
 
     pub fn render_diff_doc(

@@ -4,9 +4,15 @@ use std::ops::Not;
 use color_eyre::eyre;
 use termcolor::Color;
 use typst::diag::Warned;
+use typst::utils::Scalar;
+use typst_kit::diagnostics;
+use typst_kit::diagnostics::DiagnosticFormat;
+use typst_render::RenderOptions;
 use typst_syntax::FileId;
+use typst_syntax::RootedPath;
 use typst_syntax::Source;
 use typst_syntax::VirtualPath;
+use typst_syntax::VirtualRoot;
 use tytanic_core::doc::Document;
 use tytanic_core::doc::render::ppi_to_ppp;
 use tytanic_core::test::Id;
@@ -24,6 +30,7 @@ use super::Switch;
 use super::TemplateSwitch;
 use crate::DEFAULT_OPTIMIZE_OPTIONS;
 use crate::cli::OperationFailure;
+use crate::cli::commands::DiagnosticFormat as CliDiagnosticFormat;
 use crate::cwriteln;
 use crate::ui;
 
@@ -105,38 +112,41 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
 
             let path = project.unit_test_template_file();
 
-            let path = path
-                .strip_prefix(project.root())
-                .expect("template is in project root");
-
-            let id = FileId::new(None, VirtualPath::new(path));
+            let id = FileId::new(RootedPath::new(
+                VirtualRoot::Project,
+                match VirtualPath::virtualize(project.root().as_std_path(), path.as_std_path()) {
+                    Ok(path) => path,
+                    Err(err) => eyre::bail!("failed to virtualize test path: {err:?}"),
+                },
+            ));
             let world = providers.system_world(Source::new(id, source.into()));
 
             let Warned { output, warnings } = Document::compile(
                 &world,
-                ppi_to_ppp(args.export.ppi.unwrap_or(project.config().defaults.ppi)),
+                &RenderOptions {
+                    pixel_per_pt: Scalar::new(ppi_to_ppp(
+                        args.export.ppi.unwrap_or(project.config().defaults.ppi),
+                    )),
+                    render_bleed: false,
+                },
                 args.compile.warnings.into_native(),
             );
 
+            let format = match args.compile.diagnostic_format {
+                CliDiagnosticFormat::Human => DiagnosticFormat::Human,
+                CliDiagnosticFormat::Short => DiagnosticFormat::Short,
+            };
+
             let doc = match output {
                 Ok(doc) => {
-                    ui::write_diagnostics(
-                        &mut ctx.ui.stderr(),
-                        ctx.ui.diagnostic_config(),
-                        &world,
-                        &warnings,
-                        &[],
-                    )?;
+                    diagnostics::emit(&mut ctx.ui.stderr(), &world, &warnings, format)?;
                     doc
                 }
                 Err(err) => {
-                    ui::write_diagnostics(
-                        &mut ctx.ui.stderr(),
-                        ctx.ui.diagnostic_config(),
-                        &world,
-                        &warnings,
-                        &err.0,
-                    )?;
+                    let mut w = ctx.ui.stderr();
+                    diagnostics::emit(&mut w, &world, &warnings, format)?;
+                    diagnostics::emit(&mut w, &world, &err.0, format)?;
+
                     eyre::bail!(OperationFailure);
                 }
             };

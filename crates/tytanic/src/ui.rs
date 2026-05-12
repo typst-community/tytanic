@@ -10,11 +10,7 @@ use std::io::Stdin;
 use std::io::StdinLock;
 use std::io::Write;
 
-use codespan_reporting::diagnostic::Diagnostic;
-use codespan_reporting::diagnostic::Label;
-use codespan_reporting::term;
 use color_eyre::eyre;
-use ecow::eco_format;
 use termcolor::Color;
 use termcolor::ColorChoice;
 use termcolor::ColorSpec;
@@ -22,14 +18,6 @@ use termcolor::HyperlinkSpec;
 use termcolor::StandardStream;
 use termcolor::StandardStreamLock;
 use termcolor::WriteColor;
-use typst::World;
-use typst::WorldExt;
-use typst::diag::FileError;
-use typst::diag::Severity;
-use typst::diag::SourceDiagnostic;
-use typst_syntax::FileId;
-use typst_syntax::Lines;
-use typst_syntax::Span;
 use tytanic_core::test::Id;
 
 #[macro_export]
@@ -78,9 +66,6 @@ pub struct Ui {
 
     /// The unlocked stderr stream.
     stderr: StandardStream,
-
-    /// The diagnostic config to use for emitting typst source diagnostics.
-    diagnostic_config: term::Config,
 }
 
 /// Returns whether or not a given output stream is connected to a terminal.
@@ -96,12 +81,11 @@ pub fn check_terminal<T: IsTerminal>(t: T, choice: ColorChoice) -> ColorChoice {
 
 impl Ui {
     /// Creates a new [`Ui`] with the gven color choices for stdout and stderr.
-    pub fn new(out: ColorChoice, err: ColorChoice, diagnostic_config: term::Config) -> Self {
+    pub fn new(out: ColorChoice, err: ColorChoice) -> Self {
         Self {
             stdin: io::stdin(),
             stdout: StandardStream::stdout(check_terminal(io::stdout(), out)),
             stderr: StandardStream::stderr(check_terminal(io::stderr(), err)),
-            diagnostic_config,
         }
     }
 }
@@ -116,11 +100,6 @@ impl Ui {
     /// Whether a prompt can be displayed and confirmed by the user.
     pub fn can_prompt(&self) -> bool {
         io::stdin().is_terminal() && io::stderr().is_terminal()
-    }
-
-    /// Returns the diagnostic config to use for displaying diagnostics.
-    pub fn diagnostic_config(&self) -> &term::Config {
-        &self.diagnostic_config
     }
 
     /// Returns an exclusive lock to stdin.
@@ -352,128 +331,6 @@ pub fn write_test_id(mut w: &mut dyn WriteColor, id: &Id) -> io::Result<()> {
     cwrite!(bold_colored(w, Color::Blue), "{}", id.name())?;
 
     Ok(())
-}
-
-/// Writes the given diagnostics.
-pub fn write_diagnostics(
-    w: &mut dyn WriteColor,
-    diagnostic_config: &term::Config,
-    world: &dyn World,
-    warnings: &[SourceDiagnostic],
-    errors: &[SourceDiagnostic],
-) -> eyre::Result<()> {
-    fn resolve_label(world: &dyn World, span: Span) -> Option<Label<FileId>> {
-        Some(Label::primary(span.id()?, world.range(span)?))
-    }
-
-    for diagnostic in warnings.iter().chain(errors) {
-        let diag = match diagnostic.severity {
-            Severity::Error => Diagnostic::error(),
-            Severity::Warning => Diagnostic::warning(),
-        }
-        .with_message(diagnostic.message.clone())
-        .with_notes(
-            diagnostic
-                .hints
-                .iter()
-                .map(|e| (eco_format!("hint: {e}")).into())
-                .collect(),
-        )
-        .with_labels(resolve_label(world, diagnostic.span).into_iter().collect());
-
-        term::emit(w, diagnostic_config, &WorldShim(world), &diag)?;
-
-        // Stacktrace-like helper diagnostics.
-        for point in &diagnostic.trace {
-            let message = point.v.to_string();
-            let help = Diagnostic::help()
-                .with_message(message)
-                .with_labels(resolve_label(world, point.span).into_iter().collect());
-
-            term::emit(w, diagnostic_config, &WorldShim(world), &help)?;
-        }
-    }
-
-    Ok(())
-}
-
-struct WorldShim<'w>(&'w dyn World);
-
-impl WorldShim<'_> {
-    fn lookup(&self, id: FileId) -> Lines<String> {
-        match self.0.source(id) {
-            Ok(source) => source.lines().clone(),
-            Err(FileError::NotSource) => {
-                let bytes = self.0.file(id).expect("file is not valid");
-                Lines::try_from(&bytes).expect("file is not valid utf-8")
-            }
-            Err(_) => {
-                panic!("file is not valid")
-            }
-        }
-    }
-}
-
-type CodespanResult<T> = Result<T, CodespanError>;
-type CodespanError = codespan_reporting::files::Error;
-
-impl<'a> codespan_reporting::files::Files<'a> for WorldShim<'_> {
-    type FileId = FileId;
-    type Name = String;
-    type Source = Lines<String>;
-
-    fn name(&'a self, id: FileId) -> CodespanResult<Self::Name> {
-        let vpath = id.vpath();
-        Ok(if let Some(package) = id.package() {
-            format!("{package}{}", vpath.as_rooted_path().display())
-        } else {
-            // Try to express the path relative to the working directory.
-            vpath
-                // .resolve(&self.root)
-                // .and_then(|abs| pathdiff::diff_paths(abs, self.workdir()))
-                // .as_deref()
-                // .unwrap_or_else(|| vpath.as_rootless_path().to_path_buf())
-                .as_rooted_path()
-                .to_string_lossy()
-                .into()
-        })
-    }
-
-    fn source(&'a self, id: FileId) -> CodespanResult<Self::Source> {
-        Ok(self.lookup(id))
-    }
-
-    fn line_index(&'a self, id: FileId, given: usize) -> CodespanResult<usize> {
-        let source = self.lookup(id);
-        source
-            .byte_to_line(given)
-            .ok_or_else(|| CodespanError::IndexTooLarge {
-                given,
-                max: source.len_bytes(),
-            })
-    }
-
-    fn line_range(&'a self, id: FileId, given: usize) -> CodespanResult<std::ops::Range<usize>> {
-        let source = self.lookup(id);
-        source
-            .line_to_range(given)
-            .ok_or_else(|| CodespanError::LineTooLarge {
-                given,
-                max: source.len_lines(),
-            })
-    }
-
-    fn column_number(&'a self, id: FileId, _: usize, given: usize) -> CodespanResult<usize> {
-        let source = self.lookup(id);
-        source.byte_to_column(given).ok_or_else(|| {
-            let max = source.len_bytes();
-            if given <= max {
-                CodespanError::InvalidCharBoundary { given }
-            } else {
-                CodespanError::IndexTooLarge { given, max }
-            }
-        })
-    }
 }
 
 /// Writes content with some styles, this does not implement [`WriteColor`]

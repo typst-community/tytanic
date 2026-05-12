@@ -53,22 +53,22 @@ impl Origin {
 }
 
 /// The factor used to convert pixel per pt to pixel per inch.
-pub const PPP_TO_PPI_FACTOR: f32 = 72.0;
+pub const PPP_TO_PPI_FACTOR: f64 = 72.0;
 
 // NOTE(tinger): This doesn't seem to be quite exactly 2, so we use this to
 // ensure we get the same default value as typst-cli, this avoids spurious
 // failures when people migrate between the old and new version.
 
 /// The default pixel per pt value used for rendering pages to pixel buffers.
-pub const DEFAULT_PIXEL_PER_PT: f32 = 144.0 / PPP_TO_PPI_FACTOR;
+pub const DEFAULT_PIXEL_PER_PT: f64 = 144.0 / PPP_TO_PPI_FACTOR;
 
 /// Converts a pixel-per-pt ratio to a pixel-per-inch ratio.
-pub fn ppp_to_ppi(pixel_per_pt: f32) -> f32 {
+pub fn ppp_to_ppi(pixel_per_pt: f64) -> f64 {
     pixel_per_pt * PPP_TO_PPI_FACTOR
 }
 
 /// Converts a pixel-per-inch ratio to a pixel-per-pt ratio.
-pub fn ppi_to_ppp(pixel_per_inch: f32) -> f32 {
+pub fn ppi_to_ppp(pixel_per_inch: f64) -> f64 {
     pixel_per_inch / PPP_TO_PPI_FACTOR
 }
 

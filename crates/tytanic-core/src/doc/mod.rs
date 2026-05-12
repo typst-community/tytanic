@@ -16,7 +16,8 @@ use thiserror::Error;
 use tiny_skia::Pixmap;
 use typst::World;
 use typst::diag::Warned;
-use typst::layout::PagedDocument;
+use typst_layout::PagedDocument;
+use typst_render::RenderOptions;
 
 use self::compare::Strategy;
 use self::render::Origin;
@@ -47,25 +48,25 @@ impl Document {
     /// Compiles and renders a new document from the given source.
     pub fn compile(
         world: &dyn World,
-        pixel_per_pt: f32,
+        render_options: &RenderOptions,
         warnings: Warnings,
     ) -> Warned<Result<Self, compile::Error>> {
         let Warned { output, warnings } = compile::compile(world, warnings);
 
         Warned {
-            output: output.map(|doc| Self::render(doc, pixel_per_pt)),
+            output: output.map(|doc| Self::render(doc, render_options)),
             warnings,
         }
     }
 
     /// Creates a new rendered document from a compiled one.
-    pub fn render<D: Into<Box<PagedDocument>>>(doc: D, pixel_per_pt: f32) -> Self {
+    pub fn render<D: Into<Box<PagedDocument>>>(doc: D, render_options: &RenderOptions) -> Self {
         let doc = doc.into();
 
         let buffers = doc
-            .pages
+            .pages()
             .iter()
-            .map(|page| typst_render::render(page, pixel_per_pt))
+            .map(|page| typst_render::render(page, render_options))
             .collect();
 
         Self {
@@ -254,7 +255,7 @@ pub enum LoadError {
     #[error("a page could not be decoded")]
     Page(#[from] png::DecodingError),
 
-    /// An io error occurred.
+    /// An IO error occurred.
     #[error("an io error occurred")]
     Io(#[from] io::Error),
 }

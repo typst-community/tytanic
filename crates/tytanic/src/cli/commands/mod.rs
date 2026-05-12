@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::path::PathBuf;
 
 use camino::Utf8PathBuf;
@@ -41,8 +42,28 @@ pub trait OptionDelegate: Sized {
     fn into_native(self) -> Self::Native;
 }
 
+/// Which format to use for diagnostics.
+#[derive(ValueEnum, Debug, Default, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+pub enum DiagnosticFormat {
+    /// Display richly formatted messages showing the source code and context.
+    #[default]
+    Human,
+
+    /// Display short single-line diagnostics.
+    Short,
+}
+
+impl Display for DiagnosticFormat {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DiagnosticFormat::Human => f.write_str("human"),
+            DiagnosticFormat::Short => f.write_str("short"),
+        }
+    }
+}
+
 /// The kind of a unit test.
-#[derive(clap::ValueEnum, Debug, Clone, Copy)]
+#[derive(ValueEnum, Debug, Clone, Copy)]
 pub enum KindOption {
     /// Create a persistent test.
     Persistent,
@@ -157,10 +178,10 @@ impl_switch! {
     /// The `--[no-]use-embedded-fonts` switch.
     UseEmbeddedFontsSwitch(true) {
         /// Use embedded fonts (default).
-        #[cfg_attr(not(feature = "embed-fonts"), clap(hide = true))]
+        #[cfg_attr(not(feature = "embedded-fonts"), clap(hide = true))]
         use_embedded_fonts,
         /// Don't use embedded fonts.
-        #[cfg_attr(not(feature = "embed-fonts"), clap(hide = true))]
+        #[cfg_attr(not(feature = "embedded-fonts"), clap(hide = true))]
         no_use_embedded_fonts,
     }
 }
@@ -301,7 +322,7 @@ pub struct CliArguments {
 }
 
 /// The VCS to use.
-#[derive(Debug, Default, Clone, Copy, ValueEnum)]
+#[derive(ValueEnum, Debug, Default, Clone, Copy)]
 pub enum Vcs {
     #[default]
     /// Auto detect the VCS from the current directory.
@@ -417,6 +438,10 @@ pub struct CompileOptions {
     /// How to handle warnings.
     #[arg(long, default_value = "emit", value_name = "WHAT")]
     pub warnings: WarningsOption,
+
+    /// The diagnostic format to use.
+    #[arg(long, default_value_t, value_name = "FORMAT")]
+    pub diagnostic_format: DiagnosticFormat,
 }
 
 /// Options for document rendering and export.
@@ -435,7 +460,13 @@ pub struct ExportOptions {
     ///
     /// Defaults to `144.0`, can be configured in the manifest.
     #[arg(long)]
-    pub ppi: Option<f32>,
+    pub ppi: Option<f64>,
+
+    /// Whether the rendered export should have it's bleed regions rendered.
+    ///
+    /// Defaults to `false`, can be configured in the manifest.
+    #[arg(long)]
+    pub render_bleed: Option<bool>,
 
     #[command(flatten)]
     pub export_ephemeral: ExportEphemeralSwitch,

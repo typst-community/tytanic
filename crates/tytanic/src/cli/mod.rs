@@ -212,7 +212,7 @@ impl Context<'_> {
         Ok(suite)
     }
 
-    /// Create a SystemWorld from the given args.
+    /// Create a `Providers` from the given args.
     #[tracing::instrument(skip_all)]
     pub fn providers(
         &self,
@@ -221,12 +221,7 @@ impl Context<'_> {
         font_opts: &FontOptions,
         compile_opts: &CompileOptions,
     ) -> eyre::Result<Providers> {
-        Ok(Providers::new(
-            project,
-            package_opts,
-            font_opts,
-            compile_opts,
-        ))
+        Providers::new(project, package_opts, font_opts, compile_opts)
     }
 }
 

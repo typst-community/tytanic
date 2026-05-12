@@ -9,7 +9,7 @@ use typst::World;
 use typst::diag::Severity;
 use typst::diag::SourceDiagnostic;
 use typst::diag::Warned;
-use typst::layout::PagedDocument;
+use typst_layout::PagedDocument;
 use tytanic_utils::fmt::Term;
 
 /// How to handle warnings during compilation.
@@ -81,10 +81,11 @@ pub fn compile(world: &dyn World, warnings: Warnings) -> Warned<Result<PagedDocu
 #[cfg(test)]
 mod tests {
     use typst::syntax::Source;
+    use typst::{Library, LibraryExt};
+    use typst_utils::LazyHash;
 
     use super::*;
     use crate::world_builder::file::VirtualFileProvider;
-    use crate::world_builder::library::LibraryProvider;
     use crate::world_builder::test_utils;
 
     const TEST_PASS: &str = "Hello World";
@@ -94,7 +95,7 @@ mod tests {
     #[test]
     fn test_compile_pass_ignore_warnings() {
         let mut files = VirtualFileProvider::new();
-        let library = LibraryProvider::new();
+        let library = LazyHash::new(Library::default());
         let source = Source::detached(TEST_PASS);
         let world = test_utils::virtual_world(source, &mut files, &library);
 
@@ -106,7 +107,7 @@ mod tests {
     #[test]
     fn test_compile_pass_emit_warnings() {
         let mut files = VirtualFileProvider::new();
-        let library = LibraryProvider::new();
+        let library = LazyHash::new(Library::default());
         let source = Source::detached(TEST_PASS);
         let world = test_utils::virtual_world(source, &mut files, &library);
 
@@ -118,7 +119,7 @@ mod tests {
     #[test]
     fn test_compile_pass_promote_warnings() {
         let mut files = VirtualFileProvider::new();
-        let library = LibraryProvider::new();
+        let library = LazyHash::new(Library::default());
         let source = Source::detached(TEST_PASS);
         let world = test_utils::virtual_world(source, &mut files, &library);
 
@@ -130,7 +131,7 @@ mod tests {
     #[test]
     fn test_compile_warn_ignore_warnings() {
         let mut files = VirtualFileProvider::new();
-        let library = LibraryProvider::new();
+        let library = LazyHash::new(Library::default());
         let source = Source::detached(TEST_WARN);
         let world = test_utils::virtual_world(source, &mut files, &library);
 
@@ -142,7 +143,7 @@ mod tests {
     #[test]
     fn test_compile_warn_emit_warnings() {
         let mut files = VirtualFileProvider::new();
-        let library = LibraryProvider::new();
+        let library = LazyHash::new(Library::default());
         let source = Source::detached(TEST_WARN);
         let world = test_utils::virtual_world(source, &mut files, &library);
 
@@ -154,7 +155,7 @@ mod tests {
     #[test]
     fn test_compile_warn_promote_warnings() {
         let mut files = VirtualFileProvider::new();
-        let library = LibraryProvider::new();
+        let library = LazyHash::new(Library::default());
         let source = Source::detached(TEST_WARN);
         let world = test_utils::virtual_world(source, &mut files, &library);
 
@@ -166,7 +167,7 @@ mod tests {
     #[test]
     fn test_compile_fail_ignore_warnings() {
         let mut files = VirtualFileProvider::new();
-        let library = LibraryProvider::new();
+        let library = LazyHash::new(Library::default());
         let source = Source::detached(TEST_FAIL);
         let world = test_utils::virtual_world(source, &mut files, &library);
 
@@ -178,7 +179,7 @@ mod tests {
     #[test]
     fn test_compile_fail_emit_warnings() {
         let mut files = VirtualFileProvider::new();
-        let library = LibraryProvider::new();
+        let library = LazyHash::new(Library::default());
         let source = Source::detached(TEST_FAIL);
         let world = test_utils::virtual_world(source, &mut files, &library);
 
@@ -190,7 +191,7 @@ mod tests {
     #[test]
     fn test_compile_fail_promote_warnings() {
         let mut files = VirtualFileProvider::new();
-        let library = LibraryProvider::new();
+        let library = LazyHash::new(Library::default());
         let source = Source::detached(TEST_FAIL);
         let world = test_utils::virtual_world(source, &mut files, &library);
 

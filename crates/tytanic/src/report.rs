@@ -7,6 +7,8 @@ use chrono::TimeDelta;
 use chrono::Utc;
 use color_eyre::eyre;
 use termcolor::Color;
+use typst_kit::diagnostics;
+use typst_kit::diagnostics::DiagnosticFormat;
 use tytanic_core::Project;
 use tytanic_core::doc::compare;
 use tytanic_core::doc::compare::PageError;
@@ -31,14 +33,21 @@ pub struct Reporter<'ui, 'p> {
     providers: &'p Providers,
 
     live: bool,
+    format: DiagnosticFormat,
 }
 
 impl<'ui, 'p> Reporter<'ui, 'p> {
-    pub fn new(ui: &'ui Ui, providers: &'p Providers, live: bool) -> Self {
+    pub fn new(
+        ui: &'ui Ui,
+        providers: &'p Providers,
+        live: bool,
+        format: DiagnosticFormat,
+    ) -> Self {
         Self {
             ui,
             providers,
             live,
+            format,
         }
     }
 }
@@ -250,12 +259,12 @@ impl Reporter<'_, '_> {
             Test::Template(test) => self.providers.template_world(project, test),
         };
 
-        ui::write_diagnostics(
+        diagnostics::emit(&mut w, &world, result.warnings(), self.format)?;
+        diagnostics::emit(
             &mut w,
-            self.ui.diagnostic_config(),
             &world,
-            result.warnings(),
             result.errors().unwrap_or_default(),
+            self.format,
         )?;
 
         match result.stage() {

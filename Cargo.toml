@@ -33,9 +33,7 @@ chrono = "0.4.43"
 clap = "4.5.54"
 clap_complete = "4.5.65"
 clap_mangen = "0.2.26"
-codespan-reporting = "0.11.1"
 color-eyre = "0.6.3"
-comemo = "0.5.0"
 ctrlc = "3.4.5"
 dirs = "6.0.0"
 ecow = "0.2.2"
@@ -46,7 +44,7 @@ once_cell = "1.19.0"
 oxipng = "10.1.0"
 pest = "2.8.5"
 pest_derive = "2.8.5"
-png = "0.17.16"
+png = "0.18.0"
 predicates = "3.1.3"
 rayon = "1.8.0"
 regex = "1.10.5"
@@ -57,15 +55,30 @@ strsim = "0.11.1"
 temp-dir = "0.1.16"
 termcolor = "1.4.0"
 thiserror = "2.0.18"
-tiny-skia = "0.11.4"
+tiny-skia = "0.12.0"
 tracing = "0.1.44"
 tracing-subscriber = "0.3.18"
 tracing-tree = "0.4.1"
 toml = "0.8.19"
-typst = "0.14.2"
-typst-assets = "0.14.2"
-typst-kit = "0.14.2"
-typst-library = "0.14.2"
-typst-render = "0.14.2"
-typst-syntax = "0.14.2"
 uuid = "1.20.0"
+
+# Keep the git dependencies in but commented out for ease of switching during development and before
+# Typst releases.
+
+typst = "0.15.0"
+typst-assets = "0.15.0"
+typst-kit = "0.15.0"
+typst-layout = "0.15.0"
+typst-library = "0.15.0"
+typst-render = "0.15.0"
+typst-syntax = "0.15.0"
+typst-utils = "0.15.0"
+
+# typst =         { git = "https://github.com/typst/typst", rev = "852dbc9dc6d0911b829930b9fd6a92a780f9082c" }
+# typst-assets =  { git = "https://github.com/typst/typst-assets", rev = "3284e80cc102b402e4e3db1aa071f1eadae5e7ca" }
+# typst-kit =     { git = "https://github.com/typst/typst", rev = "852dbc9dc6d0911b829930b9fd6a92a780f9082c" }
+# typst-layout =  { git = "https://github.com/typst/typst", rev = "852dbc9dc6d0911b829930b9fd6a92a780f9082c" }
+# typst-library = { git = "https://github.com/typst/typst", rev = "852dbc9dc6d0911b829930b9fd6a92a780f9082c" }
+# typst-render =  { git = "https://github.com/typst/typst", rev = "852dbc9dc6d0911b829930b9fd6a92a780f9082c" }
+# typst-syntax =   { git = "https://github.com/typst/typst", rev = "852dbc9dc6d0911b829930b9fd6a92a780f9082c" }
+# typst-utils =   { git = "https://github.com/typst/typst", rev = "852dbc9dc6d0911b829930b9fd6a92a780f9082c" }

@@ -2,6 +2,7 @@
 ## Highlights
 
 ## Changes
+- Update Typst to `0.15.0`
 
 ## Fixes
 

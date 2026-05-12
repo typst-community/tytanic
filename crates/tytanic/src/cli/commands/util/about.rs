@@ -11,6 +11,7 @@ use serde::Serialize;
 use termcolor::Color;
 use termcolor::ColorSpec;
 use termcolor::WriteColor;
+use typst_kit::packages::FsPackages;
 
 use super::Context;
 use crate::cli::commands::Switch;
@@ -168,11 +169,11 @@ impl Packages {
     fn new(ctx: &Context) -> Self {
         let package_path = match &ctx.args.package.package_path {
             Some(package_path) => Some(package_path.clone()),
-            None => typst_kit::package::default_package_path(),
+            None => FsPackages::system_data().map(|p| p.path().to_owned()),
         };
         let package_cache_path = match &ctx.args.package.package_cache_path {
             Some(package_cache_path) => Some(package_cache_path.clone()),
-            None => typst_kit::package::default_package_cache_path(),
+            None => FsPackages::system_cache().map(|p| p.path().to_owned()),
         };
 
         Self {

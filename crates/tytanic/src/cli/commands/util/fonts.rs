@@ -29,22 +29,28 @@ pub struct Args {
 
 pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
     let fonts = world::font_provider(&ctx.args.font);
+    let book = fonts.provide_font_book();
 
-    let fonts = fonts
-        .provide_font_book()
+    let fonts = book
         .families()
         .map(|(name, info)| FontJson {
             name,
             variants: if args.variants {
                 let mut variants = info
-                    .map(|info| FontVariantJson {
-                        weight: info.variant.weight.to_number(),
-                        style: match info.variant.style {
-                            FontStyle::Normal => "normal",
-                            FontStyle::Italic => "italic",
-                            FontStyle::Oblique => "oblique",
-                        },
-                        stretch: info.variant.stretch.to_ratio().get(),
+                    .map(|info| {
+                        let info = book
+                            .info(info)
+                            .expect("index from FontBook::families must be in FontStore");
+
+                        FontVariantJson {
+                            weight: info.variant.weight.to_number(),
+                            style: match info.variant.style {
+                                FontStyle::Normal => "normal",
+                                FontStyle::Italic => "italic",
+                                FontStyle::Oblique => "oblique",
+                            },
+                            stretch: info.variant.stretch.to_ratio().get(),
+                        }
                     })
                     .collect::<Vec<_>>();
 

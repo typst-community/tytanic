@@ -8,10 +8,6 @@ use std::process;
 use std::process::ExitStatus;
 
 use assert_cmd::Command;
-#[expect(
-    deprecated,
-    reason = "cargo_bin is deprecated, cargo_bin! is not, see https://github.com/rust-lang/rust/issues/148426"
-)]
 use assert_cmd::cargo::cargo_bin;
 use temp_dir::TempDir;
 use tytanic_utils::fs::TEMP_DIR_PREFIX;
