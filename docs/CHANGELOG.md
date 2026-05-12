@@ -7,6 +7,16 @@
 
 ---
 
+# [v0.3.4](https://github.com/typst-community/tytanic/releases/tag/v0.3.4)
+## Changes
+- Added `input` annotation for configuring `sys.inputs` in tests
+
+## Fixes
+- Fixed panic on empty `ref` directory
+- Fixed `tytanic util about`
+
+---
+
 # [v0.3.3](https://github.com/typst-community/tytanic/releases/tag/v0.3.3)
 ## Changes
 - Update Typst to `0.14.2`

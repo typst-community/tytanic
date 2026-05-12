@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/*"]
 
 [workspace.package]
-version = "0.3.3"
+version = "0.3.4"
 # must match ci.yml
 rust-version = "1.89"
 authors = ["tingerrr <tinger@tinger.dev>"]
