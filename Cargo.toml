@@ -22,6 +22,7 @@ tytanic-utils = { version = "0.3.3", path = "crates/tytanic-utils" }
 
 assert_cmd = "2.1.2"
 assert_fs = "1.1.2"
+camino = "1.2.2"
 chrono = "0.4.43"
 clap = "4.5.54"
 clap_complete = "4.5.65"

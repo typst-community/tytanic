@@ -16,6 +16,7 @@ readme.workspace = true
 tytanic-filter.workspace = true
 tytanic-utils.workspace = true
 
+camino.workspace = true
 chrono.workspace = true
 comemo.workspace = true
 dirs.workspace = true

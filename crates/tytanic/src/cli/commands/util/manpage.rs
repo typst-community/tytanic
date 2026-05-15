@@ -1,5 +1,4 @@
-use std::path::PathBuf;
-
+use camino::Utf8PathBuf;
 use clap::CommandFactory;
 use color_eyre::eyre;
 
@@ -10,7 +9,7 @@ use crate::cli::Context;
 pub struct Args {
     /// The directory to write the man pages to.
     #[arg(default_value = ".")]
-    pub dir: PathBuf,
+    pub dir: Utf8PathBuf,
 }
 
 pub fn run(_ctx: &mut Context, args: &Args) -> eyre::Result<()> {

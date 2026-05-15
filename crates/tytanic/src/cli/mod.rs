@@ -1,9 +1,9 @@
 use std::env;
 use std::io;
 use std::io::Write;
-use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 
+use camino::Utf8PathBuf;
 use color_eyre::eyre;
 use color_eyre::eyre::WrapErr;
 use commands::CompileOptions;
@@ -94,17 +94,20 @@ impl Context<'_> {
 impl Context<'_> {
     /// Resolve the current root.
     #[tracing::instrument(skip_all)]
-    pub fn root(&self) -> eyre::Result<PathBuf> {
+    pub fn root(&self) -> eyre::Result<Utf8PathBuf> {
         Ok(match &self.args.root {
             Some(root) => {
                 if !root.try_exists()? {
-                    writeln!(self.ui.error()?, "Root '{}' not found", root.display())?;
+                    writeln!(self.ui.error()?, "Root '{root}' not found")?;
                     eyre::bail!(OperationFailure);
                 }
 
-                root.canonicalize()?
+                root.canonicalize_utf8()?
             }
-            None => env::current_dir().wrap_err("reading PWD")?,
+            None => Utf8PathBuf::from_path_buf(env::current_dir().wrap_err("reading PWD")?)
+                .map_err(|non_utf8| {
+                    eyre::eyre!("can't turn '{}' into UTF-8", non_utf8.display())
+                })?,
         })
     }
 

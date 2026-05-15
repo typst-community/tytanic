@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use camino::Utf8PathBuf;
 use chrono::DateTime;
 use chrono::Utc;
 use clap::Args;
@@ -279,7 +280,7 @@ pub struct CliArguments {
     ///
     /// If none is given, then the first ancestor with a `typst.toml` is used.
     #[arg(long, short, env = "TYPST_ROOT", global = true)]
-    pub root: Option<PathBuf>,
+    pub root: Option<Utf8PathBuf>,
 
     /// The number of threads to use for compilation.
     #[arg(long, short, global = true)]

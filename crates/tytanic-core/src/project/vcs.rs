@@ -10,8 +10,9 @@ use std::fmt::Debug;
 use std::fmt::Display;
 use std::fs;
 use std::io;
-use std::path::Path;
-use std::path::PathBuf;
+
+use camino::Utf8Path;
+use camino::Utf8PathBuf;
 
 use super::Project;
 use crate::test::UnitTest;
@@ -45,7 +46,7 @@ pub enum Kind {
 /// and `diff` directories.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Vcs {
-    root: Option<PathBuf>,
+    root: Option<Utf8PathBuf>,
     kind: Kind,
 }
 
@@ -53,7 +54,7 @@ impl Vcs {
     /// Creates a new VCS with the given root directory and kind.
     pub fn new<I>(root: I, kind: Kind) -> Self
     where
-        I: Into<PathBuf>,
+        I: Into<Utf8PathBuf>,
     {
         Self {
             root: Some(root.into()),
@@ -69,7 +70,7 @@ impl Vcs {
     /// Checks the given directory for a VCS root, returning which kind was
     /// found.
     #[tracing::instrument(ret)]
-    pub fn exists_at(dir: &Path) -> io::Result<Option<Kind>> {
+    pub fn exists_at(dir: &Utf8Path) -> io::Result<Option<Kind>> {
         if dir.join(".git").try_exists()?
             || dir.join(".jj").try_exists()?
             || dir.join(".sl").try_exists()?
@@ -87,7 +88,7 @@ impl Vcs {
 
 impl Vcs {
     /// The root of this Vcs' repository.
-    pub fn root(&self) -> Option<&Path> {
+    pub fn root(&self) -> Option<&Utf8Path> {
         self.root.as_deref()
     }
 

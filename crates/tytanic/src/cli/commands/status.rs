@@ -65,7 +65,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
         let path = path
             .strip_prefix(project.root())
             .expect("template is in project root");
-        cwrite!(bold_colored(w, Color::Cyan), "{}", path.display())?;
+        cwrite!(bold_colored(w, Color::Cyan), "{path}")?;
     } else {
         cwrite!(bold_colored(w, Color::Green), "none")?;
     }

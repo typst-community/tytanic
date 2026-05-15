@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 use std::fs;
 use std::io::Write;
-use std::path::PathBuf;
 
+use camino::Utf8PathBuf;
 use color_eyre::eyre;
 use termcolor::Color;
 use tytanic_core::Project;
@@ -122,7 +122,7 @@ fn migrate_test_part(
     project: &Project,
     old: &Id,
     new: &Id,
-    f: fn(&Project, &Id) -> PathBuf,
+    f: fn(&Project, &Id) -> Utf8PathBuf,
 ) -> eyre::Result<()> {
     let old = f(project, old);
     let new = f(project, new);

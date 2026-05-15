@@ -1,13 +1,13 @@
-//! Discovering, loading and managing typst projects.
+//! Discovering, loading, and managing Typst projects.
 
 use std::collections::BTreeMap;
 use std::fs;
 use std::io;
 use std::ops::Deref;
-use std::path::Component;
-use std::path::Path;
-use std::path::PathBuf;
 
+use camino::Utf8Component;
+use camino::Utf8Path;
+use camino::Utf8PathBuf;
 use ecow::EcoString;
 use serde::Deserialize;
 use thiserror::Error;
@@ -33,7 +33,7 @@ pub const MANIFEST_FILE: &str = "typst.toml";
 /// to load a project.
 #[derive(Debug, Clone)]
 pub struct ShallowProject {
-    root: PathBuf,
+    root: Utf8PathBuf,
     vcs: Option<Vcs>,
 }
 
@@ -43,7 +43,7 @@ impl ShallowProject {
     /// It is recommended to canonicalize them, but it is not strictly necessary.
     pub fn new<P, V>(project: P, vcs: V) -> Self
     where
-        P: Into<PathBuf>,
+        P: Into<Utf8PathBuf>,
         V: Into<Option<Vcs>>,
     {
         Self {
@@ -59,7 +59,7 @@ impl ShallowProject {
     /// manifest is found. If it is `true`, then `dir` is used as the project
     /// root.
     #[tracing::instrument(skip(dir) fields(dir = ?dir.as_ref()), ret)]
-    pub fn discover<P: AsRef<Path>>(
+    pub fn discover<P: AsRef<Utf8Path>>(
         dir: P,
         search_manifest: bool,
     ) -> Result<Option<Self>, io::Error> {
@@ -165,7 +165,7 @@ impl ShallowProject {
         &self,
         config: &ProjectConfig,
     ) -> Result<Option<String>, io::Error> {
-        let root = Path::new(&config.unit_tests_root);
+        let root = Utf8Path::new(&config.unit_tests_root);
         let template = root.join("template.typ");
 
         fs::read_to_string(template).ignore(io_not_found)
@@ -177,12 +177,12 @@ impl ShallowProject {
     ///
     /// The project root is used to resolve absolute paths in typst when
     /// executing tests.
-    pub fn root(&self) -> &Path {
+    pub fn root(&self) -> &Utf8Path {
         &self.root
     }
 
     /// Returns the path to the project manifest (`typst.toml`).
-    pub fn manifest_file(&self) -> PathBuf {
+    pub fn manifest_file(&self) -> Utf8PathBuf {
         self.root.join(MANIFEST_FILE)
     }
 
@@ -190,7 +190,7 @@ impl ShallowProject {
     ///
     /// The VCS root is used for properly handling non-persistent storage of
     /// tests.
-    pub fn vcs_root(&self) -> Option<&Path> {
+    pub fn vcs_root(&self) -> Option<&Utf8Path> {
         self.vcs.as_ref().and_then(Vcs::root)
     }
 }
@@ -208,7 +208,7 @@ pub struct Project {
 
 impl Project {
     /// Create a new empty project.
-    pub fn new<P: Into<PathBuf>>(root: P) -> Self {
+    pub fn new<P: Into<Utf8PathBuf>>(root: P) -> Self {
         Self {
             base: ShallowProject {
                 root: root.into(),
@@ -246,7 +246,7 @@ impl Project {
 
     /// Checks the given directory for a project root, returning `true` if it
     /// was found.
-    pub fn exists_at(dir: &Path) -> io::Result<bool> {
+    pub fn exists_at(dir: &Utf8Path) -> io::Result<bool> {
         if dir.join(MANIFEST_FILE).try_exists()? {
             return Ok(true);
         }
@@ -288,7 +288,7 @@ impl Project {
     }
 
     /// Returns the [`Vcs`] this project is managed by or `None` if no supported
-    /// Vcs was found.
+    /// VCS was found.
     pub fn vcs(&self) -> Option<&Vcs> {
         self.base.vcs.as_ref()
     }
@@ -299,12 +299,12 @@ impl Project {
     /// root where the test suite is located.
     ///
     /// The test root is used to resolve test identifiers.
-    pub fn unit_tests_root(&self) -> PathBuf {
+    pub fn unit_tests_root(&self) -> Utf8PathBuf {
         self.root().join(&self.config.unit_tests_root)
     }
 
     /// Returns the root path of the template directory.
-    pub fn template_root(&self) -> Option<PathBuf> {
+    pub fn template_root(&self) -> Option<Utf8PathBuf> {
         self.manifest
             .as_ref()
             .and_then(|m| m.template.as_ref())
@@ -312,7 +312,7 @@ impl Project {
     }
 
     /// Returns the entrypoint script inside the template directory.
-    pub fn template_entrypoint(&self) -> Option<PathBuf> {
+    pub fn template_entrypoint(&self) -> Option<Utf8PathBuf> {
         self.manifest
             .as_ref()
             .and_then(|m| m.template.as_ref())
@@ -326,49 +326,49 @@ impl Project {
 
     /// Returns the path to the unit test template, that is, the source template to
     /// use when generating new unit tests.
-    pub fn unit_test_template_file(&self) -> PathBuf {
+    pub fn unit_test_template_file(&self) -> Utf8PathBuf {
         let mut dir = self.unit_tests_root();
         dir.push("template.typ");
         dir
     }
 
     /// Create a path to the test directory for the given identifier.
-    pub fn unit_test_dir(&self, id: &Id) -> PathBuf {
+    pub fn unit_test_dir(&self, id: &Id) -> Utf8PathBuf {
         let mut dir = self.unit_tests_root();
         dir.extend(id.components());
         dir
     }
 
     /// Create a path to the test script for the given identifier.
-    pub fn unit_test_script(&self, id: &Id) -> PathBuf {
+    pub fn unit_test_script(&self, id: &Id) -> Utf8PathBuf {
         let mut dir = self.unit_test_dir(id);
         dir.push("test.typ");
         dir
     }
 
     /// Create a path to the reference script for the given identifier.
-    pub fn unit_test_ref_script(&self, id: &Id) -> PathBuf {
+    pub fn unit_test_ref_script(&self, id: &Id) -> Utf8PathBuf {
         let mut dir = self.unit_test_dir(id);
         dir.push("ref.typ");
         dir
     }
 
     /// Create a path to the reference directory for the given identifier.
-    pub fn unit_test_ref_dir(&self, id: &Id) -> PathBuf {
+    pub fn unit_test_ref_dir(&self, id: &Id) -> Utf8PathBuf {
         let mut dir = self.unit_test_dir(id);
         dir.push("ref");
         dir
     }
 
     /// Create a path to the output directory for the given identifier.
-    pub fn unit_test_out_dir(&self, id: &Id) -> PathBuf {
+    pub fn unit_test_out_dir(&self, id: &Id) -> Utf8PathBuf {
         let mut dir = self.unit_test_dir(id);
         dir.push("out");
         dir
     }
 
     /// Create a path to the difference directory for the given identifier.
-    pub fn unit_test_diff_dir(&self, id: &Id) -> PathBuf {
+    pub fn unit_test_diff_dir(&self, id: &Id) -> Utf8PathBuf {
         let mut dir = self.unit_test_dir(id);
         dir.push("diff");
         dir
@@ -383,7 +383,7 @@ impl Deref for Project {
     }
 }
 
-fn validate_manifest(root: &Path, manifest: &PackageManifest) -> Result<(), ValidationError> {
+fn validate_manifest(root: &Utf8Path, manifest: &PackageManifest) -> Result<(), ValidationError> {
     let PackageManifest {
         package: _,
         template,
@@ -449,7 +449,7 @@ fn validate_manifest(root: &Path, manifest: &PackageManifest) -> Result<(), Vali
     Ok(())
 }
 
-fn validate_config(root: &Path, config: &ProjectConfig) -> Result<(), ValidationError> {
+fn validate_config(root: &Utf8Path, config: &ProjectConfig) -> Result<(), ValidationError> {
     let ProjectConfig {
         unit_tests_root,
         defaults: _,
@@ -487,9 +487,12 @@ fn validate_config(root: &Path, config: &ProjectConfig) -> Result<(), Validation
     Ok(())
 }
 
-fn is_trivial_path<P: AsRef<Path>>(path: P) -> bool {
+fn is_trivial_path<P: AsRef<Utf8Path>>(path: P) -> bool {
     let path = path.as_ref();
-    path.is_relative() && path.components().all(|c| matches!(c, Component::Normal(_)))
+    path.is_relative()
+        && path
+            .components()
+            .all(|c| matches!(c, Utf8Component::Normal(_)))
 }
 
 /// Returned by [`ShallowProject::load`].
@@ -534,7 +537,7 @@ pub enum ValidationErrorCause {
         field: EcoString,
 
         /// The field as it was resolved.
-        resolved: PathBuf,
+        resolved: Utf8PathBuf,
     },
 }
 
@@ -565,7 +568,7 @@ pub enum ManifestError {
     #[error("an error occurred while parsing the project manifest")]
     Parse(#[from] toml::de::Error),
 
-    /// An io error occurred.
+    /// An IO error occurred.
     #[error("an io error occurred")]
     Io(#[from] io::Error),
 }
@@ -593,11 +596,11 @@ mod tests {
 
         assert_eq!(
             project.template_root(),
-            Some(PathBuf::from_iter(["root", "foo"]))
+            Some(Utf8PathBuf::from_iter(["root", "foo"]))
         );
         assert_eq!(
             project.template_entrypoint(),
-            Some(PathBuf::from_iter(["root", "foo", "bar.typ"]))
+            Some(Utf8PathBuf::from_iter(["root", "foo", "bar.typ"]))
         );
     }
 
@@ -608,15 +611,15 @@ mod tests {
 
         assert_eq!(
             project.unit_tests_root(),
-            PathBuf::from_iter(["root", "tests"])
+            Utf8PathBuf::from_iter(["root", "tests"])
         );
         assert_eq!(
             project.unit_test_dir(&id),
-            PathBuf::from_iter(["root", "tests", "a", "b"])
+            Utf8PathBuf::from_iter(["root", "tests", "a", "b"])
         );
         assert_eq!(
             project.unit_test_script(&id),
-            PathBuf::from_iter(["root", "tests", "a", "b", "test.typ"])
+            Utf8PathBuf::from_iter(["root", "tests", "a", "b", "test.typ"])
         );
 
         let project = Project::new("root").with_config(ProjectConfig {
@@ -626,19 +629,19 @@ mod tests {
 
         assert_eq!(
             project.unit_test_ref_script(&id),
-            PathBuf::from_iter(["root", "foo", "a", "b", "ref.typ"])
+            Utf8PathBuf::from_iter(["root", "foo", "a", "b", "ref.typ"])
         );
         assert_eq!(
             project.unit_test_ref_dir(&id),
-            PathBuf::from_iter(["root", "foo", "a", "b", "ref"])
+            Utf8PathBuf::from_iter(["root", "foo", "a", "b", "ref"])
         );
         assert_eq!(
             project.unit_test_out_dir(&id),
-            PathBuf::from_iter(["root", "foo", "a", "b", "out"])
+            Utf8PathBuf::from_iter(["root", "foo", "a", "b", "out"])
         );
         assert_eq!(
             project.unit_test_diff_dir(&id),
-            PathBuf::from_iter(["root", "foo", "a", "b", "diff"])
+            Utf8PathBuf::from_iter(["root", "foo", "a", "b", "diff"])
         );
     }
 

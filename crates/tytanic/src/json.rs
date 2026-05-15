@@ -1,7 +1,6 @@
 //! Common report PODs for stable JSON representation of internal entities.
 
-use std::path::PathBuf;
-
+use camino::Utf8PathBuf;
 use serde::Serialize;
 use typst_syntax::package::PackageManifest;
 use typst_syntax::package::PackageVersion;
@@ -68,7 +67,7 @@ pub struct UnitTestJson<'t> {
     pub id: &'t str,
     pub kind: &'static str,
     pub is_skip: bool,
-    pub path: PathBuf,
+    pub path: Utf8PathBuf,
 }
 
 impl<'t> UnitTestJson<'t> {
@@ -85,7 +84,7 @@ impl<'t> UnitTestJson<'t> {
 #[derive(Debug, Serialize)]
 pub struct TemplateTestJson<'t> {
     pub id: &'t str,
-    pub path: PathBuf,
+    pub path: Utf8PathBuf,
 }
 
 impl<'t> TemplateTestJson<'t> {
