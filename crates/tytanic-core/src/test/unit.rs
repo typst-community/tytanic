@@ -648,7 +648,7 @@ mod tests {
 
                 let source = test.load_source(&project).unwrap();
                 assert_eq!(
-                    source.id().vpath().resolve(root).unwrap(),
+                    source.id().vpath().resolve(root.as_std_path()).unwrap(),
                     root.join("tests/fancy/test.typ")
                 );
             },

@@ -1,16 +1,15 @@
 //! Loading and filtering of test suites, suites contain test and supplementary
 //! fields for test templates, custom test set bindings and other information
-//! necessary for managing, filtering and running tests.
+//! necessary for managing, filtering, and running tests.
 
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::collections::btree_map;
-use std::fs;
 use std::io;
-use std::path::Path;
 use std::time::Duration;
 use std::time::Instant;
 
+use camino::Utf8Path;
 use thiserror::Error;
 use tytanic_filter::ExpressionFilter;
 use tytanic_filter::eval;
@@ -55,7 +54,7 @@ impl Suite {
         }
 
         let root = project.unit_tests_root();
-        let Some(read_dir) = root.read_dir().ignore(io_not_found)? else {
+        let Some(read_dir) = root.read_dir_utf8().ignore(io_not_found)? else {
             tracing::debug!(?root, "test root not found, ignoring");
             return Ok(this);
         };
@@ -101,14 +100,10 @@ impl Suite {
     }
 
     /// Recursively collect tests in the given directory.
-    fn collect_dir(&mut self, project: &Project, dir: &Path) -> Result<(), Error> {
+    fn collect_dir(&mut self, project: &Project, dir: &Utf8Path) -> Result<(), Error> {
         let abs = project.unit_tests_root().join(dir);
 
-        if dir
-            .file_name()
-            .and_then(|p| p.to_str())
-            .is_some_and(|p| p.starts_with('.'))
-        {
+        if dir.file_name().is_some_and(|p| p.starts_with('.')) {
             tracing::debug!(?dir, "skipping hidden directory");
             return Ok(());
         }
@@ -128,7 +123,7 @@ impl Suite {
         }
 
         tracing::trace!(?dir, "collecting sub directories");
-        for entry in fs::read_dir(&abs)? {
+        for entry in abs.read_dir_utf8()? {
             let entry = entry?;
 
             if entry.metadata()?.is_dir() {

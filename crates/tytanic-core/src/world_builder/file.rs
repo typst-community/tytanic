@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use std::sync::MutexGuard;
 
+use camino::Utf8PathBuf;
 use ecow::eco_format;
 use typst::diag::FileError;
 use typst::diag::FileResult;
@@ -136,7 +137,7 @@ impl VirtualFileSlot {
 #[derive(Debug)]
 pub struct FilesystemFileProvider {
     root: PathBuf,
-    overrides: HashMap<PackageSpec, PathBuf>,
+    overrides: HashMap<PackageSpec, Utf8PathBuf>,
     slots: Mutex<HashMap<FileId, FileSlot>>,
     package_storage: Option<PackageStorage>,
 }
@@ -170,7 +171,7 @@ impl FilesystemFileProvider {
     ) -> Self
     where
         P: Into<PathBuf>,
-        I: IntoIterator<Item = (PackageSpec, PathBuf)>,
+        I: IntoIterator<Item = (PackageSpec, Utf8PathBuf)>,
     {
         Self {
             root: root.into(),
@@ -188,7 +189,7 @@ impl FilesystemFileProvider {
     }
 
     /// The package spec overrides of this file provider.
-    pub fn overrides(&self) -> &HashMap<PackageSpec, PathBuf> {
+    pub fn overrides(&self) -> &HashMap<PackageSpec, Utf8PathBuf> {
         &self.overrides
     }
 
@@ -288,7 +289,7 @@ impl FileSlot {
     pub fn source(
         &mut self,
         root: &Path,
-        overrides: &HashMap<PackageSpec, PathBuf>,
+        overrides: &HashMap<PackageSpec, Utf8PathBuf>,
         package_storage: Option<&PackageStorage>,
         progress: &mut dyn Progress,
     ) -> FileResult<Source> {
@@ -310,7 +311,7 @@ impl FileSlot {
     pub fn bytes(
         &mut self,
         root: &Path,
-        overrides: &HashMap<PackageSpec, PathBuf>,
+        overrides: &HashMap<PackageSpec, Utf8PathBuf>,
         package_storage: Option<&PackageStorage>,
         progress: &mut dyn Progress,
     ) -> FileResult<Bytes> {
@@ -385,7 +386,7 @@ impl<T: Clone> SlotCell<T> {
 fn system_path(
     root: &Path,
     id: FileId,
-    overrides: &HashMap<PackageSpec, PathBuf>,
+    overrides: &HashMap<PackageSpec, Utf8PathBuf>,
     package_storage: Option<&PackageStorage>,
     progress: &mut dyn Progress,
 ) -> FileResult<PathBuf> {
@@ -397,7 +398,7 @@ fn system_path(
     if let Some(spec) = id.package() {
         if let Some(local_root) = overrides.get(spec) {
             tracing::trace!(?spec, ?local_root, "resolving self reference locally");
-            root = local_root;
+            root = local_root.as_std_path();
         } else if let Some(storage) = package_storage {
             tracing::trace!(?spec, "preparing package");
             buf = storage.prepare_package(spec, progress)?;
@@ -425,7 +426,7 @@ fn system_path(
 fn read(
     id: FileId,
     root: &Path,
-    overrides: &HashMap<PackageSpec, PathBuf>,
+    overrides: &HashMap<PackageSpec, Utf8PathBuf>,
     package_storage: Option<&PackageStorage>,
     progress: &mut dyn Progress,
 ) -> FileResult<Vec<u8>> {

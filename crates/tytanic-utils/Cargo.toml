@@ -13,6 +13,7 @@ keywords.workspace = true
 readme.workspace = true
 
 [dependencies]
+camino.workspace = true
 ecow.workspace = true
 temp-dir.workspace = true
 toml.workspace = true

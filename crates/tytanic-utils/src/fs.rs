@@ -6,9 +6,9 @@ use std::collections::BTreeSet;
 use std::fmt::Write;
 use std::fs;
 use std::io;
-use std::path::Path;
-use std::path::PathBuf;
 
+use camino::Utf8Path;
+use camino::Utf8PathBuf;
 use temp_dir::TempDir;
 
 use crate::result::ResultEx;
@@ -29,9 +29,9 @@ pub const TEMP_DIR_PREFIX: &str = "tytanic-utils";
 /// ```
 pub fn create_dir<P>(path: P, all: bool) -> io::Result<()>
 where
-    P: AsRef<Path>,
+    P: AsRef<Utf8Path>,
 {
-    fn inner(path: &Path, all: bool) -> io::Result<()> {
+    fn inner(path: &Utf8Path, all: bool) -> io::Result<()> {
         let res = if all {
             fs::create_dir_all(path)
         } else {
@@ -54,9 +54,9 @@ where
 /// ```
 pub fn remove_file<P>(path: P) -> io::Result<()>
 where
-    P: AsRef<Path>,
+    P: AsRef<Utf8Path>,
 {
-    fn inner(path: &Path) -> io::Result<()> {
+    fn inner(path: &Utf8Path) -> io::Result<()> {
         std::fs::remove_file(path).ignore_default(io_not_found)
     }
 
@@ -74,9 +74,9 @@ where
 /// ```
 pub fn remove_dir<P>(path: P, all: bool) -> io::Result<()>
 where
-    P: AsRef<Path>,
+    P: AsRef<Utf8Path>,
 {
-    fn inner(path: &Path, all: bool) -> io::Result<()> {
+    fn inner(path: &Utf8Path, all: bool) -> io::Result<()> {
         let res = if all {
             fs::remove_dir_all(path)
         } else {
@@ -115,9 +115,9 @@ where
 /// ```
 pub fn ensure_empty_dir<P>(path: P, all: bool) -> io::Result<()>
 where
-    P: AsRef<Path>,
+    P: AsRef<Utf8Path>,
 {
-    fn inner(path: &Path, all: bool) -> io::Result<()> {
+    fn inner(path: &Utf8Path, all: bool) -> io::Result<()> {
         let res = remove_dir(path, true);
         if all {
             // If there was nothing to clear, then we simply go on to creation.
@@ -137,8 +137,15 @@ where
 #[derive(Debug)]
 pub struct TempTestEnv {
     root: TempDir,
-    found: BTreeMap<PathBuf, Option<Vec<u8>>>,
-    expected: BTreeMap<PathBuf, Option<Option<Vec<u8>>>>,
+    found: BTreeMap<Utf8PathBuf, Option<Vec<u8>>>,
+    expected: BTreeMap<Utf8PathBuf, Option<Option<Vec<u8>>>>,
+}
+
+impl TempTestEnv {
+    fn root(&self) -> &Utf8Path {
+        Utf8Path::from_path(self.root.path())
+            .expect("prefix and temp dir should be UTF-8 on sane platforms")
+    }
 }
 
 /// Set up the project structure.
@@ -149,20 +156,24 @@ pub struct Setup(TempTestEnv);
 impl Setup {
     /// Create a directory and all its parents within the test root.
     ///
-    /// May panic if io errors are encountered.
-    pub fn setup_dir<P: AsRef<Path>>(&mut self, path: P) -> &mut Self {
-        let abs_path = self.0.root.path().join(path.as_ref());
+    /// May panic if IO errors are encountered.
+    pub fn setup_dir<P: AsRef<Utf8Path>>(&mut self, path: P) -> &mut Self {
+        let abs_path = self.0.root().join(path.as_ref());
         create_dir(abs_path, true).unwrap();
         self
     }
 
     /// Create a file and all its parent directories within the test root.
     ///
-    /// May panic if io errors are encountered.
-    pub fn setup_file<P: AsRef<Path>>(&mut self, path: P, content: impl AsRef<[u8]>) -> &mut Self {
-        let abs_path = self.0.root.path().join(path.as_ref());
+    /// May panic if IO errors are encountered.
+    pub fn setup_file<P: AsRef<Utf8Path>>(
+        &mut self,
+        path: P,
+        content: impl AsRef<[u8]>,
+    ) -> &mut Self {
+        let abs_path = self.0.root().join(path.as_ref());
         let parent = abs_path.parent().unwrap();
-        if parent != self.0.root.path() {
+        if parent != self.0.root() {
             create_dir(parent, true).unwrap();
         }
 
@@ -173,11 +184,11 @@ impl Setup {
 
     /// Create a directory and all its parents within the test root.
     ///
-    /// May panic if io errors are encountered.
-    pub fn setup_file_empty<P: AsRef<Path>>(&mut self, path: P) -> &mut Self {
-        let abs_path = self.0.root.path().join(path.as_ref());
+    /// May panic if IO errors are encountered.
+    pub fn setup_file_empty<P: AsRef<Utf8Path>>(&mut self, path: P) -> &mut Self {
+        let abs_path = self.0.root().join(path.as_ref());
         let parent = abs_path.parent().unwrap();
-        if parent != self.0.root.path() {
+        if parent != self.0.root() {
             create_dir(parent, true).unwrap();
         }
 
@@ -193,19 +204,19 @@ pub struct Expect(TempTestEnv);
 
 impl Expect {
     /// Ensure a directory exists after a test ran.
-    pub fn expect_dir<P: AsRef<Path>>(&mut self, path: P) -> &mut Self {
+    pub fn expect_dir<P: AsRef<Utf8Path>>(&mut self, path: P) -> &mut Self {
         self.0.add_expected(path.as_ref().to_path_buf(), None);
         self
     }
 
     /// Ensure a file exists after a test ran.
-    pub fn expect_file<P: AsRef<Path>>(&mut self, path: P) -> &mut Self {
+    pub fn expect_file<P: AsRef<Utf8Path>>(&mut self, path: P) -> &mut Self {
         self.0.add_expected(path.as_ref().to_path_buf(), Some(None));
         self
     }
 
     /// Ensure a file with the given content exists after a test ran.
-    pub fn expect_file_content<P: AsRef<Path>>(
+    pub fn expect_file_content<P: AsRef<Utf8Path>>(
         &mut self,
         path: P,
         content: impl AsRef<[u8]>,
@@ -217,7 +228,7 @@ impl Expect {
     }
 
     /// Ensure an empty file exists after a test ran.
-    pub fn expect_file_empty<P: AsRef<Path>>(&mut self, path: P) -> &mut Self {
+    pub fn expect_file_empty<P: AsRef<Utf8Path>>(&mut self, path: P) -> &mut Self {
         self.0.add_expected(path.as_ref().to_path_buf(), None);
         self
     }
@@ -230,7 +241,7 @@ impl TempTestEnv {
     /// and configure the expected end state respectively.
     pub fn run(
         setup: impl FnOnce(&mut Setup) -> &mut Setup,
-        test: impl FnOnce(&Path),
+        test: impl FnOnce(&Utf8Path),
         expect: impl FnOnce(&mut Expect) -> &mut Expect,
     ) {
         let dir = Self {
@@ -243,7 +254,7 @@ impl TempTestEnv {
         setup(&mut s);
         let Setup(dir) = s;
 
-        test(dir.root.path());
+        test(dir.root());
 
         let mut e = Expect(dir);
         expect(&mut e);
@@ -257,7 +268,10 @@ impl TempTestEnv {
     ///
     /// This is the same as [`TempTestEnv::run`], but does not check the
     /// resulting directory structure.
-    pub fn run_no_check(setup: impl FnOnce(&mut Setup) -> &mut Setup, test: impl FnOnce(&Path)) {
+    pub fn run_no_check(
+        setup: impl FnOnce(&mut Setup) -> &mut Setup,
+        test: impl FnOnce(&Utf8Path),
+    ) {
         let dir = Self {
             root: TempDir::with_prefix(TEMP_DIR_PREFIX).unwrap(),
             found: BTreeMap::new(),
@@ -268,46 +282,46 @@ impl TempTestEnv {
         setup(&mut s);
         let Setup(dir) = s;
 
-        test(dir.root.path());
+        test(dir.root());
     }
 }
 
 impl TempTestEnv {
-    fn add_expected(&mut self, expected: PathBuf, content: Option<Option<Vec<u8>>>) {
+    fn add_expected(&mut self, expected: Utf8PathBuf, content: Option<Option<Vec<u8>>>) {
         for ancestor in expected.ancestors() {
             self.expected.insert(ancestor.to_path_buf(), None);
         }
         self.expected.insert(expected, content);
     }
 
-    fn add_found(&mut self, found: PathBuf, content: Option<Vec<u8>>) {
+    fn add_found(&mut self, found: Utf8PathBuf, content: Option<Vec<u8>>) {
         for ancestor in found.ancestors() {
             self.found.insert(ancestor.to_path_buf(), None);
         }
         self.found.insert(found, content);
     }
 
-    fn read(&mut self, path: PathBuf) {
-        let rel = path.strip_prefix(self.root.path()).unwrap().to_path_buf();
+    fn read(&mut self, path: &Utf8Path) {
+        let rel = path.strip_prefix(self.root()).unwrap().to_path_buf();
         if path.metadata().unwrap().is_file() {
-            let content = std::fs::read(&path).unwrap();
+            let content = std::fs::read(path).unwrap();
             self.add_found(rel, Some(content));
         } else {
             let mut empty = true;
-            for entry in path.read_dir().unwrap() {
+            for entry in path.read_dir_utf8().unwrap() {
                 let entry = entry.unwrap();
                 self.read(entry.path());
                 empty = false;
             }
 
-            if empty && self.root.path() != path {
+            if empty && self.root() != path {
                 self.add_found(rel, None);
             }
         }
     }
 
     fn collect(&mut self) {
-        self.read(self.root.path().to_path_buf())
+        self.read(&self.root().to_path_buf())
     }
 
     fn assert(mut self) {
@@ -335,7 +349,7 @@ impl TempTestEnv {
             mismatch = true;
             writeln!(&mut msg, "\n=== Not found ===").unwrap();
             for not_found in not_found {
-                writeln!(&mut msg, "/{}", not_found.display()).unwrap();
+                writeln!(&mut msg, "/{not_found}").unwrap();
             }
         }
 
@@ -343,7 +357,7 @@ impl TempTestEnv {
             mismatch = true;
             writeln!(&mut msg, "\n=== Not expected ===").unwrap();
             for not_expected in not_expected {
-                writeln!(&mut msg, "/{}", not_expected.display()).unwrap();
+                writeln!(&mut msg, "/{not_expected}").unwrap();
             }
         }
 
@@ -351,7 +365,7 @@ impl TempTestEnv {
             mismatch = true;
             writeln!(&mut msg, "\n=== Content matched ===").unwrap();
             for (path, (found, expected)) in not_matched {
-                writeln!(&mut msg, "/{}", path.display()).unwrap();
+                writeln!(&mut msg, "/{path}").unwrap();
                 match (std::str::from_utf8(&found), std::str::from_utf8(&expected)) {
                     (Ok(found), Ok(expected)) => {
                         writeln!(&mut msg, "=== Expected ===\n>>>\n{expected}\n<<<\n").unwrap();
