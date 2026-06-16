@@ -290,14 +290,14 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
         }
     }
 
-    cwrite!(colored(w, KEY_COLOR), "  System fonts      ")?;
+    cwrite!(colored(w, KEY_COLOR), "  System fonts   ")?;
     cwriteln!(
         colored(w, SPECIAL_COLOR),
         "{}",
         if fonts.system { "on" } else { "off" }
     )?;
 
-    cwrite!(colored(w, KEY_COLOR), "  Embedded fonts    ")?;
+    cwrite!(colored(w, KEY_COLOR), "  Embedded fonts ")?;
     cwriteln!(
         colored(w, SPECIAL_COLOR),
         "{}",
