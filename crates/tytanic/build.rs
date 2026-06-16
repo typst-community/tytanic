@@ -3,10 +3,9 @@ use std::process::Command;
 
 fn main() {
     println!("cargo:rustc-env=TYTANIC_VERSION={}", tytanic_version());
-    println!(
-        "cargo:rustc-env=TYTANIC_COMMIT_SHA={}",
-        tytanic_commit_sha()
-    );
+    if let Some(tytanic_commit_sha) = tytanic_commit_sha() {
+        println!("cargo:rustc-env=TYTANIC_COMMIT_SHA={}", tytanic_commit_sha);
+    }
     println!(
         "cargo:rustc-env=TYTANIC_TYPST_VERSION={}",
         tytanic_typst_version()
@@ -30,24 +29,19 @@ fn tytanic_version() -> &'static str {
 ///
 /// First checks if the "TYTANIC_COMMIT_SHA" environment variable is set
 /// and returns its value if available.
-/// Otherwise, queries git to get the current commit SHA, or returns "unknown hash" on failure.
-fn tytanic_commit_sha() -> Cow<'static, str> {
+/// Otherwise, queries git to get the current commit SHA, or returns None on failure.
+fn tytanic_commit_sha() -> Option<Cow<'static, str>> {
     if let Some(sha) = option_env!("TYTANIC_COMMIT_SHA") {
-        return Cow::Borrowed(sha);
+        return Some(Cow::Borrowed(sha));
     }
 
-    let git_sha = Command::new("git")
+    Command::new("git")
         .args(["rev-parse", "HEAD"])
         .output()
         .ok()
         .filter(|output| output.status.success())
-        .and_then(|output| String::from_utf8(output.stdout.get(..8)?.into()).ok());
-
-    if let Some(sha) = git_sha {
-        return Cow::Owned(sha);
-    }
-
-    Cow::Borrowed("unknown hash")
+        .and_then(|output| String::from_utf8(output.stdout).ok())
+        .map(Cow::Owned)
 }
 
 /// Retrieves the typst version used in current config.

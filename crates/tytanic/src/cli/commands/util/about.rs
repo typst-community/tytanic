@@ -65,7 +65,7 @@ impl<'a> About<'a> {
 #[serde(rename_all = "kebab-case")]
 struct Build {
     /// The commmit sha of the current commit when building tytanic.
-    commit: &'static str,
+    commit: Option<&'static str>,
     platform: Platform,
 }
 
@@ -73,7 +73,7 @@ impl Build {
     /// Retrieves build informations specified in the `build.rs`
     const fn new() -> Self {
         Self {
-            commit: env!("TYTANIC_COMMIT_SHA"),
+            commit: option_env!("TYTANIC_COMMIT_SHA"),
             platform: Platform::new(),
         }
     }
@@ -265,7 +265,11 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
     cwrite!(colored(w, KEY_COLOR), "Version ")?;
     cwrite!(colored(w, VALUE_COLOR), "{} ", about.version)?;
     write!(w, "(")?;
-    cwrite!(colored(w, VALUE_COLOR), "{}", build.commit)?;
+    cwrite!(
+        colored(w, VALUE_COLOR),
+        "{}",
+        build.commit.map(|c| &c[..8]).unwrap_or("unknown commit")
+    )?;
     write!(w, ", ")?;
     cwrite!(colored(w, VALUE_COLOR), "{} ", build.platform.os)?;
     write!(w, "on ")?;
