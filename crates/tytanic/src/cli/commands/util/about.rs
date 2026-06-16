@@ -64,7 +64,7 @@ impl<'a> About<'a> {
 #[derive(Serialize)]
 #[serde(rename_all = "kebab-case")]
 struct Build {
-    /// The commmit sha of the current commit when building tytanic.
+    /// The commit sha of the current commit when building tytanic.
     commit: Option<&'static str>,
     platform: Platform,
 }
@@ -158,7 +158,7 @@ struct Environment {
     xdg_cache_home: Option<String>,
     #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "ios")))]
     xdg_data_home: Option<String>,
-    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "ios",)))]
+    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "ios")))]
     fontconfig_file: Option<String>,
     #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "ios")))]
     openssl_conf: Option<String>,
@@ -179,8 +179,8 @@ impl Environment {
             typst_font_paths: std::env::var("TYPST_FONT_PATHS").ok(),
             typst_ignore_system_fonts: std::env::var("TYPST_IGNORE_SYSTEM_FONTS").ok(),
             typst_ignore_embedded_fonts: std::env::var("TYPST_IGNORE_EMBEDDED_FONTS").ok(),
-            typst_package_path: std::env::var("TYPST_PACKAGE_PATH").ok(),
             typst_package_cache_path: std::env::var("TYPST_PACKAGE_CACHE_PATH").ok(),
+            typst_package_path: std::env::var("TYPST_PACKAGE_PATH").ok(),
             typst_root: std::env::var("TYPST_ROOT").ok(),
             source_date_epoch: std::env::var("SOURCE_DATE_EPOCH").ok(),
             #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "ios")))]
