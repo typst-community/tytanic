@@ -3631,6 +3631,7 @@ dependencies = [
  "typst-syntax",
  "tytanic-core",
  "tytanic-filter",
+ "tytanic-library",
  "tytanic-utils",
 ]
 
@@ -3675,6 +3676,19 @@ dependencies = [
  "tracing",
  "tytanic-core",
  "tytanic-utils",
+]
+
+[[package]]
+name = "tytanic-library"
+version = "0.3.4"
+dependencies = [
+ "ecow",
+ "tracing",
+ "typst",
+ "typst-assets",
+ "typst-layout",
+ "typst-library",
+ "typst-utils",
 ]
 
 [[package]]

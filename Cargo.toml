@@ -24,6 +24,7 @@ readme = "README.md"
 [workspace.dependencies]
 tytanic-core = { version = "0.3.3", path = "crates/tytanic-core" }
 tytanic-filter = { version = "0.3.3", path = "crates/tytanic-filter" }
+tytanic-library = { version = "0.3.3", path = "crates/tytanic-library" }
 tytanic-utils = { version = "0.3.3", path = "crates/tytanic-utils" }
 
 assert_cmd = "2.1.2"
