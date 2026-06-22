@@ -15,6 +15,12 @@ categories = ["command-line-utilities", "development-tools::testing"]
 keywords = ["typst", "test"]
 readme = "README.md"
 
+[workspace.lints.rust]
+# TODO: Add lints as necessary.
+
+[workspace.lints.clippy]
+# TODO: Add lints as necessary.
+
 [workspace.dependencies]
 tytanic-core = { version = "0.3.3", path = "crates/tytanic-core" }
 tytanic-filter = { version = "0.3.3", path = "crates/tytanic-filter" }

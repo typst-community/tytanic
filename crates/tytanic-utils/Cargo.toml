@@ -12,6 +12,9 @@ categories.workspace = true
 keywords.workspace = true
 readme.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
 camino.workspace = true
 ecow.workspace = true
