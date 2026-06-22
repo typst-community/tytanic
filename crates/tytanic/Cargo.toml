@@ -29,6 +29,7 @@ pkg-fmt = "zip"
 [dependencies]
 tytanic-core.workspace = true
 tytanic-filter.workspace = true
+tytanic-library.workspace = true
 tytanic-utils.workspace = true
 
 camino = { workspace = true, features = ["serde1"] }

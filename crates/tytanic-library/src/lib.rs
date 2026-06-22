@@ -1,12 +1,23 @@
+//! # `tytanic-library`
 //! Standard library augmentation, i.e. additional functions and values for the
-//! typst standard library.
+//! Typst standard library.
+//!
+//! This crate simply provides additional bindings in the Typst standard library
+//! to make testing easier, especially package failure paths. The following
+//! bindings are added:
+//! - `test` (module)
+//!   - `catch` (function, in prelude)
+//!   - `assert-panic` (function, in prelude)
+//!
+//! The modifier `in prelude` means that a nested binding is also available from
+//! the global scope. This may change in the future for compatibility reasons.
 //!
 //! # Functions
 //! ## `catch`
-//! Provides a mechanism to catch panics inside test scripts. Returns an array
-//! of strings for each panic.
+//! Provides a mechanism to catch panics inside test scripts. Returns the panic
+//! message or `none` if no panic was encountered.
 //! ```typst
-//! #let (msg,) = catch(() => {
+//! #let msg = catch(() => {
 //!   panic()
 //! })
 //! ```
@@ -18,13 +29,13 @@
 //! #assert-panic(() => {}, message: "Did not panic")
 //! ```
 
-use ecow::EcoString;
 use typst::Library;
 use typst::LibraryBuilder;
 use typst::LibraryExt;
 use typst::comemo::Tracked;
 use typst::diag::SourceResult;
 use typst::diag::bail;
+use typst::ecow::EcoString;
 use typst::engine::Engine;
 use typst::foundations::Context;
 use typst::foundations::Func;
@@ -117,49 +128,103 @@ fn assert_panic(
 
 #[cfg(test)]
 mod tests {
+    use std::sync::LazyLock;
+
+    use typst::World;
+    use typst::diag::FileError;
+    use typst::diag::FileResult;
+    use typst::foundations::Bytes;
+    use typst::foundations::Datetime;
+    use typst::foundations::Duration;
+    use typst::syntax::FileId;
     use typst::syntax::Source;
-    use typst_utils::LazyHash;
+    use typst::text::Font;
+    use typst::text::FontBook;
+    use typst::utils::LazyHash;
+    use typst_layout::PagedDocument;
 
     use super::*;
-    use crate::doc::compile;
-    use crate::doc::compile::Warnings;
-    use crate::world_builder::file::VirtualFileProvider;
-    use crate::world_builder::test_utils;
+
+    static AUGMENTED_LIBRARY: LazyLock<LazyHash<Library>> =
+        LazyLock::new(|| LazyHash::new(augmented_default_library()));
+
+    static FONTS: LazyLock<Vec<Font>> = LazyLock::new(|| {
+        typst_assets::fonts()
+            .enumerate()
+            .map(|(index, bytes)| {
+                let data = Bytes::new(bytes);
+                Font::new(data, index.try_into().unwrap()).unwrap()
+            })
+            .collect()
+    });
+
+    static FONT_BOOK: LazyLock<LazyHash<FontBook>> =
+        LazyLock::new(|| LazyHash::new(FontBook::from_fonts(&*FONTS)));
+
+    struct TestWorld(Source);
+
+    impl World for TestWorld {
+        fn library(&self) -> &LazyHash<Library> {
+            &AUGMENTED_LIBRARY
+        }
+
+        fn book(&self) -> &LazyHash<FontBook> {
+            &FONT_BOOK
+        }
+
+        fn main(&self) -> FileId {
+            self.0.id()
+        }
+
+        fn source(&self, id: FileId) -> FileResult<Source> {
+            if id == self.0.id() {
+                Ok(self.0.clone())
+            } else {
+                Err(FileError::NotFound(id.vpath().get_with_slash().into()))
+            }
+        }
+
+        fn file(&self, id: FileId) -> FileResult<Bytes> {
+            if id == self.0.id() {
+                Ok(Bytes::new(self.0.text().as_bytes().to_vec()))
+            } else {
+                Err(FileError::NotFound(id.vpath().get_with_slash().into()))
+            }
+        }
+
+        fn font(&self, index: usize) -> Option<Font> {
+            FONTS.get(index).cloned()
+        }
+
+        fn today(&self, _offset: Option<Duration>) -> Option<Datetime> {
+            unimplemented!("not used")
+        }
+    }
 
     #[test]
     fn test_catch() {
-        let mut files = VirtualFileProvider::new();
-        let library = LazyHash::new(augmented_default_library());
-
-        let source = Source::detached(
+        let world = TestWorld(Source::detached(
             r#"
-            #let errors = catch(() => {
+            #let error = catch(() => {
                 panic()
             })
-            #assert.eq(errors, "panicked")
+            #assert.eq(error, "panicked")
         "#,
-        );
+        ));
 
-        let world = test_utils::virtual_world(source, &mut files, &library);
-
-        compile::compile(&world, Warnings::Emit).output.unwrap();
+        typst::compile::<PagedDocument>(&world).output.unwrap();
     }
 
     #[test]
     fn test_assert_panic() {
-        let mut files = VirtualFileProvider::new();
-        let library = LazyHash::new(augmented_default_library());
-
-        let source = Source::detached(
+        let world = TestWorld(Source::detached(
             r#"
             #assert-panic(() => {
                 panic()
             })
         "#,
-        );
+        ));
 
-        let world = test_utils::virtual_world(source, &mut files, &library);
-
-        compile::compile(&world, Warnings::Emit).output.unwrap();
+        typst::compile::<PagedDocument>(&world).output.unwrap();
     }
 }
