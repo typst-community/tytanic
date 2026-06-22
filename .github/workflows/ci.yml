@@ -99,6 +99,7 @@ jobs:
           - tytanic
           - tytanic-core
           - tytanic-filter
+          - tytanic-library
           - tytanic-utils
     name: Check individual crate
     runs-on: ubuntu-latest

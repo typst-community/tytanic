@@ -67,6 +67,7 @@ If necessary, update the `latest` branch to point to the new release, this shoul
 Publish the crates on crates.io in order.
 ```shell
 cargo publish -p tytanic-utils
+cargo publish -p tytanic-library
 cargo publish -p tytanic-filter
 cargo publish -p tytanic-core
 cargo publish -p tytanic
