@@ -25,7 +25,7 @@ impl<'m, 's> ProjectJson<'m, 's> {
                 name: &m.package.name,
                 version: &m.package.version,
             }),
-            vcs: project.vcs().map(|vcs| vcs.to_string()),
+            vcs: project.vcs().map(|vcs| vcs.kind().to_string()),
             tests: suite
                 .unit_tests()
                 .map(|test| UnitTestJson::new(project, test))
