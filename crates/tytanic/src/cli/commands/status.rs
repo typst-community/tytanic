@@ -53,7 +53,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
 
     write!(w, "{:>align$}{}", "Vcs", delim_middle)?;
     if let Some(vcs) = project.vcs() {
-        cwrite!(bold_colored(w, Color::Green), "{vcs}")?;
+        cwrite!(bold_colored(w, Color::Green), "{}", vcs.kind())?;
     } else {
         cwrite!(bold_colored(w, Color::Yellow), "none")?;
     }

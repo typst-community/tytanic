@@ -328,14 +328,14 @@ pub enum Vcs {
     /// Auto detect the VCS from the current directory.
     Auto,
 
-    /// Git-compatible VCS'.
+    /// Git.
     Git,
 
-    /// Mercurial-compatible VCS'.
-    Mercurial,
+    /// A git-compatible VCS developed at Meta.
+    Sapling,
 
-    /// Shorthand for `mercurual`.
-    Hg,
+    /// A git-compatible VCS.
+    Jujutsu,
 }
 
 /// Options for configuring how to load fonts.

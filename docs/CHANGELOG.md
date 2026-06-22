@@ -4,6 +4,10 @@
 ## Changes
 - Update Typst to `0.15.0`
 - The `tytanic-filter` crate is now no longer a dependency of `tytanic-core`, but the other way around
+- Removed mercurial support
+- `.gitignore` files are now created within the directories they ignore to avoid creating extra tracked files in the file tree
+- Added `util vcs clear` to remove old tracked `.gitignore` files
+- Removed `util vcs ignore`
 
 ## Fixes
 

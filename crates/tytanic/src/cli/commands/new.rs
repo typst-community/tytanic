@@ -85,7 +85,6 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
         eyre::bail!(OperationFailure);
     }
 
-    let vcs = project.vcs();
     let id = args.test.clone();
 
     let kind = if args.persistent {
@@ -163,7 +162,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
         }
     };
 
-    UnitTest::create(&project, vcs, id, source, reference)?;
+    UnitTest::create(&project, id, source, reference)?;
 
     let mut w = ctx.ui.stderr();
 

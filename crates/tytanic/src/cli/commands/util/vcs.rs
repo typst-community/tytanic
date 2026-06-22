@@ -1,11 +1,12 @@
 use std::io::Write;
+use std::{fs, io};
 
 use color_eyre::eyre;
 use termcolor::Color;
 use tytanic_utils::fmt::Term;
+use tytanic_utils::result::ResultEx;
 
 use super::Context;
-use crate::cli::OperationFailure;
 use crate::cwrite;
 
 #[derive(clap::Args, Debug, Clone)]
@@ -18,31 +19,28 @@ pub struct Args {
 
 #[derive(clap::Subcommand, Debug, Clone)]
 pub enum Command {
-    /// Rewrite all ignore files.
+    /// Remove all previously generated tracked `.gitignore` files.
     #[command()]
-    Ignore,
+    Clear,
 }
 
 impl Command {
     pub fn run(&self, ctx: &mut Context) -> eyre::Result<()> {
         match self {
-            Command::Ignore => {
+            Command::Clear => {
                 let project = ctx.project()?;
-                let Some(vcs) = project.vcs() else {
-                    writeln!(ctx.ui.warn()?, "no VCS detected")?;
-                    eyre::bail!(OperationFailure);
-                };
-
                 let suite = ctx.collect_tests(&project)?;
 
                 let mut len = 0;
                 for test in suite.unit_tests() {
-                    vcs.ignore(&project, test)?;
+                    let dir = project.unit_test_dir(test.id());
+                    fs::remove_file(dir.join(".gitignore"))
+                        .ignore(|e| e.kind() == io::ErrorKind::NotFound)?;
                     len += 1;
                 }
 
                 let mut w = ctx.ui.stderr();
-                write!(w, "Rewritten ignore files for ")?;
+                write!(w, "Removed old `.gitignore` files for ")?;
                 cwrite!(colored(w, Color::Green), "{len}")?;
                 writeln!(w, " {}", Term::simple("test").with(len))?;
 

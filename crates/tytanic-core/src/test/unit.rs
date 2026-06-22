@@ -23,7 +23,7 @@ use crate::doc;
 use crate::doc::Document;
 use crate::doc::SaveError;
 use crate::project::Project;
-use crate::project::Vcs;
+use crate::project::vcs;
 
 // NOTE(tinger): The order of ignoring and deleting/creating documents is not
 // random, this is specifically for VCS like jj with active watchman triggers
@@ -179,10 +179,9 @@ impl Test {
     ///
     /// # Panics
     /// Panics if the given id is equal to the unique template test id.
-    #[tracing::instrument(skip(project, vcs, source, reference))]
+    #[tracing::instrument(skip(project, source, reference))]
     pub fn create(
         project: &Project,
-        vcs: Option<&Vcs>,
         id: Id,
         source: &str,
         reference: Option<Reference>,
@@ -212,11 +211,6 @@ impl Test {
             annotations,
         };
 
-        // Ignore temporaries before creating any.
-        if let Some(vcs) = vcs {
-            vcs.ignore(project, &this)?;
-        }
-
         match reference {
             Some(Reference::Ephemeral(reference)) => {
                 this.create_reference_script(project, reference.as_str())?;
@@ -234,17 +228,39 @@ impl Test {
     }
 
     /// Creates the temporary directories of this test.
+    ///
+    /// If the project has an associated VCS, each created temporary directory
+    /// is self-ignored using [`Vcs::ignore_directory`].
+    ///
+    /// [`Vcs::ignore_directory`]: crate::project::vcs::Vcs::ignore_directory
     #[tracing::instrument(skip(project))]
-    pub fn create_temporary_directories(&self, project: &Project) -> io::Result<()> {
+    pub fn create_temporary_directories(
+        &self,
+        project: &Project,
+    ) -> Result<(), vcs::IgnoreDirectoryError> {
+        let vcs = project.vcs();
+
         if self.kind.is_ephemeral() {
-            tytanic_utils::fs::remove_dir(project.unit_test_ref_dir(&self.id), true)?;
-            tytanic_utils::fs::create_dir(project.unit_test_ref_dir(&self.id), true)?;
+            let ref_dir = project.unit_test_ref_dir(&self.id);
+            tytanic_utils::fs::remove_dir(&ref_dir, true)?;
+            tytanic_utils::fs::create_dir(&ref_dir, true)?;
+            if let Some(vcs) = vcs {
+                vcs.ignore_directory(&ref_dir)?;
+            }
         }
 
-        tytanic_utils::fs::create_dir(project.unit_test_out_dir(&self.id), true)?;
+        let out_dir = project.unit_test_out_dir(&self.id);
+        tytanic_utils::fs::create_dir(&out_dir, true)?;
+        if let Some(vcs) = vcs {
+            vcs.ignore_directory(&out_dir)?;
+        }
 
         if !self.kind.is_compile_only() {
-            tytanic_utils::fs::create_dir(project.unit_test_diff_dir(&self.id), true)?;
+            let diff_dir = project.unit_test_diff_dir(&self.id);
+            tytanic_utils::fs::create_dir(&diff_dir, true)?;
+            if let Some(vcs) = vcs {
+                vcs.ignore_directory(&diff_dir)?;
+            }
         }
 
         Ok(())
@@ -334,17 +350,13 @@ impl Test {
 
     /// Removes any previous references, if they exist and creates a reference
     /// script by copying the test script.
-    #[tracing::instrument(skip(project, vcs))]
-    pub fn make_ephemeral(&mut self, project: &Project, vcs: Option<&Vcs>) -> io::Result<()> {
+    #[tracing::instrument(skip(project))]
+    pub fn make_ephemeral(&mut self, project: &Project) -> io::Result<()> {
         self.kind = Kind::Ephemeral;
 
         // Ensure deletion is recorded before ignore file is updated.
         self.delete_reference_script(project)?;
         self.delete_reference_document(project)?;
-
-        if let Some(vcs) = vcs {
-            vcs.ignore(project, self)?;
-        }
 
         // Copy references after ignore file is updated.
         std::fs::copy(
@@ -357,11 +369,10 @@ impl Test {
 
     /// Removes any previous references, if they exist and creates persistent
     /// references from the given pages.
-    #[tracing::instrument(skip(project, vcs))]
+    #[tracing::instrument(skip(project))]
     pub fn make_persistent(
         &mut self,
         project: &Project,
-        vcs: Option<&Vcs>,
         reference: &Document,
         optimize_options: Option<&oxipng::Options>,
     ) -> Result<(), SaveError> {
@@ -371,25 +382,17 @@ impl Test {
         self.delete_reference_script(project)?;
         self.create_reference_document(project, reference, optimize_options)?;
 
-        if let Some(vcs) = vcs {
-            vcs.ignore(project, self)?;
-        }
-
         Ok(())
     }
 
     /// Removes any previous references, if they exist.
-    #[tracing::instrument(skip(project, vcs))]
-    pub fn make_compile_only(&mut self, project: &Project, vcs: Option<&Vcs>) -> io::Result<()> {
+    #[tracing::instrument(skip(project))]
+    pub fn make_compile_only(&mut self, project: &Project) -> io::Result<()> {
         self.kind = Kind::CompileOnly;
 
         // Ensure deletion is recorded before ignore file is updated.
         self.delete_reference_document(project)?;
         self.delete_reference_script(project)?;
-
-        if let Some(vcs) = vcs {
-            vcs.ignore(project, self)?;
-        }
 
         Ok(())
     }
@@ -452,6 +455,10 @@ pub enum CreateError {
     #[error("an error occurred while saving test files")]
     Save(#[from] doc::SaveError),
 
+    /// An error occurred while saving test files.
+    #[error("an error occurred while saving test files")]
+    Vcs(#[from] vcs::IgnoreDirectoryError),
+
     /// An IO error occurred.
     #[error("an io error occurred")]
     Io(#[from] io::Error),
@@ -498,11 +505,10 @@ mod tests {
             |root| root.setup_dir("tests"),
             |root| {
                 let project = Project::new(root);
-                Test::create(&project, None, id("compile-only"), "Hello World", None).unwrap();
+                Test::create(&project, id("compile-only"), "Hello World", None).unwrap();
 
                 Test::create(
                     &project,
-                    None,
                     id("ephemeral"),
                     "Hello World",
                     Some(Reference::Ephemeral("Hello\nWorld".into())),
@@ -511,7 +517,6 @@ mod tests {
 
                 Test::create(
                     &project,
-                    None,
                     id("persistent"),
                     "Hello World",
                     Some(Reference::Persistent {
@@ -538,13 +543,13 @@ mod tests {
             |root| {
                 let project = Project::new(root);
                 test("compile-only", Kind::CompileOnly)
-                    .make_ephemeral(&project, None)
+                    .make_ephemeral(&project)
                     .unwrap();
                 test("ephemeral", Kind::Ephemeral)
-                    .make_ephemeral(&project, None)
+                    .make_ephemeral(&project)
                     .unwrap();
                 test("persistent", Kind::Persistent)
-                    .make_ephemeral(&project, None)
+                    .make_ephemeral(&project)
                     .unwrap();
             },
             |root| {
@@ -565,15 +570,15 @@ mod tests {
             |root| {
                 let project = Project::new(root);
                 test("compile-only", Kind::CompileOnly)
-                    .make_persistent(&project, None, &Document::new([]), None)
+                    .make_persistent(&project, &Document::new([]), None)
                     .unwrap();
 
                 test("ephemeral", Kind::Ephemeral)
-                    .make_persistent(&project, None, &Document::new([]), None)
+                    .make_persistent(&project, &Document::new([]), None)
                     .unwrap();
 
                 test("persistent", Kind::Persistent)
-                    .make_persistent(&project, None, &Document::new([]), None)
+                    .make_persistent(&project, &Document::new([]), None)
                     .unwrap();
             },
             |root| {
@@ -594,21 +599,84 @@ mod tests {
             |root| {
                 let project = Project::new(root);
                 test("compile-only", Kind::CompileOnly)
-                    .make_compile_only(&project, None)
+                    .make_compile_only(&project)
                     .unwrap();
 
                 test("ephemeral", Kind::Ephemeral)
-                    .make_compile_only(&project, None)
+                    .make_compile_only(&project)
                     .unwrap();
 
                 test("persistent", Kind::Persistent)
-                    .make_compile_only(&project, None)
+                    .make_compile_only(&project)
                     .unwrap();
             },
             |root| {
                 root.expect_file_content("tests/compile-only/test.typ", "Hello World")
                     .expect_file_content("tests/ephemeral/test.typ", "Hello World")
                     .expect_file_content("tests/persistent/test.typ", "Hello World")
+            },
+        );
+    }
+
+    #[test]
+    fn test_create_temporary_directories_ignored() {
+        use crate::project::Vcs;
+        use crate::project::VcsKind;
+
+        TempTestEnv::run(
+            |root| {
+                root.setup_file("tests/compile-only/test.typ", "Hello World")
+                    .setup_file("tests/ephemeral/test.typ", "Hello World")
+                    .setup_file("tests/persistent/test.typ", "Hello World")
+            },
+            |root| {
+                let project =
+                    Project::new(root).with_vcs(Some(Vcs::new(root.to_path_buf(), VcsKind::Git)));
+
+                test("compile-only", Kind::CompileOnly)
+                    .create_temporary_directories(&project)
+                    .unwrap();
+                test("ephemeral", Kind::Ephemeral)
+                    .create_temporary_directories(&project)
+                    .unwrap();
+                test("persistent", Kind::Persistent)
+                    .create_temporary_directories(&project)
+                    .unwrap();
+            },
+            |root| {
+                root
+                    // compile-only: only out is created and ignored
+                    .expect_file_content("tests/compile-only/test.typ", "Hello World")
+                    .expect_file("tests/compile-only/out/.gitignore")
+                    // ephemeral: out, diff, and ref are created and ignored
+                    .expect_file_content("tests/ephemeral/test.typ", "Hello World")
+                    .expect_file("tests/ephemeral/out/.gitignore")
+                    .expect_file("tests/ephemeral/diff/.gitignore")
+                    .expect_file("tests/ephemeral/ref/.gitignore")
+                    // persistent: out, diff are created and ignored, ref isn't ignored
+                    .expect_file_content("tests/persistent/test.typ", "Hello World")
+                    .expect_file("tests/persistent/out/.gitignore")
+                    .expect_file("tests/persistent/diff/.gitignore")
+            },
+        );
+    }
+
+    #[test]
+    fn test_create_temporary_directories_no_vcs() {
+        TempTestEnv::run(
+            |root| root.setup_file("tests/fancy/test.typ", "Hello World"),
+            |root| {
+                let project = Project::new(root);
+
+                test("fancy", Kind::Ephemeral)
+                    .create_temporary_directories(&project)
+                    .unwrap();
+            },
+            |root| {
+                root.expect_file_content("tests/fancy/test.typ", "Hello World")
+                    .expect_dir("tests/fancy/out")
+                    .expect_dir("tests/fancy/diff")
+                    .expect_dir("tests/fancy/ref")
             },
         );
     }

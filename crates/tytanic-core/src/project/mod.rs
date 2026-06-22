@@ -24,7 +24,7 @@ use crate::TOOL_NAME;
 use crate::config::ProjectConfig;
 use crate::test::Id;
 
-mod vcs;
+pub mod vcs;
 
 pub use vcs::Kind as VcsKind;
 pub use vcs::Vcs;
@@ -82,7 +82,7 @@ impl ShallowProject {
             // we find a VCS root, I'm not sure if this makes sense, stopping at
             // the VCS root is likely the most sensible behavior.
             if vcs.is_none()
-                && let Some(kind) = Vcs::exists_at(dir)?
+                && let Some(kind) = Vcs::try_infer_kind(dir)?
             {
                 tracing::debug!(vcs = ?kind, root = ?dir, "found vcs");
                 vcs = Some(Vcs::new(dir.to_path_buf(), kind));

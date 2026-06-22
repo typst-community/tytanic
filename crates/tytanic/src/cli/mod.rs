@@ -135,7 +135,8 @@ impl Context<'_> {
             let kind = match self.args.vcs {
                 commands::Vcs::Auto => break 'vcs,
                 commands::Vcs::Git => VcsKind::Git,
-                commands::Vcs::Hg | commands::Vcs::Mercurial => VcsKind::Mercurial,
+                commands::Vcs::Sapling => VcsKind::Sapling,
+                commands::Vcs::Jujutsu => VcsKind::Jujutsu,
             };
 
             if let Some(detected) = project.vcs().map(Vcs::kind) {
