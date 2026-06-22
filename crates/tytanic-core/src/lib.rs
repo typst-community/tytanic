@@ -3,7 +3,6 @@
 pub mod config;
 pub mod doc;
 pub mod filter;
-pub mod library;
 pub mod project;
 pub mod suite;
 pub mod test;

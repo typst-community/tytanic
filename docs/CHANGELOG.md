@@ -4,6 +4,7 @@
 ## Changes
 - Set the use of system fonts in the configuration file and not only as a CLI flag
 - Added the `--no-user-config` flag to isolate the integration test suite
+- The Typst testing extensions such as `catch` and `assert-panic` are now available as a library for other projects
 
 ## Fixes
 
