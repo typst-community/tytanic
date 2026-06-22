@@ -3682,10 +3682,15 @@ name = "tytanic-utils"
 version = "0.3.4"
 dependencies = [
  "camino",
+ "chrono",
  "ecow",
+ "insta",
  "temp-dir",
+ "termcolor",
  "toml",
  "tracing",
+ "typst",
+ "typst-kit",
  "typst-syntax",
 ]
 

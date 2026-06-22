@@ -12,15 +12,10 @@ use typst::utils::LazyHash;
 use typst_kit::datetime::Time;
 use typst_kit::diagnostics::DiagnosticWorld;
 use typst_kit::fonts::FontStore;
+use tytanic_utils::forward_trait;
 
 pub mod file;
 pub mod font;
-
-macro_rules! forward_trait {
-    (impl<$pointee:ident> $trait:ident for [$($pointer:ty),+] $funcs:tt) => {
-        $(impl<$pointee: $trait> $trait for $pointer $funcs)+
-    };
-}
 
 /// A trait for providing access to files.
 pub trait ProvideFile: Send + Sync {

@@ -1,5 +1,4 @@
-//! Helper functions and types for filesystem interactions, including unit test
-//! helpers.
+//! Helper functions and types for filesystem.
 
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
