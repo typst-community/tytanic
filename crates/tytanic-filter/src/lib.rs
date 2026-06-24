@@ -22,7 +22,7 @@ use thiserror::Error;
 use tytanic_core::filter::Filter;
 use tytanic_core::filter::FilterState;
 use tytanic_core::project::Project;
-use tytanic_core::test::Test;
+use tytanic_core::test::TestRef;
 
 use crate::exact::ExactFilter;
 use crate::exact::ExactFilterState;
@@ -114,7 +114,12 @@ pub struct CombinedFilterState<'f> {
 impl FilterState for CombinedFilterState<'_> {
     type Error = Error;
 
-    fn filter(&mut self, project: &Project, test: &Test) -> Result<bool, Self::Error> {
+    fn filter<'t, T>(&mut self, project: &Project, test: T) -> Result<bool, Self::Error>
+    where
+        T: Into<TestRef<'t>>,
+    {
+        let test = test.into();
+
         if let Some(exact) = &mut self.exact
             && exact.filter(project, test)?
         {

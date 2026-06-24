@@ -16,7 +16,7 @@ use thiserror::Error;
 use tytanic_core::filter::Filter;
 use tytanic_core::filter::FilterState;
 use tytanic_core::project::Project;
-use tytanic_core::test::Test;
+use tytanic_core::test::TestRef;
 
 use crate::test_set::eval::Eval;
 use crate::test_set::eval::Value;
@@ -122,8 +122,11 @@ pub struct ExpressionFilterState<'f>(&'f ExpressionFilter);
 impl FilterState for ExpressionFilterState<'_> {
     type Error = eval::Error;
 
-    fn filter(&mut self, project: &Project, test: &Test) -> Result<bool, Self::Error> {
-        self.0.set.contains(project, &self.0.ctx, test)
+    fn filter<'t, T>(&mut self, project: &Project, test: T) -> Result<bool, Self::Error>
+    where
+        T: Into<TestRef<'t>>,
+    {
+        self.0.set.contains(project, &self.0.ctx, test.into())
     }
 }
 

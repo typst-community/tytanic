@@ -12,7 +12,7 @@ use tytanic_core::filter::Filter;
 use tytanic_core::filter::FilterState;
 use tytanic_core::project::Project;
 use tytanic_core::test::Id;
-use tytanic_core::test::Test;
+use tytanic_core::test::TestRef;
 
 /// A filter that expects a specific set of tests.
 ///
@@ -69,11 +69,16 @@ pub struct ExactFilterState {
 impl FilterState for ExactFilterState {
     type Error = Error;
 
-    fn filter(&mut self, _ctx: &Project, test: &Test) -> Result<bool, Self::Error> {
-        Ok(if self.missing.remove(test.id()) {
+    fn filter<'t, T>(&mut self, _project: &Project, test: T) -> Result<bool, Self::Error>
+    where
+        T: Into<TestRef<'t>>,
+    {
+        let test = test.into();
+
+        Ok(if self.missing.remove(test.id().as_str()) {
             true
         } else {
-            self.expected.contains(test.id())
+            self.expected.contains(test.id().as_str())
         })
     }
 
@@ -102,7 +107,7 @@ mod tests {
 
     use tytanic_core::UnitTest;
     use tytanic_core::suite::Suite;
-    use tytanic_core::test::unit::Kind as UnitKind;
+    use tytanic_core::test::{IdRef, UnitId, UnitKind};
     use tytanic_utils::fs::TempTestEnv;
 
     use super::*;
@@ -120,20 +125,15 @@ mod tests {
                     Id::new("qux").unwrap(),
                 ]);
 
-                let suite = Suite::from_tests([
-                    Test::Unit(UnitTest::new(
-                        Id::new("foo").unwrap(),
-                        UnitKind::CompileOnly,
-                    )),
-                    Test::Unit(UnitTest::new(
-                        Id::new("bar").unwrap(),
-                        UnitKind::CompileOnly,
-                    )),
-                    Test::Unit(UnitTest::new(
-                        Id::new("qux").unwrap(),
-                        UnitKind::CompileOnly,
-                    )),
-                ]);
+                let suite = Suite::from_tests(
+                    [
+                        UnitTest::new(UnitId::new("foo").unwrap(), UnitKind::CompileOnly),
+                        UnitTest::new(UnitId::new("bar").unwrap(), UnitKind::CompileOnly),
+                        UnitTest::new(UnitId::new("qux").unwrap(), UnitKind::CompileOnly),
+                    ],
+                    [],
+                    None,
+                );
 
                 let suite = suite.filter(&project, filter).unwrap();
 
@@ -141,21 +141,19 @@ mod tests {
                     suite
                         .matched()
                         .tests()
-                        .map(Test::id)
-                        .cloned()
+                        .map(TestRef::id)
                         .collect::<BTreeSet<_>>(),
                     BTreeSet::from_iter([
-                        Id::new("foo").unwrap(),
-                        Id::new("bar").unwrap(),
-                        Id::new("qux").unwrap(),
+                        IdRef::Unit(&UnitId::new("foo").unwrap()),
+                        IdRef::Unit(&UnitId::new("bar").unwrap()),
+                        IdRef::Unit(&UnitId::new("qux").unwrap()),
                     ])
                 );
                 assert_eq!(
                     suite
                         .filtered()
                         .tests()
-                        .map(Test::id)
-                        .cloned()
+                        .map(TestRef::id)
                         .collect::<BTreeSet<_>>(),
                     BTreeSet::from_iter([])
                 );
@@ -172,20 +170,15 @@ mod tests {
 
                 let filter = ExactFilter::new([Id::new("foo").unwrap(), Id::new("bar").unwrap()]);
 
-                let suite = Suite::from_tests([
-                    Test::Unit(UnitTest::new(
-                        Id::new("foo").unwrap(),
-                        UnitKind::CompileOnly,
-                    )),
-                    Test::Unit(UnitTest::new(
-                        Id::new("bar").unwrap(),
-                        UnitKind::CompileOnly,
-                    )),
-                    Test::Unit(UnitTest::new(
-                        Id::new("qux").unwrap(),
-                        UnitKind::CompileOnly,
-                    )),
-                ]);
+                let suite = Suite::from_tests(
+                    [
+                        UnitTest::new(UnitId::new("foo").unwrap(), UnitKind::CompileOnly),
+                        UnitTest::new(UnitId::new("bar").unwrap(), UnitKind::CompileOnly),
+                        UnitTest::new(UnitId::new("qux").unwrap(), UnitKind::CompileOnly),
+                    ],
+                    [],
+                    None,
+                );
 
                 let suite = suite.filter(&project, filter).unwrap();
 
@@ -193,19 +186,20 @@ mod tests {
                     suite
                         .matched()
                         .tests()
-                        .map(Test::id)
-                        .cloned()
+                        .map(TestRef::id)
                         .collect::<BTreeSet<_>>(),
-                    BTreeSet::from_iter([Id::new("foo").unwrap(), Id::new("bar").unwrap()])
+                    BTreeSet::from_iter([
+                        IdRef::Unit(&UnitId::new("foo").unwrap()),
+                        IdRef::Unit(&UnitId::new("bar").unwrap())
+                    ])
                 );
                 assert_eq!(
                     suite
                         .filtered()
                         .tests()
-                        .map(Test::id)
-                        .cloned()
+                        .map(TestRef::id)
                         .collect::<BTreeSet<_>>(),
-                    BTreeSet::from_iter([Id::new("qux").unwrap()])
+                    BTreeSet::from_iter([IdRef::Unit(&UnitId::new("qux").unwrap())])
                 );
             },
         );
@@ -224,16 +218,14 @@ mod tests {
                     Id::new("zir").unwrap(),
                 ]);
 
-                let suite = Suite::from_tests([
-                    Test::Unit(UnitTest::new(
-                        Id::new("foo").unwrap(),
-                        UnitKind::CompileOnly,
-                    )),
-                    Test::Unit(UnitTest::new(
-                        Id::new("bar").unwrap(),
-                        UnitKind::CompileOnly,
-                    )),
-                ]);
+                let suite = Suite::from_tests(
+                    [
+                        UnitTest::new(UnitId::new("foo").unwrap(), UnitKind::CompileOnly),
+                        UnitTest::new(UnitId::new("bar").unwrap(), UnitKind::CompileOnly),
+                    ],
+                    [],
+                    None,
+                );
 
                 let missing = suite.filter(&project, filter).unwrap_err();
                 assert_eq!(

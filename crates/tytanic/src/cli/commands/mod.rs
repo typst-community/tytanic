@@ -11,8 +11,8 @@ use clap::ValueEnum;
 use color_eyre::eyre;
 use tytanic_core::config::Direction;
 use tytanic_core::doc::compile::Warnings;
-use tytanic_core::test::Id;
-use tytanic_core::test::unit::Kind;
+use tytanic_core::test::UnitId;
+use tytanic_core::test::UnitKind;
 
 use super::Context;
 
@@ -76,13 +76,13 @@ pub enum KindOption {
 }
 
 impl OptionDelegate for KindOption {
-    type Native = Kind;
+    type Native = UnitKind;
 
     fn into_native(self) -> Self::Native {
         match self {
-            Self::Persistent => Kind::Persistent,
-            Self::Ephemeral => Kind::Ephemeral,
-            Self::CompileOnly => Kind::CompileOnly,
+            Self::Persistent => UnitKind::Persistent,
+            Self::Ephemeral => UnitKind::Ephemeral,
+            Self::CompileOnly => UnitKind::CompileOnly,
         }
     }
 }
@@ -403,7 +403,7 @@ pub struct FilterOptions {
     /// This will always ignore the `[skip]` annotation and fail if a test can't
     /// be found.
     #[arg(required = false, value_name = "TEST")]
-    pub tests: Vec<Id>,
+    pub tests: Vec<UnitId>,
 }
 
 fn parse_source_date_epoch(raw: &str) -> Result<DateTime<Utc>, String> {

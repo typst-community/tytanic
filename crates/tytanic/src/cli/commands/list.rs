@@ -2,8 +2,8 @@ use std::io::Write;
 
 use color_eyre::eyre;
 use termcolor::Color;
-use tytanic_core::test::Test;
-use tytanic_core::test::unit::Kind as TestKind;
+use tytanic_core::test::TestRef;
+use tytanic_core::test::UnitKind;
 
 use super::Context;
 use super::FilterOptions;
@@ -59,11 +59,11 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
         }
 
         match test {
-            Test::Unit(test) => {
+            TestRef::Unit(test) => {
                 let color = match test.kind() {
-                    TestKind::Ephemeral => Color::Green,
-                    TestKind::Persistent => Color::Green,
-                    TestKind::CompileOnly => Color::Yellow,
+                    UnitKind::Ephemeral => Color::Green,
+                    UnitKind::Persistent => Color::Green,
+                    UnitKind::CompileOnly => Color::Yellow,
                 };
                 // pad by 12 for `compile-only`
                 cwrite!(bold_colored(w, color), "{: <12}", test.kind().as_str())?;
@@ -73,8 +73,15 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
                     cwrite!(bold_colored(w, Color::Cyan), "skip")?;
                 }
             }
-            Test::Template(_) => {
+            TestRef::Template(_) => {
                 cwrite!(bold_colored(w, Color::Magenta), "{: <12}", "template")?;
+            }
+            TestRef::Doc(_) => {
+                cwrite!(
+                    bold_colored(w, Color::Yellow),
+                    "{: <12}",
+                    "compile-only doc"
+                )?;
             }
         }
 

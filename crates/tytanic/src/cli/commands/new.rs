@@ -15,11 +15,12 @@ use typst_syntax::VirtualPath;
 use typst_syntax::VirtualRoot;
 use tytanic_core::doc::Document;
 use tytanic_core::doc::render::ppi_to_ppp;
+use tytanic_core::test::DEFAULT_TEST_INPUT;
 use tytanic_core::test::Id;
+use tytanic_core::test::UnitId;
+use tytanic_core::test::UnitKind;
+use tytanic_core::test::UnitReference;
 use tytanic_core::test::UnitTest;
-use tytanic_core::test::unit::DEFAULT_TEST_INPUT;
-use tytanic_core::test::unit::Kind;
-use tytanic_core::test::unit::Reference;
 
 use super::CompileOptions;
 use super::Context;
@@ -64,35 +65,31 @@ pub struct Args {
 
     /// The name of the new test.
     #[arg(value_name = "NAME")]
-    pub test: Id,
+    pub test: UnitId,
 }
 
 pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
-    if args.test == Id::template() {
-        writeln!(ctx.ui.error()?, "Cannot create template test")?;
-        eyre::bail!(OperationFailure);
-    }
-
     let project = ctx.project()?;
     let suite = ctx.collect_tests(&project)?;
 
-    if suite.contains(&args.test) {
+    let unit_id = args.test.clone();
+    let id = Id::Unit(args.test.clone());
+
+    if suite.contains(&id) {
         let mut w = ctx.ui.error()?;
 
         write!(w, "Test ")?;
-        ui::write_test_id(&mut w, &args.test)?;
+        ui::write_test_id(&mut w, &id)?;
         writeln!(w, " already exists")?;
         eyre::bail!(OperationFailure);
     }
 
-    let id = args.test.clone();
-
     let kind = if args.persistent {
-        Kind::Persistent
+        UnitKind::Persistent
     } else if args.ephemeral {
-        Kind::Ephemeral
+        UnitKind::Ephemeral
     } else if args.compile_only {
-        Kind::CompileOnly
+        UnitKind::CompileOnly
     } else {
         args.kind.into_native()
     };
@@ -103,9 +100,9 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
         .unwrap_or(DEFAULT_TEST_INPUT);
 
     let reference = match kind {
-        Kind::CompileOnly => None,
-        Kind::Ephemeral => Some(Reference::Ephemeral(source.into())),
-        Kind::Persistent => {
+        UnitKind::CompileOnly => None,
+        UnitKind::Ephemeral => Some(UnitReference::Ephemeral(source.into())),
+        UnitKind::Persistent => {
             let providers =
                 ctx.providers(&project, &ctx.args.package, &ctx.args.font, &args.compile)?;
 
@@ -150,7 +147,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
                 }
             };
 
-            Some(Reference::Persistent {
+            Some(UnitReference::Persistent {
                 doc,
                 opt: args
                     .export
@@ -162,7 +159,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
         }
     };
 
-    UnitTest::create(&project, id, source, reference)?;
+    UnitTest::create(&project, unit_id, source, reference)?;
 
     let mut w = ctx.ui.stderr();
 

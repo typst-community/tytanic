@@ -3658,6 +3658,7 @@ dependencies = [
  "typst-render",
  "typst-utils",
  "tytanic-utils",
+ "unicode-ident",
  "uuid",
 ]
 

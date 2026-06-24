@@ -7,7 +7,7 @@ use color_eyre::eyre;
 use termcolor::Color;
 use tytanic_core::Project;
 use tytanic_core::suite::Suite;
-use tytanic_core::test::Id;
+use tytanic_core::test::UnitId;
 
 use crate::cli::Context;
 use crate::cwrite;
@@ -45,7 +45,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
     let mut has_collision = false;
     let mut mappings = BTreeMap::new();
     for old in suite.nested().keys() {
-        let new = Id::new(format!("{old}/{}", args.name))?;
+        let new = UnitId::new(format!("{old}/{}", args.name))?;
         let collision = suite.contains(&new);
 
         has_collision |= collision;
@@ -120,9 +120,9 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
 
 fn migrate_test_part(
     project: &Project,
-    old: &Id,
-    new: &Id,
-    f: fn(&Project, &Id) -> Utf8PathBuf,
+    old: &UnitId,
+    new: &UnitId,
+    f: fn(&Project, &UnitId) -> Utf8PathBuf,
 ) -> eyre::Result<()> {
     let old = f(project, old);
     let new = f(project, new);
@@ -134,7 +134,7 @@ fn migrate_test_part(
     Ok(())
 }
 
-fn migrate_test(project: &Project, old: &Id, new: &Id) -> eyre::Result<()> {
+fn migrate_test(project: &Project, old: &UnitId, new: &UnitId) -> eyre::Result<()> {
     let test_dir = project.unit_test_dir(new);
     tytanic_utils::fs::create_dir(&test_dir, true)?;
     migrate_test_part(project, old, new, Project::unit_test_script)?;
