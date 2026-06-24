@@ -5,8 +5,6 @@
 //! [reference]: https://typst-community.github.io/tytanic/reference/test-sets/index.html
 //! [guide]: https://typst-community.github.io/tytanic/guides/test-sets.html
 
-use tytanic_core::test::Test;
-
 use crate::test_set::ast::Id;
 use crate::test_set::eval::Context;
 use crate::test_set::eval::Error;
@@ -43,6 +41,8 @@ pub fn context() -> Context {
 ///
 /// All bindings are prefixed with their respective [`Value`] type.
 pub mod dsl {
+    use tytanic_core::test::TestRef;
+
     use super::*;
 
     /// The constructor function for the test set returned by [`set_all`].
@@ -78,7 +78,7 @@ pub mod dsl {
     /// Constructs the `skip()` test set. A test set which contains all tests
     /// marked with the `skip` annotation.
     pub fn set_skip() -> Set {
-        Set::new(|_, _, test: &Test| Ok(test.as_unit_test().is_some_and(|unit| unit.is_skip())))
+        Set::new(|_, _, test: TestRef<'_>| Ok(test.as_unit().is_some_and(|unit| unit.is_skip())))
     }
 
     /// The constructor function for the test set returned by [`set_unit`].
@@ -89,7 +89,7 @@ pub mod dsl {
 
     /// Constructs the `unit()` test set. A test set which contains all unit tests.
     pub fn set_unit() -> Set {
-        Set::new(|_, _, test: &Test| Ok(test.as_unit_test().is_some()))
+        Set::new(|_, _, test: TestRef<'_>| Ok(test.is_unit()))
     }
 
     /// The constructor function for the test set returned by [`set_template`].
@@ -101,7 +101,7 @@ pub mod dsl {
     /// Constructs the `template()` test set. A test set which contains all
     /// template tests.
     pub fn set_template() -> Set {
-        Set::new(|_, _, test: &Test| Ok(test.as_template_test().is_some()))
+        Set::new(|_, _, test: TestRef<'_>| Ok(test.is_template()))
     }
 
     /// The constructor function for the test set returned by
@@ -114,9 +114,9 @@ pub mod dsl {
     /// Constructs the `compile-only()` test set. A test set which contains all
     /// `compile-only` unit tests.
     pub fn set_compile_only() -> Set {
-        Set::new(|_, _, test: &Test| {
+        Set::new(|_, _, test: TestRef<'_>| {
             Ok(test
-                .as_unit_test()
+                .as_unit()
                 .is_some_and(|unit| unit.kind().is_compile_only()))
         })
     }
@@ -130,9 +130,9 @@ pub mod dsl {
     /// Constructs the `ephemeral()` test set. A test set which contains all
     /// `ephemeral` unit tests.
     pub fn set_ephemeral() -> Set {
-        Set::new(|_, _, test: &Test| {
+        Set::new(|_, _, test: TestRef<'_>| {
             Ok(test
-                .as_unit_test()
+                .as_unit()
                 .is_some_and(|unit| unit.kind().is_ephemeral()))
         })
     }
@@ -147,9 +147,9 @@ pub mod dsl {
     /// Constructs the `persistent()` test set. A test set which contains all
     /// `persistent` unit tests.
     pub fn set_persistent() -> Set {
-        Set::new(|_, _, test: &Test| {
+        Set::new(|_, _, test: TestRef<'_>| {
             Ok(test
-                .as_unit_test()
+                .as_unit()
                 .is_some_and(|unit| unit.kind().is_persistent()))
         })
     }

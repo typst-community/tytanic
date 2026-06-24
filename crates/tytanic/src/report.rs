@@ -10,11 +10,11 @@ use termcolor::Color;
 use typst_kit::diagnostics;
 use typst_kit::diagnostics::DiagnosticFormat;
 use tytanic_core::Project;
+use tytanic_core::TestRef;
 use tytanic_core::doc::compare;
 use tytanic_core::doc::compare::PageError;
 use tytanic_core::suite::SuiteResult;
 use tytanic_core::test::Stage;
-use tytanic_core::test::Test;
 use tytanic_core::test::TestResult;
 use tytanic_utils::fmt::Term;
 
@@ -230,7 +230,7 @@ impl Reporter<'_, '_> {
     pub fn report_test_result(
         &self,
         project: &Project,
-        test: &Test,
+        test: TestRef<'_>,
         result: &TestResult,
     ) -> eyre::Result<()> {
         let (annot, color) = match result.stage() {
@@ -255,8 +255,9 @@ impl Reporter<'_, '_> {
         writeln!(w)?;
 
         let world = match test {
-            Test::Unit(test) => self.providers.unit_world(project, test, false, None),
-            Test::Template(test) => self.providers.template_world(project, test),
+            TestRef::Unit(test) => self.providers.unit_world(project, test, false, None),
+            TestRef::Template(test) => self.providers.template_world(project, test),
+            TestRef::Doc(_) => unimplemented!("doc tests are not yet supported"),
         };
 
         diagnostics::emit(&mut w, &world, result.warnings(), self.format)?;

@@ -8,13 +8,18 @@ use tytanic_core::TemplateTest;
 use tytanic_core::UnitTest;
 use tytanic_core::project::Project;
 use tytanic_core::suite::Suite;
-use tytanic_core::test::Test;
+use tytanic_core::test::DocId;
+use tytanic_core::test::DocTest;
+use tytanic_core::test::TemplateId;
+use tytanic_core::test::TestRef;
+use tytanic_core::test::UnitId;
 
 #[derive(Debug, Serialize)]
 pub struct ProjectJson<'m, 's> {
     pub package: Option<PackageJson<'m>>,
     pub vcs: Option<String>,
-    pub tests: Vec<UnitTestJson<'s>>,
+    pub unit_tests: Vec<UnitTestJson<'s>>,
+    pub doc_tests: Vec<DocTestJson<'s>>,
     pub template_test: Option<TemplateTestJson<'s>>,
 }
 
@@ -26,9 +31,13 @@ impl<'m, 's> ProjectJson<'m, 's> {
                 version: &m.package.version,
             }),
             vcs: project.vcs().map(|vcs| vcs.kind().to_string()),
-            tests: suite
+            unit_tests: suite
                 .unit_tests()
                 .map(|test| UnitTestJson::new(project, test))
+                .collect(),
+            doc_tests: suite
+                .doc_tests()
+                .map(|test| DocTestJson::new(project, test))
                 .collect(),
             template_test: suite
                 .template_test()
@@ -45,35 +54,39 @@ pub struct PackageJson<'p> {
 
 #[derive(Debug, Serialize)]
 #[serde(tag = "type", content = "test")]
-pub enum TestJson<'t> {
+pub enum TestJson<'s> {
     #[serde(rename = "unit")]
-    Unit(UnitTestJson<'t>),
+    Unit(UnitTestJson<'s>),
 
     #[serde(rename = "template")]
-    Template(TemplateTestJson<'t>),
+    Template(TemplateTestJson<'s>),
+
+    #[serde(rename = "doc")]
+    Doc(DocTestJson<'s>),
 }
 
-impl<'t> TestJson<'t> {
-    pub fn new(project: &Project, test: &'t Test) -> Self {
+impl<'s> TestJson<'s> {
+    pub fn new(project: &Project, test: TestRef<'s>) -> Self {
         match test {
-            Test::Unit(test) => Self::Unit(UnitTestJson::new(project, test)),
-            Test::Template(test) => Self::Template(TemplateTestJson::new(project, test)),
+            TestRef::Unit(test) => Self::Unit(UnitTestJson::new(project, test)),
+            TestRef::Template(test) => Self::Template(TemplateTestJson::new(project, test)),
+            TestRef::Doc(test) => Self::Doc(DocTestJson::new(project, test)),
         }
     }
 }
 
 #[derive(Debug, Serialize)]
-pub struct UnitTestJson<'t> {
-    pub id: &'t str,
+pub struct UnitTestJson<'s> {
+    pub id: &'s UnitId,
     pub kind: &'static str,
     pub is_skip: bool,
     pub path: Utf8PathBuf,
 }
 
-impl<'t> UnitTestJson<'t> {
-    pub fn new(project: &Project, test: &'t UnitTest) -> Self {
+impl<'s> UnitTestJson<'s> {
+    pub fn new(project: &Project, test: &'s UnitTest) -> Self {
         Self {
-            id: test.id().as_str(),
+            id: test.id(),
             kind: test.kind().as_str(),
             is_skip: test.is_skip(),
             path: project.unit_test_dir(test.id()),
@@ -82,15 +95,30 @@ impl<'t> UnitTestJson<'t> {
 }
 
 #[derive(Debug, Serialize)]
-pub struct TemplateTestJson<'t> {
-    pub id: &'t str,
+pub struct TemplateTestJson<'s> {
+    pub id: &'s TemplateId,
     pub path: Utf8PathBuf,
 }
 
-impl<'t> TemplateTestJson<'t> {
-    pub fn new(project: &Project, test: &'t TemplateTest) -> Self {
+impl<'s> TemplateTestJson<'s> {
+    pub fn new(project: &Project, test: &'s TemplateTest) -> Self {
         Self {
-            id: test.id().as_str(),
+            id: test.id(),
+            path: project.template_root().unwrap(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct DocTestJson<'s> {
+    pub id: &'s DocId,
+    pub path: Utf8PathBuf,
+}
+
+impl<'s> DocTestJson<'s> {
+    pub fn new(project: &Project, test: &'s DocTest) -> Self {
+        Self {
+            id: test.id(),
             path: project.template_root().unwrap(),
         }
     }
