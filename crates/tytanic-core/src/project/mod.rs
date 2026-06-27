@@ -411,11 +411,11 @@ impl Project {
     }
 
     /// Create a file id to the test script for the given identifier.
-    pub fn unit_test_script_id(&self, id: &Id, project: &Project) -> FileId {
+    pub fn unit_test_script_id(&self, id: &Id) -> FileId {
         FileId::new(RootedPath::new(
             VirtualRoot::Project,
             VirtualPath::virtualize(
-                project.root().as_std_path(),
+                self.root().as_std_path(),
                 self.unit_test_script(id).as_std_path(),
             )
             .expect("Project::root and unit::Test::unit_test_script must never create invalid virtual paths"),
@@ -423,11 +423,11 @@ impl Project {
     }
 
     /// Create a file id to the reference script for the given identifier.
-    pub fn unit_test_ref_script_id(&self, id: &Id, project: &Project) -> FileId {
+    pub fn unit_test_ref_script_id(&self, id: &Id) -> FileId {
         FileId::new(RootedPath::new(
             VirtualRoot::Project,
             VirtualPath::virtualize(
-                project.root().as_std_path(),
+                self.root().as_std_path(),
                 self.unit_test_ref_script(id).as_std_path(),
             )
             .expect("Project::root and unit::Test::unit_test_ref_script must never create invalid virtual paths"),
