@@ -34,7 +34,6 @@ tytanic-utils.workspace = true
 
 anstyle-progress.workspace = true
 camino = { workspace = true, features = ["serde1"] }
-chrono = { workspace = true, features = ["serde"] }
 clap = { workspace = true, features = ["derive", "env", "wrap_help"] }
 clap_complete.workspace = true
 clap_mangen.workspace = true
@@ -50,6 +49,7 @@ serde_json.workspace = true
 serde_yaml.workspace = true
 termcolor.workspace = true
 thiserror.workspace = true
+time.workspace = true
 tracing-subscriber.workspace = true
 tracing-tree.workspace = true
 tracing.workspace = true

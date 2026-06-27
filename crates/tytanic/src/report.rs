@@ -5,10 +5,10 @@ use std::io::Write;
 
 use anstyle_progress::TermProgress;
 use anstyle_progress::TermProgressStatus;
-use chrono::TimeDelta;
-use chrono::Utc;
 use color_eyre::eyre;
 use termcolor::Color;
+use time::Duration;
+use time::UtcDateTime;
 use typst_kit::diagnostics;
 use typst_kit::diagnostics::DiagnosticFormat;
 use tytanic_core::Project;
@@ -185,7 +185,7 @@ impl Reporter<'_, '_> {
             return Ok(());
         }
 
-        let duration = Utc::now().signed_duration_since(result.timestamp());
+        let duration = UtcDateTime::now() - result.timestamp();
 
         let mut w = ui::annotated(self.ui.stderr(), "", Color::Black, RUN_ANNOT_PADDING)?;
 
@@ -346,9 +346,9 @@ impl Reporter<'_, '_> {
 }
 
 /// Writes a padded duration in human readable form
-fn write_duration(w: &mut dyn Write, duration: TimeDelta) -> io::Result<()> {
-    let s = duration.num_seconds();
-    let ms = duration.subsec_millis();
+fn write_duration(w: &mut dyn Write, duration: Duration) -> io::Result<()> {
+    let s = duration.whole_seconds();
+    let ms = duration.subsec_milliseconds();
 
     if s > 0 {
         write!(w, "{s: >2}s")?;
@@ -362,8 +362,8 @@ fn write_duration(w: &mut dyn Write, duration: TimeDelta) -> io::Result<()> {
 }
 
 /// Returns the color to use for a test's duration.
-fn duration_color(duration: TimeDelta) -> Color {
-    match duration.num_seconds() {
+fn duration_color(duration: Duration) -> Color {
+    match duration.whole_seconds() {
         0 if duration.is_zero() => Color::Rgb(128, 128, 128),
         0 => Color::Green,
         1..=5 => Color::Yellow,

@@ -3,13 +3,12 @@
 //! necessary for managing, filtering, and running tests.
 
 use camino::Utf8Path;
-use chrono::DateTime;
-use chrono::TimeDelta;
-use chrono::Utc;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::collections::btree_map;
 use std::io;
+use time::Duration;
+use time::UtcDateTime;
 
 use thiserror::Error;
 use tytanic_utils::result::ResultEx;
@@ -342,8 +341,8 @@ pub struct SuiteResult {
     filtered: usize,
     passed: usize,
     failed: usize,
-    timestamp: DateTime<Utc>,
-    duration: TimeDelta,
+    timestamp: UtcDateTime,
+    duration: Duration,
     results: BTreeMap<Id, TestResult>,
 }
 
@@ -358,8 +357,8 @@ impl SuiteResult {
             filtered: suite.filtered().len(),
             passed: 0,
             failed: 0,
-            timestamp: Utc::now(),
-            duration: TimeDelta::zero(),
+            timestamp: UtcDateTime::now(),
+            duration: Duration::ZERO,
             results: suite
                 .matched()
                 .tests()
@@ -419,12 +418,12 @@ impl SuiteResult {
     }
 
     /// The timestamp at which the suite run started.
-    pub fn timestamp(&self) -> DateTime<Utc> {
+    pub fn timestamp(&self) -> UtcDateTime {
         self.timestamp
     }
 
     /// The duration of the whole suite run.
-    pub fn duration(&self) -> TimeDelta {
+    pub fn duration(&self) -> Duration {
         self.duration
     }
 
@@ -443,17 +442,17 @@ impl SuiteResult {
 }
 
 impl SuiteResult {
-    /// Sets the timestamp to [`Utc::now`].
+    /// Sets the timestamp to [`UtcDateTime::now`].
     ///
     /// See [`SuiteResult::end`].
     pub fn start(&mut self) {
-        self.timestamp = Utc::now();
+        self.timestamp = UtcDateTime::now();
     }
 
     /// Sets the duration to the time elapsed since [`SuiteResult::start`] was
     /// called.
     pub fn end(&mut self) {
-        self.duration = Utc::now().signed_duration_since(self.timestamp);
+        self.duration = UtcDateTime::now() - self.timestamp;
     }
 
     /// Add a test result.

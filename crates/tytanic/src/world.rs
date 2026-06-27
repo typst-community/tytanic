@@ -7,9 +7,8 @@
 
 use std::path::PathBuf;
 
-use chrono::Datelike;
-use chrono::Timelike;
 use color_eyre::eyre;
+use time::PrimitiveDateTime;
 use typst::Library;
 use typst::LibraryExt;
 use typst::World;
@@ -149,42 +148,10 @@ pub fn font_provider(font_opts: &FontOptions, defaults: &ProjectDefaults) -> Box
 #[tracing::instrument]
 pub fn datetime_provider(compile_opts: &CompileOptions) -> eyre::Result<Box<Time>> {
     Ok(Box::new(
-        Time::fixed(
-            Datetime::from_ymd_hms(
-                compile_opts.timestamp.year(),
-                compile_opts
-                    .timestamp
-                    .month()
-                    .try_into()
-                    .expect("DateLike::month must return values in 1..=12"),
-                compile_opts
-                    .timestamp
-                    .day()
-                    .try_into()
-                    .expect("DateLike::day must return values in 1..=31"),
-                compile_opts
-                    .timestamp
-                    .hour()
-                    .try_into()
-                    .expect("DateLike::day must return values in 1..=24"),
-                compile_opts
-                    .timestamp
-                    .minute()
-                    .try_into()
-                    .expect("DateLike::day must return values in 1..=60"),
-                compile_opts
-                    .timestamp
-                    .second()
-                    .try_into()
-                    .expect("DateLike::day must return values in 1..=60"),
-            )
-            .ok_or_else(|| {
-                eyre::eyre!(
-                    "failed to convert timestamp into Typst datetime: {}",
-                    compile_opts.timestamp
-                )
-            })?,
-        )
+        Time::fixed(Datetime::Datetime(PrimitiveDateTime::new(
+            compile_opts.timestamp.date(),
+            compile_opts.timestamp.time(),
+        )))
         .map_err(|err| eyre::eyre!("failed to create fixed compilation timestamp: {err}"))?,
     ))
 }
