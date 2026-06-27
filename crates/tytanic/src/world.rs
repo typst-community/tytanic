@@ -238,9 +238,9 @@ impl Providers {
         alternative_library: Option<&'w LazyHash<Library>>,
     ) -> ComposedWorld<'w> {
         let id = if is_ref {
-            project.unit_test_ref_script_id(test.id(), project)
+            project.unit_test_ref_script_id(test.id())
         } else {
-            project.unit_test_script_id(test.id(), project)
+            project.unit_test_script_id(test.id())
         };
 
         let library = if let Some(library) = alternative_library {
