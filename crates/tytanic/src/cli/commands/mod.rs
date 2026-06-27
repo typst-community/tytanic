@@ -2,13 +2,12 @@ use std::fmt::Display;
 use std::path::PathBuf;
 
 use camino::Utf8PathBuf;
-use chrono::DateTime;
-use chrono::Utc;
 use clap::Args;
 use clap::ColorChoice;
 use clap::Parser;
 use clap::ValueEnum;
 use color_eyre::eyre;
+use time::UtcDateTime;
 use tytanic_core::config::Direction;
 use tytanic_core::doc::compile::Warnings;
 use tytanic_core::test::Id;
@@ -414,16 +413,16 @@ pub struct FilterOptions {
     pub tests: Vec<Id>,
 }
 
-fn parse_source_date_epoch(raw: &str) -> Result<DateTime<Utc>, String> {
+fn parse_source_date_epoch(raw: &str) -> Result<UtcDateTime, String> {
     if raw.eq_ignore_ascii_case("now") {
-        return Ok(Utc::now());
+        return Ok(UtcDateTime::now());
     }
 
     let timestamp: i64 = raw.parse().map_err(|err| {
         format!("timestamp must be decimal integer or the literal string `now` ({err})")
     })?;
 
-    DateTime::from_timestamp(timestamp, 0).ok_or_else(|| "timestamp out of range".to_string())
+    UtcDateTime::from_unix_timestamp(timestamp).map_err(|err| err.to_string())
 }
 
 /// Options for document compilation.
@@ -441,7 +440,7 @@ pub struct CompileOptions {
         value_parser = parse_source_date_epoch,
         global = true,
     )]
-    pub timestamp: DateTime<Utc>,
+    pub timestamp: UtcDateTime,
 
     /// How to handle warnings.
     #[arg(long, default_value = "emit", value_name = "WHAT")]

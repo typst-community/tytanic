@@ -2,9 +2,8 @@
 
 use std::fmt::Debug;
 
-use chrono::DateTime;
-use chrono::TimeDelta;
-use chrono::Utc;
+use time::Duration;
+use time::UtcDateTime;
 use typst::diag::SourceDiagnostic;
 use typst::ecow::EcoVec;
 use typst::ecow::eco_vec;
@@ -102,8 +101,8 @@ pub enum Stage {
 pub struct TestResult {
     stage: Stage,
     warnings: EcoVec<SourceDiagnostic>,
-    timestamp: DateTime<Utc>,
-    duration: TimeDelta,
+    timestamp: UtcDateTime,
+    duration: Duration,
 }
 
 impl TestResult {
@@ -116,8 +115,8 @@ impl TestResult {
         Self {
             stage: Stage::Skipped,
             warnings: eco_vec![],
-            timestamp: Utc::now(),
-            duration: TimeDelta::zero(),
+            timestamp: UtcDateTime::now(),
+            duration: Duration::ZERO,
         }
     }
 
@@ -127,8 +126,8 @@ impl TestResult {
         Self {
             stage: Stage::Filtered,
             warnings: eco_vec![],
-            timestamp: Utc::now(),
-            duration: TimeDelta::zero(),
+            timestamp: UtcDateTime::now(),
+            duration: Duration::ZERO,
         }
     }
 }
@@ -145,12 +144,12 @@ impl TestResult {
     }
 
     /// The timestamp at which the suite run started.
-    pub fn timestamp(&self) -> DateTime<Utc> {
+    pub fn timestamp(&self) -> UtcDateTime {
         self.timestamp
     }
 
     /// The duration of the test, this a zero if this test wasn't started.
-    pub fn duration(&self) -> TimeDelta {
+    pub fn duration(&self) -> Duration {
         self.duration
     }
 
@@ -190,17 +189,17 @@ impl TestResult {
 }
 
 impl TestResult {
-    /// Sets the timestamp to [`Utc::now`].
+    /// Sets the timestamp to [`UtcDateTime::now`].
     ///
     /// See [`TestResult::end`].
     pub fn start(&mut self) {
-        self.timestamp = Utc::now();
+        self.timestamp = UtcDateTime::now();
     }
 
     /// Sets the duration to the time elapsed since [`TestResult::start`] was
     /// called.
     pub fn end(&mut self) {
-        self.duration = Utc::now().signed_duration_since(self.timestamp);
+        self.duration = UtcDateTime::now() - self.timestamp;
     }
 
     /// Sets the kind for this test to a compilation pass.
