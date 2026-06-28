@@ -227,7 +227,6 @@ pub(crate) mod test_utils {
 
     use super::file::VirtualFileSlot;
     use super::*;
-    use crate::library::augmented_default_library;
 
     pub(crate) fn test_file_provider(source: Source) -> VirtualFileProvider {
         let mut map = HashMap::new();
@@ -247,9 +246,6 @@ pub(crate) mod test_utils {
 
     pub(crate) static TEST_DEFAULT_LIBRARY_PROVIDER: LazyLock<Library> =
         LazyLock::new(Library::default);
-
-    pub(crate) static TEST_AUGMENTED_LIBRARY_PROVIDER: LazyLock<Library> =
-        LazyLock::new(augmented_default_library);
 
     pub(crate) static TEST_DATETIME_PROVIDER: LazyLock<Time> =
         LazyLock::new(|| Time::fixed_timestamp(0).unwrap());

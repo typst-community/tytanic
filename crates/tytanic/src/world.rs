@@ -34,12 +34,12 @@ use typst_syntax::package::PackageSpec;
 use tytanic_core::Project;
 use tytanic_core::TemplateTest;
 use tytanic_core::UnitTest;
-use tytanic_core::library::augmented_default_library;
-use tytanic_core::library::augmented_library;
 use tytanic_core::world_builder::ComposedWorld;
 use tytanic_core::world_builder::ProvideFile;
 use tytanic_core::world_builder::ProvideFont;
 use tytanic_core::world_builder::file::FilesystemFileProvider;
+use tytanic_library::augmented_default_library;
+use tytanic_library::augmented_library;
 
 use crate::cli::commands::CompileOptions;
 use crate::cli::commands::FontOptions;

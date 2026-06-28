@@ -4,6 +4,7 @@
 ## Changes
 - Update Typst to `0.15.0`
 - The `tytanic-filter` crate is now no longer a dependency of `tytanic-core`, but the other way around
+- The Typst testing extensions such as `catch` and `assert-panic` are now available as a library for other projects
 
 ## Fixes
 
