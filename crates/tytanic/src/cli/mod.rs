@@ -21,6 +21,7 @@ use tytanic_core::project::VcsKind;
 use tytanic_core::suite::FilteredSuite;
 use tytanic_core::suite::Suite;
 use tytanic_core::test;
+use tytanic_core::test::Id;
 use tytanic_core::test::ParseIdError;
 use tytanic_filter::CombinedFilter;
 use tytanic_filter::Error as FilterError;
@@ -154,7 +155,7 @@ impl Context<'_> {
     /// Create a new filter from given arguments.
     #[tracing::instrument(skip_all)]
     pub fn filter(&self, filter: &FilterOptions) -> eyre::Result<CombinedFilter> {
-        let exact = ExactFilter::new(filter.tests.iter().cloned());
+        let exact = ExactFilter::new(filter.tests.iter().cloned().map(Id::Unit));
 
         let test_set = if let Some(expression) = filter
             .expression
@@ -261,7 +262,7 @@ impl Context<'_> {
             // TODO(tinger): Attach test id.
             if let Some(error) = error.downcast_ref::<ParseIdError>() {
                 match error {
-                    ParseIdError::InvalidFragment => {
+                    ParseIdError::Invalid(_) => {
                         writeln!(
                             self.ui.error()?,
                             "A test identifier must not contain other characters than non-alphanumeric, hyphens and underscores"
@@ -269,6 +270,19 @@ impl Context<'_> {
                     }
                     ParseIdError::Empty => {
                         writeln!(self.ui.error()?, "A test identifier must not be empty")?;
+                    }
+                    ParseIdError::UnexpectedKind { expected, given } => {
+                        writeln!(
+                            self.ui.error()?,
+                            "Expected to parse a {expected} test identifier, but got {given}",
+                        )?;
+                    }
+                    ParseIdError::NotUtf8(path) => {
+                        writeln!(
+                            self.ui.error()?,
+                            "A test identifier must be valid UTF-8, but {} is not",
+                            path.display(),
+                        )?;
                     }
                 }
 

@@ -4,7 +4,6 @@ use color_eyre::eyre;
 use typst::utils::Scalar;
 use typst_kit::diagnostics::DiagnosticFormat;
 use typst_render::RenderOptions;
-use tytanic_core::Id;
 use tytanic_core::doc::compare::Strategy;
 use tytanic_core::doc::render;
 use tytanic_core::doc::render::Origin;
@@ -58,23 +57,13 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
 
     let mut filter = ctx.filter(&args.filter)?;
 
-    if let Some(exact) = filter.exact()
-        && exact.expected().contains(&Id::template())
-    {
-        writeln!(ctx.ui.error()?, "Cannot update template test")?;
-        eyre::bail!(OperationFailure);
-    }
-
     filter.map_test_set(|set| eval::Set::expr_inter(set, dsl::set_persistent(), []));
 
     let suite = ctx.collect_tests_with_filter(&project, filter)?;
 
     let mut illegal_tests = vec![];
     for test in suite.matched() {
-        if !test
-            .as_unit_test()
-            .is_some_and(|t| t.kind().is_persistent())
-        {
+        if !test.as_unit().is_some_and(|t| t.kind().is_persistent()) {
             illegal_tests.push(test);
         }
     }

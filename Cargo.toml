@@ -60,6 +60,7 @@ tracing = "0.1.44"
 tracing-subscriber = "0.3.18"
 tracing-tree = "0.4.1"
 toml = "0.8.19"
+unicode-ident = "1.0.24"
 uuid = "1.20.0"
 
 # Keep the git dependencies in but commented out for ease of switching during development and before
@@ -67,7 +68,7 @@ uuid = "1.20.0"
 
 typst = "0.15.0"
 typst-assets = "0.15.0"
-typst-kit = "0.15.0"
+typst-kit = { version = "0.15.0", features = ["datetime", "emit-diagnostics", "system-packages"] }
 typst-layout = "0.15.0"
 typst-library = "0.15.0"
 typst-render = "0.15.0"

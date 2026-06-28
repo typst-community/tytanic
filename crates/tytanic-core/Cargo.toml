@@ -36,6 +36,7 @@ typst-layout.workspace = true
 typst-library.workspace = true
 typst-render.workspace = true
 typst-utils.workspace = true
+unicode-ident.workspace = true
 uuid = { workspace = true, features = ["v4", "serde"] }
 
 [dev-dependencies]

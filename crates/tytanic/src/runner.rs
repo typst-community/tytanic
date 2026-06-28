@@ -12,6 +12,7 @@ use typst::utils::Scalar;
 use typst_layout::PagedDocument;
 use typst_render::RenderOptions;
 use tytanic_core::TemplateTest;
+use tytanic_core::TestRef;
 use tytanic_core::UnitTest;
 use tytanic_core::config::Direction;
 use tytanic_core::doc::Document;
@@ -24,9 +25,8 @@ use tytanic_core::project::Project;
 use tytanic_core::suite::FilteredSuite;
 use tytanic_core::suite::SuiteResult;
 use tytanic_core::test::Annotation;
-use tytanic_core::test::Test;
 use tytanic_core::test::TestResult;
-use tytanic_core::test::unit::Kind;
+use tytanic_core::test::UnitKind;
 
 use crate::DEFAULT_OPTIMIZE_OPTIONS;
 use crate::cli::TestFailure;
@@ -81,7 +81,7 @@ pub struct Runner<'c, 'p, F> {
     pub suite: &'p FilteredSuite<F>,
     pub providers: &'p Providers,
 
-    pub result: SuiteResult,
+    pub result: SuiteResult<'p>,
     pub config: RunnerConfig<'c>,
 }
 
@@ -129,8 +129,9 @@ impl<'c, 'p, F> Runner<'c, 'p, F> {
             }
 
             let result = match test {
-                Test::Unit(test) => self.unit_test(test).run()?,
-                Test::Template(test) => self.template_test(test).run()?,
+                TestRef::Unit(test) => self.unit_test(test).run()?,
+                TestRef::Template(test) => self.template_test(test).run()?,
+                TestRef::Doc(_) => eyre::bail!("doc tests are not yet supported"),
             };
 
             reporter.clear_status()?;
@@ -139,13 +140,13 @@ impl<'c, 'p, F> Runner<'c, 'p, F> {
             reporter.report_test_result(self.project, test, &result)?;
 
             if result.is_fail() && self.config.fail_fast {
-                self.result.set_test_result(test.id().clone(), result);
+                self.result.set_test_result(test.id(), result);
                 return Ok(());
             }
 
             reporter.report_status(&self.result)?;
 
-            self.result.set_test_result(test.id().clone(), result);
+            self.result.set_test_result(test.id(), result);
         }
 
         reporter.clear_status()?;
@@ -154,7 +155,7 @@ impl<'c, 'p, F> Runner<'c, 'p, F> {
     }
 
     #[tracing::instrument(skip_all)]
-    pub fn run(mut self, reporter: &Reporter) -> eyre::Result<SuiteResult> {
+    pub fn run(mut self, reporter: &Reporter) -> eyre::Result<SuiteResult<'p>> {
         self.result.start();
         reporter.report_start(&self.result)?;
         let res = self.run_inner(reporter);
@@ -191,7 +192,7 @@ impl<F> UnitTestRunner<'_, '_, '_, F> {
                 }
 
                 match self.test.kind() {
-                    Kind::Ephemeral => {
+                    UnitKind::Ephemeral => {
                         let reference = self.compile_ref_doc()?;
                         let reference = self.render_ref_doc(reference)?;
 
@@ -208,7 +209,7 @@ impl<F> UnitTestRunner<'_, '_, '_, F> {
                             eyre::bail!(err);
                         }
                     }
-                    Kind::Persistent => {
+                    UnitKind::Persistent => {
                         let reference = self.load_ref_doc()?;
 
                         // TODO(tinger): Don't unconditionally export this
@@ -225,12 +226,12 @@ impl<F> UnitTestRunner<'_, '_, '_, F> {
                             eyre::bail!(err);
                         }
                     }
-                    Kind::CompileOnly => {}
+                    UnitKind::CompileOnly => {}
                 }
             }
             Action::Update { force } => match self.test.kind() {
-                Kind::Ephemeral => eyre::bail!("attempted to update ephemeral test"),
-                Kind::Persistent => {
+                UnitKind::Ephemeral => eyre::bail!("attempted to update ephemeral test"),
+                UnitKind::Persistent => {
                     let output = self.compile_out_doc()?;
                     let output = self.render_out_doc(output)?;
 
@@ -261,7 +262,7 @@ impl<F> UnitTestRunner<'_, '_, '_, F> {
                         self.export_diff_doc(&diff)?;
                     }
                 }
-                Kind::CompileOnly => eyre::bail!("attempted to update compile-only test"),
+                UnitKind::CompileOnly => eyre::bail!("attempted to update compile-only test"),
             },
         }
 

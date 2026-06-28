@@ -12,8 +12,15 @@ pub mod world_builder;
 pub use project::Project;
 pub use suite::FilteredSuite;
 pub use suite::Suite;
+pub use test::DocId;
+pub use test::DocTest;
 pub use test::Id;
+pub use test::IdRef;
+pub use test::TemplateId;
 pub use test::TemplateTest;
+pub use test::Test;
+pub use test::TestRef;
+pub use test::UnitId;
 pub use test::UnitTest;
 
 /// The tool name, this is used in various places like config file directories,
