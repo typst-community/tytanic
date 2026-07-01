@@ -8,6 +8,7 @@
 - `.gitignore` files are now created within the directories they ignore to avoid creating extra tracked files in the file tree
 - Added `util vcs clear` to remove old tracked `.gitignore` files
 - Removed `util vcs ignore`
+- Fix support for custom paths to local packages and package cache
 
 ## Fixes
 
