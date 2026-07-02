@@ -11,6 +11,7 @@
 - Fix support for custom paths to local packages and package cache
 
 ## Fixes
+- Fix build errors due to missing features of `typst-kit` in `tytanic-core`
 
 ---
 
