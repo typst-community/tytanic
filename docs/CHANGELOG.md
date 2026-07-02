@@ -9,6 +9,7 @@
 - Added `util vcs clear` to remove old tracked `.gitignore` files
 - Removed `util vcs ignore`
 - Fix support for custom paths to local packages and package cache
+- All features but `vendor-openssl` and `embedded-fonts` were removed from the Tytanic CLI crate
 
 ## Fixes
 - Fix build errors due to missing features of `typst-kit` in `tytanic-core`
