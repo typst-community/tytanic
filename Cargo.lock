@@ -3690,7 +3690,6 @@ dependencies = [
  "toml",
  "tracing",
  "typst",
- "typst-kit",
  "typst-syntax",
 ]
 
