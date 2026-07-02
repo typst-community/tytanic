@@ -40,7 +40,6 @@ termcolor = { workspace = true, optional = true }
 # Used for `typst-manifest-builder`.
 chrono = { workspace = true, optional = true }
 typst = { workspace = true, optional = true }
-typst-kit = { workspace = true, optional = true }
 typst-syntax = { workspace = true, optional = true }
 
 [dev-dependencies]
