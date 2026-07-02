@@ -28,7 +28,9 @@ use typst_kit::downloader::SystemDownloader;
 use typst_kit::files::FsRoot;
 use typst_kit::fonts;
 use typst_kit::fonts::FontStore;
+use typst_kit::packages::FsPackages;
 use typst_kit::packages::SystemPackages;
+use typst_kit::packages::UniversePackages;
 use typst_syntax::Source;
 use typst_syntax::package::PackageSpec;
 use tytanic_core::Project;
@@ -54,8 +56,20 @@ fn package_storage(package_opts: &PackageOptions) -> SystemPackages {
         Some(path) => SystemDownloader::with_cert_path(agent, path),
         None => SystemDownloader::new(agent),
     };
+    let package_path = match &package_opts.package_path {
+        Some(package_path) => Some(FsPackages::new(package_path)),
+        None => FsPackages::system_data(),
+    };
+    let package_cache_path = match &package_opts.package_cache_path {
+        Some(package_cache_path) => Some(FsPackages::new(package_cache_path)),
+        None => FsPackages::system_cache(),
+    };
 
-    SystemPackages::new(downloader)
+    SystemPackages::from_parts(
+        package_path,
+        package_cache_path,
+        UniversePackages::new(downloader),
+    )
 }
 
 /// A file provider which is rooted at a project's root and provides access to
