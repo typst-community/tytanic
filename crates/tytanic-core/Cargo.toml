@@ -31,7 +31,11 @@ tracing.workspace = true
 toml.workspace = true
 typst.workspace = true
 typst-assets.workspace = true
-typst-kit.workspace = true
+typst-kit = { workspace = true, features = [
+  "datetime",
+  "emit-diagnostics",
+  "system-packages",
+] }
 typst-layout.workspace = true
 typst-library.workspace = true
 typst-render.workspace = true
