@@ -137,14 +137,25 @@ impl Output {
     /// - `dir` with `<TEMP_DIR>`.
     fn from_std_output(output: process::Output, dir: &Path) -> Self {
         fn convert_bytes(bytes: Vec<u8>, dir: &str) -> String {
-            String::from_utf8(bytes)
+            let res = String::from_utf8(bytes)
                 .unwrap()
                 .replace("\u{1b}", "<ESC>")
                 .replace(r"C:\\", "/")
                 .replace(r"\\", "/")
                 .replace(r"C:\", "/")
                 .replace(r"\", "/")
-                .replace(dir, "<TEMP_DIR>")
+                .replace(dir, "<TEMP_DIR>");
+
+            // It seems that on macos runners the path given to this via
+            // `Environment::root()` is not fully canonicalized. Somehow the
+            // `dir -> <TEMP_DIR>` produces `/private<TEMP_DIR>`, as if `dir` was
+            // absolute, yet doesn't include `/private`. So on macos we strip this
+            // as a stopgap implementation until we get a better path printing
+            // mechanism.
+            #[cfg(target_os = "macos")]
+            let res = res.replace("/private", "");
+
+            res
         }
 
         let dir = dir
