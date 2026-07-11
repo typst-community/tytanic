@@ -89,6 +89,16 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
         eyre::bail!(OperationFailure);
     }
 
+    let optimize_refs = args.export.optimize_refs.get_or_default();
+    if optimize_refs {
+        let mut w = ctx.ui.hint()?;
+        writeln!(w, "Optimizing references may take much longer than tt run")?;
+        writeln!(
+            w,
+            "Consider using --no-optimize-refs when using third-party hosting for references"
+        )?;
+    }
+
     let providers = ctx.providers(&project, &ctx.args.package, &ctx.args.font, &args.compile)?;
 
     let origin = match args
@@ -119,7 +129,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
         &providers,
         RunnerConfig {
             warnings: args.compile.warnings.into_native(),
-            optimize: args.export.optimize_refs.get_or_default(),
+            optimize: optimize_refs,
             fail_fast: args.runner.fail_fast.get_or_default(),
             // TODO: Respect bleed option.
             render_options: RenderOptions {
