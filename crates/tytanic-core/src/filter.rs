@@ -8,7 +8,7 @@
 use std::convert::Infallible;
 
 use crate::project::Project;
-use crate::test::Test;
+use crate::test::TestRef;
 
 /// A filter from which a [`FilterState`] can be created.
 ///
@@ -16,21 +16,23 @@ use crate::test::Test;
 /// ```
 /// # use tytanic_core::project::Project;
 /// # use tytanic_core::test::Id;
+/// # use tytanic_core::test::IdRef;
 /// # use tytanic_core::test::Test;
+/// # use tytanic_core::test::TestRef;
 /// # use tytanic_core::test::UnitTest;
-/// # use tytanic_core::test::unit::Kind as UnitKind;
+/// # use tytanic_core::test::UnitKind;
 /// # let project = Project::new(".");
 /// use tytanic_core::filter::Filter as _;
 /// use tytanic_core::filter::FilterState as _;
 /// use tytanic_core::filter::FnFilter;
 ///
 /// let tests = [
-///     Test::Unit(UnitTest::new(Id::new("foo")?, UnitKind::CompileOnly)),
-///     Test::Unit(UnitTest::new(Id::new("bar")?, UnitKind::CompileOnly)),
-///     Test::Unit(UnitTest::new(Id::new("qux")?, UnitKind::CompileOnly)),
+///     Test::try_new_unit("foo", UnitKind::CompileOnly)?,
+///     Test::try_new_unit("bar", UnitKind::CompileOnly)?,
+///     Test::try_new_unit("qux", UnitKind::CompileOnly)?,
 /// ];
 ///
-/// let filter = FnFilter(|_, t| t.id() != "foo");
+/// let filter = FnFilter(|_, t: TestRef<'_>| t.id().as_str() != "foo");
 /// let mut state = filter.state();
 ///
 /// let mut filtered = vec![];
@@ -42,10 +44,10 @@ use crate::test::Test;
 ///
 /// state.finish(&project)?;
 ///
-/// assert_eq!(filtered, [
-///     &Id::new("bar")?,
-///     &Id::new("qux")?,
-/// ]);
+/// assert_eq!(
+///     filtered.into_iter().map(IdRef::as_str).collect::<Vec<_>>(),
+///     ["bar", "qux"],
+/// );
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 pub trait Filter {
@@ -74,7 +76,9 @@ pub trait FilterState: Sized {
     /// Whether the test should be included in the test run.
     ///
     /// This must be called exactly once for each test in a suite.
-    fn filter(&mut self, project: &Project, test: &Test) -> Result<bool, Self::Error>;
+    fn filter<'t, T>(&mut self, project: &Project, test: T) -> Result<bool, Self::Error>
+    where
+        T: Into<TestRef<'t>>;
 
     /// Finishes the filter, emitting any delayed errors if there are any.
     ///
@@ -106,7 +110,10 @@ impl Filter for NoneFilter {
 impl FilterState for NoneFilter {
     type Error = Infallible;
 
-    fn filter(&mut self, _project: &Project, _test: &Test) -> Result<bool, Self::Error> {
+    fn filter<'t, T>(&mut self, _project: &Project, _test: T) -> Result<bool, Self::Error>
+    where
+        T: Into<TestRef<'t>>,
+    {
         Ok(false)
     }
 }
@@ -131,7 +138,10 @@ impl Filter for AllFilter {
 impl FilterState for AllFilter {
     type Error = Infallible;
 
-    fn filter(&mut self, _project: &Project, _test: &Test) -> Result<bool, Self::Error> {
+    fn filter<'t, T>(&mut self, _project: &Project, _test: T) -> Result<bool, Self::Error>
+    where
+        T: Into<TestRef<'t>>,
+    {
         Ok(true)
     }
 }
@@ -144,11 +154,11 @@ impl FilterState for AllFilter {
 #[derive(Debug, Default, Clone, Copy, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub struct FnFilter<F>(pub F)
 where
-    F: Fn(&Project, &Test) -> bool;
+    F: Fn(&Project, TestRef<'_>) -> bool;
 
 impl<F> Filter for FnFilter<F>
 where
-    F: Fn(&Project, &Test) -> bool,
+    F: Fn(&Project, TestRef<'_>) -> bool,
 {
     type State<'a>
         = &'a Self
@@ -162,12 +172,15 @@ where
 
 impl<F> FilterState for &FnFilter<F>
 where
-    F: Fn(&Project, &Test) -> bool,
+    F: Fn(&Project, TestRef<'_>) -> bool,
 {
     type Error = Infallible;
 
-    fn filter(&mut self, project: &Project, test: &Test) -> Result<bool, Self::Error> {
-        Ok((self.0)(project, test))
+    fn filter<'t, T>(&mut self, project: &Project, test: T) -> Result<bool, Self::Error>
+    where
+        T: Into<TestRef<'t>>,
+    {
+        Ok((self.0)(project, test.into()))
     }
 }
 
@@ -179,12 +192,12 @@ where
 #[derive(Debug, Default, Clone, Copy, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub struct TryFnFilter<F, E>(pub F)
 where
-    F: Fn(&Project, &Test) -> Result<bool, E>,
+    F: Fn(&Project, TestRef<'_>) -> Result<bool, E>,
     E: std::error::Error;
 
 impl<F, E> Filter for TryFnFilter<F, E>
 where
-    F: Fn(&Project, &Test) -> Result<bool, E>,
+    F: Fn(&Project, TestRef<'_>) -> Result<bool, E>,
     E: std::error::Error,
 {
     type State<'a>
@@ -199,12 +212,15 @@ where
 
 impl<F, E> FilterState for &TryFnFilter<F, E>
 where
-    F: Fn(&Project, &Test) -> Result<bool, E>,
+    F: Fn(&Project, TestRef<'_>) -> Result<bool, E>,
     E: std::error::Error,
 {
     type Error = E;
 
-    fn filter(&mut self, project: &Project, test: &Test) -> Result<bool, Self::Error> {
-        (self.0)(project, test)
+    fn filter<'t, T>(&mut self, project: &Project, test: T) -> Result<bool, Self::Error>
+    where
+        T: Into<TestRef<'t>>,
+    {
+        (self.0)(project, test.into())
     }
 }

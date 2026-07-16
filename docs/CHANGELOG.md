@@ -2,6 +2,9 @@
 ## Highlights
 
 ## Changes
+- The `tests` field in the output of `tt status --json` has been renamed to `unit_tests` for forwards compatibility
+- Commands which previously accepted template test identifiers and then reported an operation failure such as `tt delete` will now report a parsing failure right away
+- `tt list` now reports template tests after unit tests
 
 ## Fixes
 
