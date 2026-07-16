@@ -1,0 +1,27 @@
+[package]
+name = "tytanic-library"
+description = "A set of Typst modules, functions, and types for unit testing."
+version.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+categories.workspace = true
+keywords.workspace = true
+readme.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+ecow.workspace = true
+tracing.workspace = true
+typst.workspace = true
+typst-layout.workspace = true
+typst-library.workspace = true
+typst-utils.workspace = true
+
+[dev-dependencies]
+typst-assets.workspace = true

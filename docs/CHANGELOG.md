@@ -2,6 +2,7 @@
 ## Highlights
 
 ## Changes
+- The Typst testing extensions such as `catch` and `assert-panic` are now available as a library for other projects
 
 ## Fixes
 
