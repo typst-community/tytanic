@@ -1,11 +1,10 @@
-name: GitHub Pages
+name: Build and deploy GitHub Pages
 on:
   push:
     branches: [ main ]
 
 jobs:
   deploy:
-    name: Deploy GitHub Pages
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -23,13 +22,13 @@ jobs:
           mkdir mdbook
           curl -sSL $url | tar -xz --directory=./mdbook
           echo `pwd`/mdbook >> $GITHUB_PATH
-      - name: Build Book
+      - name: Build mdBook
         run: |
           cd docs/book
           mdbook build
-      - name: Setup Pages
+      - name: Configure GitHub Pages
         uses: actions/configure-pages@v6
-      - name: Upload artifact
+      - name: Upload artifacts
         uses: actions/upload-pages-artifact@v5
         with:
           path: 'docs/book/build'
