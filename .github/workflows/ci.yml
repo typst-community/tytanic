@@ -38,6 +38,15 @@ jobs:
       - run: cargo test --workspace --no-run
       - run: cargo test --workspace --no-fail-fast
 
+  test-publish:
+    name: Test publish
+    runs-on: ubuntu-latest
+    if: startsWith(github.event.pull_request.title, 'release:')
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@1.95
+      - run: cargo publish --workspace --dry-run
+
   test-book:
     name: Test Book
     runs-on: ubuntu-latest
