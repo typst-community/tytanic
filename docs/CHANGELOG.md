@@ -3,6 +3,7 @@
 
 ## Changes
 - Emit hint to users about expensive reference optimization before optimizing
+- Update Typst to `0.15.1`
 
 ## Fixes
 
