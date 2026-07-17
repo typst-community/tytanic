@@ -46,16 +46,16 @@ jobs:
           cross: false
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
-      - uses: dtolnay/rust-toolchain@1.95
+      - uses: dtolnay/rust-toolchain@f133eefe930d61f0d9371efd474daf0125ed3dd1 # 1.95
         with:
           target: ${{ matrix.target }}
 
       - name: Run cargo-cross
         if: ${{ matrix.cross }}
         run: |
-          cargo install cross --git https://github.com/cross-rs/cross.git --locked --rev 085092ca
+          cargo install cross --git https://github.com/cross-rs/cross.git --locked --rev 085092ca01d6ac9f5a0b612d9e68bcdf1e50f7ee
           cross build -p tytanic --release --target ${{ matrix.target }} --features vendor-openssl
 
       - name: Run cargo
@@ -77,7 +77,7 @@ jobs:
           fi
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: github.event_name == 'workflow_dispatch'
         with:
           name: tytanic-${{ matrix.target }}
@@ -85,7 +85,7 @@ jobs:
           retention-days: 3
 
       - name: Add artifacts to release
-        uses: ncipollo/release-action@v1
+        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1
         if: github.event_name == 'release'
         with:
           artifacts: "tytanic-${{ matrix.target }}.*"
