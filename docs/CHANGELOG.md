@@ -2,6 +2,7 @@
 ## Highlights
 
 ## Changes
+- Emit hint to users about expensive reference optimization before optimizing
 
 ## Fixes
 
