@@ -2,16 +2,19 @@
 ## Highlights
 
 ## Changes
-- Emit hint to users about expensive reference optimization before optimizing
-- Update Typst to `0.15.1`
 
 ## Fixes
 
 ---
 
-# [v0.4.0](https://github.com/typst-community/tytanic/releases/tag/v0.4.0)
-## Highlights
+# [v0.4.1](https://github.com/typst-community/tytanic/releases/tag/v0.4.1)
+## Changes
+- Emit hint to users about expensive reference optimization before optimizing
+- Update Typst to `0.15.1`
 
+---
+
+# [v0.4.0](https://github.com/typst-community/tytanic/releases/tag/v0.4.0)
 ## Changes
 - Update Typst to `0.15.0`
 - The `tytanic-filter` crate is now no longer a dependency of `tytanic-core`, but the other way around
