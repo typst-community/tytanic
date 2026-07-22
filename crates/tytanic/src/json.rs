@@ -4,6 +4,7 @@ use camino::Utf8PathBuf;
 use serde::Serialize;
 use typst_syntax::package::PackageManifest;
 use typst_syntax::package::PackageVersion;
+use tytanic_core::DocTest;
 use tytanic_core::TemplateTest;
 use tytanic_core::UnitTest;
 use tytanic_core::project::Project;
@@ -51,6 +52,9 @@ pub enum TestJson<'t> {
 
     #[serde(rename = "template")]
     Template(TemplateTestJson<'t>),
+
+    #[serde(rename = "doc")]
+    Doc(DocTestJson<'t>),
 }
 
 impl<'t> TestJson<'t> {
@@ -58,6 +62,7 @@ impl<'t> TestJson<'t> {
         match test {
             Test::Unit(test) => Self::Unit(UnitTestJson::new(project, test)),
             Test::Template(test) => Self::Template(TemplateTestJson::new(project, test)),
+            Test::Doc(test) => Self::Doc(DocTestJson::new(test)),
         }
     }
 }
@@ -92,6 +97,30 @@ impl<'t> TemplateTestJson<'t> {
         Self {
             id: test.id().as_str(),
             path: project.template_root().unwrap(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct DocTestJson<'t> {
+    pub id: &'t str,
+    pub source: &'t str,
+    pub function: &'t str,
+    pub block_index: usize,
+    pub tag: &'static str,
+}
+
+impl<'t> DocTestJson<'t> {
+    pub fn new(test: &'t DocTest) -> Self {
+        Self {
+            id: test.id().as_str(),
+            source: test.source_path().to_str().unwrap_or("<invalid>"),
+            function: test.function(),
+            block_index: test.block_index(),
+            tag: match test.tag() {
+                tytanic_core::test::DocTestTag::Example => "example",
+                tytanic_core::test::DocTestTag::Test => "test",
+            },
         }
     }
 }

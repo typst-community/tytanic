@@ -7,8 +7,15 @@ use chrono::TimeDelta;
 use chrono::Utc;
 use color_eyre::eyre;
 use termcolor::Color;
+use termcolor::WriteColor;
+use typst::syntax::FileId;
+use typst::syntax::RootedPath;
+use typst::syntax::Source;
+use typst::syntax::VirtualPath;
+use typst::syntax::VirtualRoot;
 use typst_kit::diagnostics;
 use typst_kit::diagnostics::DiagnosticFormat;
+use tytanic_core::DocTest;
 use tytanic_core::Project;
 use tytanic_core::doc::compare;
 use tytanic_core::doc::compare::PageError;
@@ -254,18 +261,20 @@ impl Reporter<'_, '_> {
         ui::write_test_id(&mut w, test.id())?;
         writeln!(w)?;
 
-        let world = match test {
-            Test::Unit(test) => self.providers.unit_world(project, test, false, None),
-            Test::Template(test) => self.providers.template_world(project, test),
-        };
-
-        diagnostics::emit(&mut w, &world, result.warnings(), self.format)?;
-        diagnostics::emit(
-            &mut w,
-            &world,
-            result.errors().unwrap_or_default(),
-            self.format,
-        )?;
+        match test {
+            Test::Unit(test) => {
+                let world = self.providers.unit_world(project, test, false, None);
+                emit_diagnostics(&mut w, &world, result, self.format)?;
+            }
+            Test::Template(test) => {
+                let world = self.providers.template_world(project, test);
+                emit_diagnostics(&mut w, &world, result, self.format)?;
+            }
+            Test::Doc(test) => {
+                let world = doc_test_diag_world(project, test, self.providers);
+                emit_diagnostics(&mut w, &world, result, self.format)?;
+            }
+        }
 
         match result.stage() {
             Stage::PassedCompilation | Stage::PassedComparison => {}
@@ -342,4 +351,32 @@ fn duration_color(duration: TimeDelta) -> Color {
         1..=5 => Color::Yellow,
         _ => Color::Red,
     }
+}
+
+fn emit_diagnostics(
+    w: &mut dyn WriteColor,
+    world: &dyn diagnostics::DiagnosticWorld,
+    result: &TestResult,
+    format: DiagnosticFormat,
+) -> eyre::Result<()> {
+    diagnostics::emit(w, world, result.warnings(), format)?;
+    diagnostics::emit(w, world, result.errors().unwrap_or_default(), format)?;
+    Ok(())
+}
+
+fn doc_test_diag_world<'p>(
+    project: &Project,
+    test: &DocTest,
+    providers: &'p Providers,
+) -> crate::world::NewTestWorld<'p> {
+    let abs_path = project.root().as_std_path().join(test.source_path());
+
+    let file_id = FileId::new(RootedPath::new(
+        VirtualRoot::Project,
+        VirtualPath::virtualize(project.root().as_std_path(), &abs_path)
+            .expect("doc test source path must be within project root"),
+    ));
+
+    let source = Source::new(file_id, test.code().to_string());
+    providers.system_world(source)
 }
