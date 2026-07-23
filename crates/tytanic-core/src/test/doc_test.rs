@@ -3,6 +3,7 @@ use std::path::PathBuf;
 
 use typst_syntax::LinkedNode;
 use typst_syntax::SyntaxKind;
+use typst_syntax::ast;
 
 use super::Annotation;
 use super::Id;
@@ -113,11 +114,7 @@ fn extract_let_docs(node: &LinkedNode, source: &str) -> Option<(String, Vec<Stri
         return None;
     }
 
-    let offset = node.offset();
-    let before = &source[..offset];
-    // The LetBinding node includes the leading `#`; skip it
-    let before = before.strip_suffix('#').unwrap_or(before);
-    let doc_lines = collect_doc_lines_from_source(before);
+    let doc_lines = collect_doc_comment_lines(node);
 
     if doc_lines.is_empty() {
         return None;
@@ -126,19 +123,27 @@ fn extract_let_docs(node: &LinkedNode, source: &str) -> Option<(String, Vec<Stri
     Some((name_text.to_string(), doc_lines))
 }
 
-fn collect_doc_lines_from_source(before: &str) -> Vec<String> {
+fn collect_doc_comment_lines(node: &LinkedNode) -> Vec<String> {
     let mut lines: Vec<String> = Vec::new();
 
-    for line in before.lines().rev() {
-        let trimmed = line.trim();
-        if let Some(rest) = trimmed.strip_prefix("///") {
-            let content = rest.strip_prefix(' ').unwrap_or(rest);
-            lines.push(content.to_string());
-        } else if trimmed.is_empty() {
-            continue;
-        } else {
+    let mut current = node.clone();
+    while let Some(prev) = current.prev_sibling_with_trivia() {
+        if let Some(comment) = prev.get().cast::<ast::LineComment>() {
+            if let Some(doc) = comment.text().strip_prefix('/') {
+                lines.push(doc.strip_prefix(' ').unwrap_or(doc).to_string());
+            } else {
+                break;
+            }
+        } else if prev.get().cast::<ast::BlockComment>().is_some() {
+            // skip block comments in doc test context
+        } else if !matches!(prev.kind(), SyntaxKind::Space | SyntaxKind::Hash) {
             break;
         }
+        current = prev;
+    }
+
+    if lines.is_empty() {
+        return Vec::new();
     }
 
     lines.reverse();
