@@ -61,7 +61,6 @@ impl DocTest {
         true
     }
 
-    /// Parse a `.typ` source file, extracting all doc tests from functions.
     pub fn parse(source_path: &Path, content: &str) -> Vec<DocTest> {
         let root = typst_syntax::parse(content);
         let root = LinkedNode::new(&root);
@@ -101,48 +100,54 @@ fn collect_doc_tests(
 }
 
 fn extract_let_docs(node: &LinkedNode, source: &str) -> Option<(String, Vec<String>)> {
-    let name = node
+    let closure = node.children().find(|c| c.kind() == SyntaxKind::Closure)?;
+
+    let name = closure
         .children()
         .find(|c| c.kind() == SyntaxKind::Ident)?;
 
     let name_text = &source[name.range()];
 
-    let has_params = node.children().any(|c| c.kind() == SyntaxKind::Params);
+    let has_params = closure.children().any(|c| c.kind() == SyntaxKind::Params);
     if !has_params {
         return None;
     }
 
-    let mut doc_lines: Vec<String> = Vec::new();
-    let mut current = node.prev_sibling();
-
-    while let Some(sibling) = current {
-        match sibling.kind() {
-            SyntaxKind::Space | SyntaxKind::Parbreak | SyntaxKind::Hash => {
-                current = sibling.prev_sibling();
-                continue;
-            }
-            SyntaxKind::LineComment => {
-                let text = &source[sibling.range()];
-                if let Some(rest) = text.trim_start().strip_prefix("///") {
-                    let line = rest.strip_prefix(' ').unwrap_or(rest);
-                    doc_lines.push(line.to_string());
-                } else {
-                    break;
-                }
-            }
-            _ => break,
-        }
-
-        current = sibling.prev_sibling();
-    }
+    let offset = node.offset();
+    let before = &source[..offset];
+    // The LetBinding node includes the leading `#`; skip it
+    let before = before.strip_suffix('#').unwrap_or(before);
+    let doc_lines = collect_doc_lines_from_source(before);
 
     if doc_lines.is_empty() {
         return None;
     }
 
-    doc_lines.reverse();
-
     Some((name_text.to_string(), doc_lines))
+}
+
+fn collect_doc_lines_from_source(before: &str) -> Vec<String> {
+    let mut lines: Vec<String> = Vec::new();
+
+    for line in before.lines().rev() {
+        let trimmed = line.trim();
+        if let Some(rest) = trimmed.strip_prefix("///") {
+            let content = rest.strip_prefix(' ').unwrap_or(rest);
+            lines.push(content.to_string());
+        } else if trimmed.is_empty() {
+            continue;
+        } else {
+            break;
+        }
+    }
+
+    lines.reverse();
+
+    while lines.last().is_some_and(|l| l.is_empty()) {
+        lines.pop();
+    }
+
+    lines
 }
 
 struct DocBlock {
