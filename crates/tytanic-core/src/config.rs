@@ -95,6 +95,12 @@ pub struct ProjectDefaults {
     /// Defaults to `0`.
     #[serde(default = "default_max_deviations")]
     pub max_deviations: usize,
+
+    /// Whether system fonts are used by default.
+    ///
+    /// Defaults to `false`.
+    #[serde(default = "default_use_system_fonts")]
+    pub use_system_fonts: bool,
 }
 
 impl Default for ProjectDefaults {
@@ -104,6 +110,7 @@ impl Default for ProjectDefaults {
             ppi: default_ppi(),
             max_delta: default_max_delta(),
             max_deviations: default_max_deviations(),
+            use_system_fonts: default_use_system_fonts(),
         }
     }
 }
@@ -122,6 +129,10 @@ fn default_max_delta() -> u8 {
 
 fn default_max_deviations() -> usize {
     0
+}
+
+const fn default_use_system_fonts() -> bool {
+    false
 }
 
 /// The reading direction of a document.
@@ -178,5 +189,31 @@ mod tests {
 
         assert_eq!(project_config.unit_tests_root, "test_dir");
         assert_eq!(project_config.defaults.ppi, ProjectDefaults::default().ppi);
+    }
+
+    #[test]
+    fn default_use_system_fonts_is_configurable() {
+        let config = r#"
+        [package]
+        name = "testpackage"
+        version = "0.1.0"
+        entrypoint = "lib.typ"
+
+        [tool.tytanic.default]
+        use-system-fonts = true
+        "#;
+
+        let manifest = toml::from_str::<typst::syntax::package::PackageManifest>(config).unwrap();
+        let project_config = ProjectConfig::deserialize(
+            manifest
+                .tool
+                .sections
+                .get(crate::TOOL_NAME)
+                .unwrap()
+                .to_owned(),
+        )
+        .unwrap();
+
+        assert!(project_config.defaults.use_system_fonts);
     }
 }
