@@ -36,6 +36,7 @@ use typst_syntax::package::PackageSpec;
 use tytanic_core::Project;
 use tytanic_core::TemplateTest;
 use tytanic_core::UnitTest;
+use tytanic_core::config::ProjectDefaults;
 use tytanic_core::library::augmented_default_library;
 use tytanic_core::library::augmented_library;
 use tytanic_core::world_builder::ComposedWorld;
@@ -120,18 +121,19 @@ pub fn template_file_provider(
 
 /// A font provider that provides embedded and system fonts.
 #[tracing::instrument]
-pub fn font_provider(font_opts: &FontOptions) -> Box<dyn ProvideFont> {
+pub fn font_provider(font_opts: &FontOptions, defaults: &ProjectDefaults) -> Box<dyn ProvideFont> {
     let mut store = FontStore::new();
-
     #[cfg(feature = "embedded-fonts")]
     if font_opts.use_embedded_fonts.get_or_default() {
         store.extend(fonts::embedded());
     }
-
-    if font_opts.use_system_fonts.get_or_default() {
+    if font_opts
+        .use_system_fonts
+        .get()
+        .unwrap_or(defaults.use_system_fonts)
+    {
         store.extend(fonts::system());
     }
-
     store.extend(
         font_opts
             .font_paths
@@ -139,7 +141,6 @@ pub fn font_provider(font_opts: &FontOptions) -> Box<dyn ProvideFont> {
             .map(PathBuf::as_path)
             .flat_map(fonts::scan),
     );
-
     tracing::debug!(fonts = ?store.book().families().count(), "collected font families");
     Box::new(store)
 }
@@ -238,7 +239,7 @@ impl Providers {
                     .is_some()
                     .then(|| template_file_provider(project, package_opts))
             }),
-            fonts: font_provider(font_opts),
+            fonts: font_provider(font_opts, &project.config().defaults),
             datetime: datetime_provider(compile_opts)?,
         })
     }

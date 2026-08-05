@@ -1,4 +1,6 @@
 use color_eyre::eyre;
+use tytanic_core::config::ProjectDefaults;
+use tytanic_core::project::ShallowProject;
 
 use super::Context;
 
@@ -61,4 +63,13 @@ impl Command {
             Command::Vcs(args) => args.cmd.run(ctx),
         }
     }
+}
+
+fn project_defaults(ctx: &Context) -> eyre::Result<ProjectDefaults> {
+    let root = ctx.root()?;
+    let Some(project) = ShallowProject::discover(root, ctx.args.root.is_some())? else {
+        return Ok(ProjectDefaults::default());
+    };
+
+    Ok(project.load()?.config().defaults.clone())
 }

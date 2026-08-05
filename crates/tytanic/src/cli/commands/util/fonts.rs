@@ -28,7 +28,8 @@ pub struct Args {
 }
 
 pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
-    let fonts = world::font_provider(&ctx.args.font);
+    let defaults = super::project_defaults(ctx)?;
+    let fonts = world::font_provider(&ctx.args.font, &defaults);
     let book = fonts.provide_font_book();
 
     let fonts = book
