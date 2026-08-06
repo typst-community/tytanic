@@ -12,6 +12,7 @@ pub mod world_builder;
 pub use project::Project;
 pub use suite::FilteredSuite;
 pub use suite::Suite;
+pub use test::DocTest;
 pub use test::Id;
 pub use test::TemplateTest;
 pub use test::UnitTest;
