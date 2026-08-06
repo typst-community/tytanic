@@ -1,0 +1,30 @@
+# Stolen from https://github.com/helix-editor/helix/blob/079a789e8cb08ead67f19e1971a1b7438b37354b/.github/workflows/cachix.yml
+
+# Publish the Nix flake outputs to Cachix
+name: Cachix
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish Flake
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+    - uses: actions/checkout@v7
+    - uses: cachix/install-nix-action@8aa03977d8d733052d78f4e008a241fd1dbf36b3 # v31.10.6
+
+    - name: Authenticate with Cachix
+      uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71 # v17
+      with:
+        name: tytanic
+        authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+    - name: Build flake
+      run: nix build --print-build-logs

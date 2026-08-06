@@ -166,4 +166,9 @@
           };
         };
     };
+
+  nixConfig = {
+    extra-substituters = ["https://tytanic.cachix.org"];
+    extra-trusted-public-keys = ["tytanic.cachix.org-1:1e7Tmf/CshNfGtz/rIWXcGRoOP+jH0Qu4wOYHe/FzNQ="];
+  };
 }
