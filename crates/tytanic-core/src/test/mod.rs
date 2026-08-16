@@ -13,12 +13,15 @@ use crate::doc::compare;
 use crate::doc::compile;
 
 mod annotation;
+pub mod doc_test;
 mod id;
 pub mod template;
 pub mod unit;
 
 pub use self::annotation::Annotation;
 pub use self::annotation::ParseAnnotationError;
+pub use self::doc_test::DocTest;
+pub use self::doc_test::DocTestTag;
 pub use self::id::Id;
 pub use self::id::ParseIdError;
 pub use self::template::Test as TemplateTest;
@@ -32,6 +35,9 @@ pub enum Test {
 
     /// A virtual designated template test.
     Template(TemplateTest),
+
+    /// A documentation test extracted from doc comments.
+    Doc(DocTest),
 }
 
 impl Test {
@@ -40,6 +46,7 @@ impl Test {
         match self {
             Test::Unit(test) => test.id(),
             Test::Template(test) => test.id(),
+            Test::Doc(test) => test.id(),
         }
     }
 
@@ -48,6 +55,7 @@ impl Test {
         match self {
             Test::Unit(test) => Some(test),
             Test::Template(_) => None,
+            Test::Doc(_) => None,
         }
     }
 
@@ -56,6 +64,16 @@ impl Test {
         match self {
             Test::Unit(_) => None,
             Test::Template(test) => Some(test),
+            Test::Doc(_) => None,
+        }
+    }
+
+    /// Returns the inner doc test, or `None` if not a doc test.
+    pub fn as_doc_test(&self) -> Option<&DocTest> {
+        match self {
+            Test::Unit(_) => None,
+            Test::Template(_) => None,
+            Test::Doc(test) => Some(test),
         }
     }
 }

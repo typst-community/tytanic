@@ -8,9 +8,15 @@ use typst::diag::Warned;
 use typst::foundations::Dict;
 use typst::foundations::Str;
 use typst::foundations::Value;
+use typst::syntax::FileId;
+use typst::syntax::RootedPath;
+use typst::syntax::Source;
+use typst::syntax::VirtualPath;
+use typst::syntax::VirtualRoot;
 use typst::utils::Scalar;
 use typst_layout::PagedDocument;
 use typst_render::RenderOptions;
+use tytanic_core::DocTest;
 use tytanic_core::TemplateTest;
 use tytanic_core::UnitTest;
 use tytanic_core::config::Direction;
@@ -120,6 +126,14 @@ impl<'c, 'p, F> Runner<'c, 'p, F> {
         }
     }
 
+    pub fn doc_test<'s>(&'s self, test: &'p DocTest) -> DocTestRunner<'c, 's, 'p, F> {
+        DocTestRunner {
+            project_runner: self,
+            test,
+            result: TestResult::skipped(),
+        }
+    }
+
     pub fn run_inner(&mut self, reporter: &Reporter) -> eyre::Result<()> {
         reporter.report_status(&self.result)?;
 
@@ -131,6 +145,7 @@ impl<'c, 'p, F> Runner<'c, 'p, F> {
             let result = match test {
                 Test::Unit(test) => self.unit_test(test).run()?,
                 Test::Template(test) => self.template_test(test).run()?,
+                Test::Doc(test) => self.doc_test(test).run()?,
             };
 
             reporter.clear_status()?;
@@ -578,6 +593,88 @@ impl<F> TemplateTestRunner<'_, '_, '_, F> {
                 .template_world(self.project_runner.project, self.test),
             self.project_runner.config.warnings,
         );
+
+        self.result.set_warnings(warnings);
+
+        let doc = match output {
+            Ok(doc) => {
+                self.result.set_passed_compilation();
+                doc
+            }
+            Err(err) => {
+                self.result.set_failed_test_compilation(err);
+                eyre::bail!(TestFailure);
+            }
+        };
+
+        Ok(doc)
+    }
+}
+
+pub struct DocTestRunner<'c, 's, 'p, F> {
+    project_runner: &'s Runner<'c, 'p, F>,
+    test: &'p DocTest,
+    result: TestResult,
+}
+
+impl<F> DocTestRunner<'_, '_, '_, F> {
+    fn run_inner(&mut self) -> eyre::Result<()> {
+        match self.project_runner.config.action {
+            Action::Run => {
+                let _output = self.compile_doc_test()?;
+            }
+            Action::Update { .. } => {
+                eyre::bail!("attempted to update doc test")
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn run(mut self) -> eyre::Result<TestResult> {
+        self.result.start();
+        self.prepare()?;
+        let res = self.run_inner();
+        self.cleanup()?;
+        self.result.end();
+
+        if let Err(err) = res
+            && !err.chain().any(|s| s.is::<TestFailure>())
+        {
+            eyre::bail!(err);
+        }
+
+        Ok(self.result)
+    }
+
+    pub fn prepare(&mut self) -> eyre::Result<()> {
+        Ok(())
+    }
+
+    pub fn cleanup(&mut self) -> eyre::Result<()> {
+        Ok(())
+    }
+
+    pub fn compile_doc_test(&mut self) -> eyre::Result<PagedDocument> {
+        let abs_path = self
+            .project_runner
+            .project
+            .root()
+            .as_std_path()
+            .join(self.test.source_path());
+
+        let file_id = FileId::new(RootedPath::new(
+            VirtualRoot::Project,
+            VirtualPath::virtualize(self.project_runner.project.root().as_std_path(), &abs_path)
+                .expect("doc test source path must be within project root"),
+        ));
+
+        let source = Source::new(file_id, self.test.code().to_string());
+
+        let world = self.project_runner.providers.system_world(source);
+
+        let Warned { output, warnings } =
+            compile::compile(&world, self.project_runner.config.warnings);
 
         self.result.set_warnings(warnings);
 

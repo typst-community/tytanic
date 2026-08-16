@@ -55,6 +55,10 @@ pub struct ProjectConfig {
     /// The project wide defaults.
     #[serde(rename = "default", default)]
     pub defaults: ProjectDefaults,
+
+    /// Documentation test configuration.
+    #[serde(rename = "doc-tests", default)]
+    pub doc_tests: DocTestsConfig,
 }
 
 impl Default for ProjectConfig {
@@ -62,12 +66,44 @@ impl Default for ProjectConfig {
         Self {
             unit_tests_root: default_unit_tests_root(),
             defaults: ProjectDefaults::default(),
+            doc_tests: DocTestsConfig::default(),
         }
     }
 }
 
 fn default_unit_tests_root() -> String {
     String::from("tests")
+}
+
+/// Configuration for documentation tests.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "kebab-case")]
+pub struct DocTestsConfig {
+    /// Whether doc tests are enabled.
+    #[serde(default = "default_doc_tests_enabled")]
+    pub enabled: bool,
+
+    /// Source directories to scan for doc comments (relative to project root).
+    #[serde(default = "default_doc_tests_sources")]
+    pub sources: Vec<String>,
+}
+
+impl Default for DocTestsConfig {
+    fn default() -> Self {
+        Self {
+            enabled: default_doc_tests_enabled(),
+            sources: default_doc_tests_sources(),
+        }
+    }
+}
+
+fn default_doc_tests_enabled() -> bool {
+    true
+}
+
+fn default_doc_tests_sources() -> Vec<String> {
+    vec![String::from("src")]
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
