@@ -50,7 +50,8 @@ It is the equivalent to the `typst compile --input ...` command line argument fo
 Key and value must be separated by `=`, any whitespace is retained verbatim.
 If multiple `=` occur, the key is split off at the first one, the rest becomes the value.
 Multiple key-value pairs can be provided in separate annotations.
-Here is an example:
+
+The `input` annotation is merged with the project-wide defaults from the `default.inputs` config key, where annotations with the same key will override the project-wide config.
 
 ```typst
 /// [input: SIMPLE=example]
