@@ -42,6 +42,7 @@ ecow.workspace = true
 fontdb.workspace = true
 once_cell.workspace = true
 oxipng.workspace = true
+osc94.workspace = true
 rayon.workspace = true
 serde.workspace = true
 serde_json.workspace = true
