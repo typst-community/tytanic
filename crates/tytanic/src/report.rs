@@ -6,6 +6,8 @@ use std::io::Write;
 use chrono::TimeDelta;
 use chrono::Utc;
 use color_eyre::eyre;
+use osc94::OSC94;
+use osc94::ProgressState;
 use termcolor::Color;
 use typst_kit::diagnostics;
 use typst_kit::diagnostics::DiagnosticFormat;
@@ -75,6 +77,8 @@ impl Reporter<'_, '_> {
         write!(w, " (run ID: ")?;
         cwrite!(bold(w), "{}", result.id())?;
         writeln!(w, ")")?;
+
+        self.annotate_progress(result, ProgressState::Normal)?;
 
         Ok(())
     }
@@ -153,6 +157,8 @@ impl Reporter<'_, '_> {
 
         // TODO(tinger): Report failures, mean, and average time.
 
+        self.annotate_progress(result, ProgressState::Hidden)?;
+
         Ok(())
     }
 
@@ -223,7 +229,20 @@ impl Reporter<'_, '_> {
 
         writeln!(w)?;
 
+        self.annotate_progress(result, ProgressState::Normal)?;
+
         Ok(())
+    }
+
+    /// Writes an OSC 9;4 progress bar sequence to stderr if live reporting is enabled.
+    fn annotate_progress(&self, result: &SuiteResult, state: ProgressState) -> io::Result<()> {
+        if !self.live {
+            return Ok(());
+        }
+
+        let mut w = self.ui.stderr();
+        write!(w, "{}", report_progress_state(result, state))?;
+        w.flush()
     }
 
     /// Report a test result and show supplementary information.
@@ -342,4 +361,13 @@ fn duration_color(duration: TimeDelta) -> Color {
         1..=5 => Color::Yellow,
         _ => Color::Red,
     }
+}
+
+/// Reports the current run progress as an OSC 9;4 progress bar sequence.
+fn report_progress_state(result: &SuiteResult, state: ProgressState) -> OSC94 {
+    let progress = (result.run() * 100)
+        .checked_div(result.expected())
+        .unwrap_or_default() as u8;
+
+    OSC94 { state, progress }
 }
