@@ -31,6 +31,7 @@ tytanic-core.workspace = true
 tytanic-filter.workspace = true
 tytanic-utils.workspace = true
 
+anstyle-progress.workspace = true
 camino = { workspace = true, features = ["serde1"] }
 chrono = { workspace = true, features = ["serde"] }
 clap = { workspace = true, features = ["derive", "env", "wrap_help"] }

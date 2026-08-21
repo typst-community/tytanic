@@ -18,4 +18,18 @@ The project config is specified in the `typst.toml` manifest under the `tool.tyt
 > Even small font version variations can create sub-pixel differences that will be very hard to debug. Only use the system fonts if you are certain your environment is completely reproducible to all contributors.
 
 ## System Config
-There are currently no system config options and the config is not yet loaded.
+The system config is stored as `config.toml` in the `tytanic` sub-directory of
+the user config directory. The config directory is resolved via
+[`dirs::config_dir`](https://docs.rs/dirs/latest/dirs/fn.config_dir.html), e.g.
+`$XDG_CONFIG_HOME/tytanic/config.toml` on Linux.
+
+|Key|Default|Description|
+|---|---|---|
+|`term.osc-9-4`|None|Sets whether the terminal progress bar (OSC 9;4) is reported during test runs. By default this is only enabled if the terminal supports it, setting this to `true` or `false` forces the behavior.|
+
+Example:
+
+```toml
+[term]
+osc-9-4 = true
+```

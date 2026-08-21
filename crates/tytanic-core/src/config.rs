@@ -22,7 +22,18 @@ pub const CONFIG_SUB_DIRECTORY: &str = crate::TOOL_NAME;
 #[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "kebab-case")]
-pub struct SystemConfig {}
+pub struct SystemConfig {
+    #[serde(default)]
+    pub term: Term,
+}
+
+/// Terminal configuration options.
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "kebab-case")]
+pub struct Term {
+    pub osc_9_4: Option<bool>,
+}
 
 impl SystemConfig {
     /// Reads the user config at its predefined location.
@@ -298,7 +309,7 @@ mod tests {
                     dir.join(CONFIG_SUB_DIRECTORY).join("config.toml").into();
                 assert_eq!(
                     SystemConfig::collect_in(config_path).unwrap(),
-                    Some(SystemConfig {})
+                    Some(SystemConfig::default())
                 );
             },
         );
@@ -319,6 +330,31 @@ mod tests {
                     dir.join(CONFIG_SUB_DIRECTORY).join("config.toml").into();
                 let err = SystemConfig::collect_in(config_path).unwrap_err();
                 assert!(matches!(err, Error::Toml { .. }));
+            },
+        );
+    }
+
+    // Verify that the `term.osc-9-4` system config option is parsed.
+    #[test]
+    fn system_config_term_osc_9_4_is_configurable() {
+        tytanic_utils::fs::TempTestEnv::run_no_check(
+            |root| {
+                root.setup_file(
+                    format!("{}/config.toml", CONFIG_SUB_DIRECTORY),
+                    "term.osc-9-4 = true\n",
+                )
+            },
+            |dir| {
+                let config_path: PathBuf =
+                    dir.join(CONFIG_SUB_DIRECTORY).join("config.toml").into();
+                assert_eq!(
+                    SystemConfig::collect_in(config_path).unwrap(),
+                    Some(SystemConfig {
+                        term: Term {
+                            osc_9_4: Some(true)
+                        }
+                    })
+                );
             },
         );
     }

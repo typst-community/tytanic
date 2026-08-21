@@ -143,9 +143,9 @@ impl<'c, 'p, F> Runner<'c, 'p, F> {
                 return Ok(());
             }
 
-            reporter.report_status(&self.result)?;
-
             self.result.set_test_result(test.id().clone(), result);
+
+            reporter.report_status(&self.result)?;
         }
 
         reporter.clear_status()?;

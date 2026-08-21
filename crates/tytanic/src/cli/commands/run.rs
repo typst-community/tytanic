@@ -105,6 +105,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
         ctx.ui,
         &providers,
         ctx.ui.can_live_report() && ctx.args.output.verbose == 0,
+        project.system_config().term.osc_9_4,
         match args.compile.diagnostic_format {
             CliDiagnosticFormat::Human => DiagnosticFormat::Human,
             CliDiagnosticFormat::Short => DiagnosticFormat::Short,

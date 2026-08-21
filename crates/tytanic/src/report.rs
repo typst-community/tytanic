@@ -3,6 +3,8 @@
 use std::io;
 use std::io::Write;
 
+use anstyle_progress::TermProgress;
+use anstyle_progress::TermProgressStatus;
 use chrono::TimeDelta;
 use chrono::Utc;
 use color_eyre::eyre;
@@ -34,6 +36,7 @@ pub struct Reporter<'ui, 'p> {
 
     live: bool,
     format: DiagnosticFormat,
+    report_progress: bool,
 }
 
 impl<'ui, 'p> Reporter<'ui, 'p> {
@@ -41,13 +44,20 @@ impl<'ui, 'p> Reporter<'ui, 'p> {
         ui: &'ui Ui,
         providers: &'p Providers,
         live: bool,
+        report_progress: Option<bool>,
         format: DiagnosticFormat,
     ) -> Self {
+        // Only enable progress reporting if run in terminal and terminal supports progress reporting.
+        // Terminal support can be overridden in system config.
+        let report_progress = live
+            && report_progress.unwrap_or_else(|| anstyle_progress::supports_term_progress(true));
+
         Self {
             ui,
             providers,
             live,
             format,
+            report_progress,
         }
     }
 }
@@ -75,6 +85,8 @@ impl Reporter<'_, '_> {
         write!(w, " (run ID: ")?;
         cwrite!(bold(w), "{}", result.id())?;
         writeln!(w, ")")?;
+
+        self.annotate_progress(result, TermProgressStatus::Normal)?;
 
         Ok(())
     }
@@ -153,6 +165,8 @@ impl Reporter<'_, '_> {
 
         // TODO(tinger): Report failures, mean, and average time.
 
+        self.annotate_progress(result, TermProgressStatus::Removed)?;
+
         Ok(())
     }
 
@@ -223,7 +237,20 @@ impl Reporter<'_, '_> {
 
         writeln!(w)?;
 
+        self.annotate_progress(result, TermProgressStatus::Normal)?;
+
         Ok(())
+    }
+
+    /// Writes an OSC 9;4 progress bar sequence to stderr if live reporting is enabled.
+    fn annotate_progress(&self, result: &SuiteResult, state: TermProgressStatus) -> io::Result<()> {
+        if !self.report_progress {
+            return Ok(());
+        }
+
+        let mut w = self.ui.stderr();
+        write!(w, "{}", report_progress_state(result, state))?;
+        w.flush()
     }
 
     /// Report a test result and show supplementary information.
@@ -342,4 +369,13 @@ fn duration_color(duration: TimeDelta) -> Color {
         1..=5 => Color::Yellow,
         _ => Color::Red,
     }
+}
+
+/// Reports the current run progress as an OSC 9;4 progress bar sequence.
+fn report_progress_state(result: &SuiteResult, state: TermProgressStatus) -> TermProgress {
+    let progress = (result.run() * 100)
+        .checked_div(result.expected())
+        .unwrap_or_default() as u8;
+
+    TermProgress::none().status(state).percent(progress)
 }

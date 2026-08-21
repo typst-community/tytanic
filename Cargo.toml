@@ -26,6 +26,7 @@ tytanic-core = { version = "0.4.1", path = "crates/tytanic-core" }
 tytanic-filter = { version = "0.4.1", path = "crates/tytanic-filter" }
 tytanic-utils = { version = "0.4.1", path = "crates/tytanic-utils" }
 
+anstyle-progress = "0.1.4"
 assert_cmd = "2.1.2"
 assert_fs = "1.1.2"
 camino = "1.2.2"
