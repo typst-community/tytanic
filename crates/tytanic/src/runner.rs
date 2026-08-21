@@ -387,8 +387,23 @@ impl<F> UnitTestRunner<'_, '_, '_, F> {
     }
 
     fn compile_inner(&mut self, is_reference: bool) -> eyre::Result<PagedDocument> {
+        // Assemble additional inputs based on the project configuration.
+        let default_inputs = self
+            .project_runner
+            .project
+            .config()
+            .defaults
+            .inputs
+            .iter()
+            .map(|(key, value)| {
+                (
+                    Str::from(key.to_owned()),
+                    Value::Str(Str::from(value.to_owned())),
+                )
+            });
+
         // Assemble additional inputs based on test annotations.
-        let inputs = self
+        let annotation_inputs = self
             .test
             .annotations()
             .iter()
@@ -398,8 +413,9 @@ impl<F> UnitTestRunner<'_, '_, '_, F> {
                     Value::Str(Str::from(value.as_str())),
                 )),
                 _ => None,
-            })
-            .collect::<Dict>();
+            });
+
+        let inputs = default_inputs.chain(annotation_inputs).collect::<Dict>();
         let library = augmented_library_provider_with_inputs(inputs);
 
         let Warned { output, warnings } = compile::compile(
