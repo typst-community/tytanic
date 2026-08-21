@@ -1,5 +1,6 @@
 //! Reading and interpreting Tytanic configuration.
 
+use std::collections::HashMap;
 use std::fs;
 use std::io;
 
@@ -101,6 +102,12 @@ pub struct ProjectDefaults {
     /// Defaults to `false`.
     #[serde(default = "default_use_system_fonts")]
     pub use_system_fonts: bool,
+
+    /// The default input key-value pairs exposed in `sys.inputs` for all tests.
+    ///
+    /// Defaults to an empty map.
+    #[serde(default = "default_inputs")]
+    pub inputs: HashMap<String, String>,
 }
 
 impl Default for ProjectDefaults {
@@ -111,6 +118,7 @@ impl Default for ProjectDefaults {
             max_delta: default_max_delta(),
             max_deviations: default_max_deviations(),
             use_system_fonts: default_use_system_fonts(),
+            inputs: default_inputs(),
         }
     }
 }
@@ -133,6 +141,10 @@ fn default_max_deviations() -> usize {
 
 const fn default_use_system_fonts() -> bool {
     false
+}
+
+fn default_inputs() -> HashMap<String, String> {
+    HashMap::new()
 }
 
 /// The reading direction of a document.
@@ -161,6 +173,8 @@ pub enum Error {
 
 #[cfg(test)]
 mod tests {
+    use typst::syntax::package::PackageManifest;
+
     use super::*;
 
     // Verify that the `tool.tytanic.default` section in `typst.toml` is optional.
@@ -176,7 +190,7 @@ mod tests {
         tests = "test_dir"
         "#;
 
-        let manifest = toml::from_str::<typst::syntax::package::PackageManifest>(config).unwrap();
+        let manifest = toml::from_str::<PackageManifest>(config).unwrap();
         let project_config = ProjectConfig::deserialize(
             manifest
                 .tool
@@ -203,7 +217,7 @@ mod tests {
         use-system-fonts = true
         "#;
 
-        let manifest = toml::from_str::<typst::syntax::package::PackageManifest>(config).unwrap();
+        let manifest = toml::from_str::<PackageManifest>(config).unwrap();
         let project_config = ProjectConfig::deserialize(
             manifest
                 .tool
@@ -215,5 +229,37 @@ mod tests {
         .unwrap();
 
         assert!(project_config.defaults.use_system_fonts);
+    }
+
+    #[test]
+    fn default_inputs_is_configurable() {
+        let config = r#"
+        [package]
+        name = "testpackage"
+        version = "0.1.0"
+        entrypoint = "lib.typ"
+
+        [tool.tytanic.default]
+        inputs = { key1 = "value1", key2 = "value2" }
+        "#;
+
+        let manifest = toml::from_str::<PackageManifest>(config).unwrap();
+        let project_config = ProjectConfig::deserialize(
+            manifest
+                .tool
+                .sections
+                .get(crate::TOOL_NAME)
+                .unwrap()
+                .to_owned(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            project_config.defaults.inputs,
+            HashMap::from([
+                ("key1".to_string(), "value1".to_string()),
+                ("key2".to_string(), "value2".to_string())
+            ])
+        );
     }
 }
