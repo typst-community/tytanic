@@ -10,3 +10,6 @@ license = "MIT"
 path = "template"
 entrypoint = "main.typ"
 thumbnail = "thumbnail.png"
+
+[tool.tytanic]
+default.inputs = { shared = "default", overridden = "default" }
