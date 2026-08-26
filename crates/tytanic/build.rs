@@ -6,10 +6,6 @@ fn main() {
     if let Some(tytanic_commit_sha) = tytanic_commit_sha() {
         println!("cargo:rustc-env=TYTANIC_COMMIT_SHA={}", tytanic_commit_sha);
     }
-    println!(
-        "cargo:rustc-env=TYTANIC_TYPST_VERSION={}",
-        tytanic_typst_version()
-    );
 }
 
 /// Retrieves the tytanic version.
@@ -42,29 +38,4 @@ fn tytanic_commit_sha() -> Option<Cow<'static, str>> {
         .filter(|output| output.status.success())
         .and_then(|output| String::from_utf8(output.stdout).ok())
         .map(Cow::Owned)
-}
-
-/// Retrieves the typst version used in current config.
-///
-/// First checks if the "TYTANIC_TYPST_VERSION" environment variable is set
-/// and returns its value if available.
-/// Otherwise, queries cargo to get the current version, or returns "unknown commit" on failure.
-fn tytanic_typst_version() -> Cow<'static, str> {
-    if let Some(version) = option_env!("TYTANIC_TYPST_VERSION") {
-        return Cow::Borrowed(version);
-    }
-
-    let cargo_version = Command::new("cargo")
-        .args(["tree", "-p", "typst", "--depth", "0"])
-        .output()
-        .ok()
-        .filter(|output| output.status.success())
-        .and_then(|output| String::from_utf8(output.stdout).ok())
-        .and_then(|output| output.split('v').nth(1).map(str::to_string));
-
-    if let Some(version) = cargo_version {
-        return Cow::Owned(version);
-    }
-
-    Cow::Borrowed("unknown version")
 }

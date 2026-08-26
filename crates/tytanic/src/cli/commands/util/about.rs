@@ -66,9 +66,8 @@ impl<'a> About<'a> {
     fn new(ctx: &'a Context) -> Self {
         Self {
             version: env!("TYTANIC_VERSION"),
-            typst_version: env!("TYTANIC_TYPST_VERSION"),
+            typst_version: typst::utils::version().raw(),
             build: Build::new(),
-            // features: Features::new(),
             fonts: Fonts::new(ctx),
             packages: Packages::new(ctx),
             env: Environment::new(),
