@@ -19,6 +19,7 @@ fn test_status() {
     failing/persistent-empty           persistent  
     passing/compile                    compile-only
     passing/ephemeral                  ephemeral   
+    passing/input-merge                compile-only
     passing/persistent                 persistent  
 
     --- END

@@ -15,7 +15,7 @@ fn test_status() {
     Template ├ tests/template.typ
        Tests ├ 4 persistent
              ├ 3 ephemeral
-             └ 2 compile-only
+             └ 3 compile-only
 
     --- END
     ");
