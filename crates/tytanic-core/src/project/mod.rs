@@ -497,7 +497,7 @@ fn validate_manifest(root: &Utf8Path, manifest: &PackageManifest) -> Result<(), 
 fn validate_config(root: &Utf8Path, config: &ProjectConfig) -> Result<(), ValidationError> {
     let ProjectConfig {
         unit_tests_root,
-        defaults: _,
+        ..
     } = config;
 
     let mut error = ValidationError {

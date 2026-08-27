@@ -3656,6 +3656,7 @@ dependencies = [
  "typst-layout",
  "typst-library",
  "typst-render",
+ "typst-syntax",
  "typst-utils",
  "tytanic-utils",
  "uuid",

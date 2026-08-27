@@ -2,15 +2,15 @@
 //! fields for test templates, custom test set bindings and other information
 //! necessary for managing, filtering, and running tests.
 
-use camino::Utf8Path;
-use chrono::DateTime;
-use chrono::TimeDelta;
-use chrono::Utc;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::collections::btree_map;
 use std::io;
 
+use camino::Utf8Path;
+use chrono::DateTime;
+use chrono::TimeDelta;
+use chrono::Utc;
 use thiserror::Error;
 use tytanic_utils::result::ResultEx;
 use tytanic_utils::result::io_not_found;
@@ -20,6 +20,7 @@ use crate::Project;
 use crate::TemplateTest;
 use crate::filter::Filter;
 use crate::filter::FilterState;
+use crate::test::DocTest;
 use crate::test::Id;
 use crate::test::ParseIdError;
 use crate::test::Test;
@@ -107,7 +108,65 @@ impl Suite {
             tracing::trace!(nested = ?this.nested, "found nested tests");
         }
 
+        this.collect_doc_tests(project)?;
+
         Ok(this)
+    }
+
+    /// Collect documentation tests from source files.
+    #[tracing::instrument(skip_all)]
+    fn collect_doc_tests(&mut self, project: &Project) -> Result<(), Error> {
+        let config = &project.config().doc_tests;
+
+        if !config.enabled {
+            tracing::debug!("doc tests disabled, skipping");
+            return Ok(());
+        }
+
+        for source_dir in &config.sources {
+            let abs = project.root().join(source_dir);
+            if !abs.is_dir() {
+                tracing::debug!(?abs, "doc test source directory not found, skipping");
+                continue;
+            }
+
+            self.collect_doc_tests_dir(project, &abs)?;
+        }
+
+        Ok(())
+    }
+
+    /// Recursively collect doc tests from a source directory.
+    fn collect_doc_tests_dir(&mut self, project: &Project, dir: &Utf8Path) -> Result<(), Error> {
+        for entry in dir.read_dir_utf8()? {
+            let entry = entry?;
+            let path = entry.path();
+
+            if entry.metadata()?.is_dir() {
+                let dir_name = path.file_name().unwrap_or("");
+                if !dir_name.starts_with('.') {
+                    self.collect_doc_tests_dir(project, path)?;
+                }
+            } else if path.extension() == Some("typ") {
+                let content = std::fs::read_to_string(path)?;
+                let rel = path
+                    .strip_prefix(project.root())
+                    .expect("source file must be within project root");
+
+                let doc_tests = DocTest::parse(rel.as_std_path(), &content);
+                for doc_test in doc_tests {
+                    tracing::debug!(
+                        id = %doc_test.id(),
+                        function = %doc_test.function(),
+                        "collected doc test"
+                    );
+                    self.tests
+                        .insert(doc_test.id().clone(), Test::Doc(doc_test));
+                }
+            }
+        }
+
+        Ok(())
     }
 
     /// Recursively collect tests in the given directory.

@@ -116,6 +116,30 @@ impl Id {
         debug_assert!(Self::is_valid(&string));
         Self(string)
     }
+
+    /// Creates a doc test ID from the source path, function name, and block
+    /// index.
+    ///
+    /// The resulting ID has the format `file_path:function:number`.
+    pub fn doc_test(source_path: &Path, function: &str, block_index: usize) -> Self {
+        let path_str = source_path.to_string_lossy().replace('\\', "/");
+        let id_str = format!("{path_str}:{function}:{block_index}");
+        unsafe { Self::new_unchecked(id_str.into()) }
+    }
+}
+
+impl Id {
+    /// Whether this ID identifies a doc test.
+    pub fn is_doc_test(&self) -> bool {
+        Self::is_valid_doc_test(&self.0)
+    }
+
+    /// If this is a doc test ID, returns the file path portion.
+    pub fn doc_test_file(&self) -> Option<&str> {
+        let (rest, _) = self.0.rsplit_once(':')?;
+        let (file_path, _) = rest.rsplit_once(':')?;
+        Some(file_path)
+    }
 }
 
 impl Id {
@@ -136,15 +160,62 @@ impl Id {
     }
 
     fn validate<S: AsRef<str>>(string: S) -> Result<(), ParseIdError> {
-        if string.as_ref() == Self::TEMPLATE {
+        let string = string.as_ref();
+
+        if string == Self::TEMPLATE {
             return Ok(());
         }
 
-        for fragment in string.as_ref().split(Self::SEPARATOR) {
+        if Self::is_valid_doc_test(string) {
+            return Ok(());
+        }
+
+        for fragment in string.split(Self::SEPARATOR) {
             Self::validate_component(fragment)?;
         }
 
         Ok(())
+    }
+
+    /// Checks whether the string matches the doc test ID format:
+    /// `<file_path>:<function>:<number>`
+    fn is_valid_doc_test(s: &str) -> bool {
+        let (rest, number) = match s.rsplit_once(':') {
+            Some(v) => v,
+            None => return false,
+        };
+        if number.is_empty() || !number.chars().all(|c| c.is_ascii_digit()) {
+            return false;
+        }
+
+        let (file_path, function) = match rest.rsplit_once(':') {
+            Some(v) => v,
+            None => return false,
+        };
+        if function.is_empty() {
+            return false;
+        }
+        if !function.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_') {
+            return false;
+        }
+        if !function
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+        {
+            return false;
+        }
+
+        if file_path.is_empty() {
+            return false;
+        }
+        if !file_path
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '/' || c == '.' || c == '-' || c == '_')
+        {
+            return false;
+        }
+
+        true
     }
 
     /// Whether the given string is a valid id component.

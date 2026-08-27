@@ -76,6 +76,18 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
             Test::Template(_) => {
                 cwrite!(bold_colored(w, Color::Magenta), "{: <12}", "template")?;
             }
+            Test::Doc(test) => {
+                let tag = match test.tag() {
+                    tytanic_core::test::DocTestTag::Example => "doc-example",
+                    tytanic_core::test::DocTestTag::Test => "doc-test",
+                };
+                cwrite!(bold_colored(w, Color::Blue), "{: <12}", tag)?;
+
+                if test.is_skip() {
+                    write!(w, " ")?;
+                    cwrite!(bold_colored(w, Color::Cyan), "skip")?;
+                }
+            }
         }
 
         writeln!(w)?;

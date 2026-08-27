@@ -30,6 +30,8 @@ pub fn context() -> Context {
         ("compile-only", dsl::func_compile_only_ctor),
         ("ephemeral", dsl::func_ephemeral_ctor),
         ("persistent", dsl::func_persistent_ctor),
+        ("doc", dsl::func_doc_ctor),
+        ("doc-tests", dsl::func_doc_ctor),
     ];
 
     for (id, func) in functions {
@@ -78,7 +80,10 @@ pub mod dsl {
     /// Constructs the `skip()` test set. A test set which contains all tests
     /// marked with the `skip` annotation.
     pub fn set_skip() -> Set {
-        Set::new(|_, _, test: &Test| Ok(test.as_unit_test().is_some_and(|unit| unit.is_skip())))
+        Set::new(|_, _, test: &Test| {
+            Ok(test.as_unit_test().is_some_and(|unit| unit.is_skip())
+                || test.as_doc_test().is_some_and(|doc| doc.is_skip()))
+        })
     }
 
     /// The constructor function for the test set returned by [`set_unit`].
@@ -152,5 +157,16 @@ pub mod dsl {
                 .as_unit_test()
                 .is_some_and(|unit| unit.kind().is_persistent()))
         })
+    }
+
+    /// The constructor function for the test set returned by [`set_doc`].
+    pub fn func_doc_ctor(ctx: &Context, args: &[Value]) -> Result<Value, Error> {
+        Func::expect_no_args("doc", ctx, args)?;
+        Ok(Value::Set(set_doc()))
+    }
+
+    /// Constructs the `doc()` test set. A test set which contains all doc tests.
+    pub fn set_doc() -> Set {
+        Set::new(|_, _, test: &Test| Ok(test.as_doc_test().is_some()))
     }
 }
