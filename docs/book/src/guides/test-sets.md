@@ -44,6 +44,7 @@ You may notice that we're missing two tests, those marked as `skipped` above:
 - `features/foo1`
 - `regressions/issue-42`
 
+Skipped tests can be created with [annotations](../reference/tests/annotations.md).
 If you want to refer to these skipped tests, then you need to pass the `--no-skip` flag, otherwise the expression is wrapped in `(...) ~ skip()` by default.
 If you pass tests by name explicitly like `tt list features/foo1 regressions/issue-42`, then this flag is implied.
 
@@ -125,6 +126,6 @@ Specifically the `all()` and `none()` test set constructors can be used as ident
 Some of the syntax used in test sets may interfere with your shell, especially the use of whitespace and special tokens within patterns like `$` in regexes.
 Use non-interpreting quotes around the test set expression (commonly single quotes `'...'`) to avoid interpreting them as shell specific sequences.
 
-This should give you a rough overview of how test sets work, you can check out the [reference] to learn which operators, patterns, and test sets exist.
+This should give you a rough overview of how test sets work, you can check out the [reference](../reference/test-sets) to learn which operators, patterns, and test sets exist.
 
-[reference]: ../reference/test-sets/index.html
+[^ref]: To get a more complete look at test sets, take a look at the [reference](../reference/test-sets).
