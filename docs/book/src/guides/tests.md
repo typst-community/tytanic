@@ -141,8 +141,8 @@ Let's import our function and test it:
 #frobnicate(auto)
 
 // We could even compare it:
-#assert.eq(frobnicate("Strings work!"), [Frobnicate #"Strings work!"])
-#assert.eq(frobnicate[Content works!], [Frobnicate Content works!])
+#assert.eq(frobnicate("Strings work!"), [Frobnicating #"Strings work!"])
+#assert.eq(frobnicate[Content works!], [Frobnicating #[Content works!]])
 
 // If we pass `none`, then this must panic, otherwise we did something wrong.
 #assert-panic(() => frobnicate(none))
@@ -152,7 +152,7 @@ Let's import our function and test it:
 // there was no panic.
 #assert.eq(
   catch(() => frobnicate(none)),
-  "panicked with: Cannot frobnicate `none`!",
+  "inequality assertion failed: Cannot frobnicate `none`!",
 )
 ```
 
