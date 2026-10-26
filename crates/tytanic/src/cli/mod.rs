@@ -132,12 +132,16 @@ impl Context<'_> {
 
         let mut project = project.load()?;
 
-        let system_config = match SystemConfig::collect_user() {
-            Ok(config) => config.unwrap_or_default(),
-            Err(err) => {
-                writeln!(self.ui.error()?, "Failed to parse config:\n{err}")?;
-                eyre::bail!(OperationFailure);
+        let system_config = if !self.args.no_user_config {
+            match SystemConfig::collect_user() {
+                Ok(config) => config.unwrap_or_default(),
+                Err(err) => {
+                    writeln!(self.ui.error()?, "Failed to parse config:\n{err}")?;
+                    eyre::bail!(OperationFailure);
+                }
             }
+        } else {
+            SystemConfig::default()
         };
         project = project.with_system_config(system_config);
 
