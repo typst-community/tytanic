@@ -1,1 +1,6 @@
+# Direnv cache and rc file
+/.direnv/
+.envrc
+
+# Cargo output
 /target/
