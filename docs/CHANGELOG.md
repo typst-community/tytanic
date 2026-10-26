@@ -3,6 +3,7 @@
 
 ## Changes
 - Set the use of system fonts in the configuration file and not only as a CLI flag
+- Added the `--no-user-config` flag to isolate the integration test suite
 
 ## Fixes
 

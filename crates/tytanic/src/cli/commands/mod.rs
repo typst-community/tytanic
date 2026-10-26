@@ -297,6 +297,14 @@ pub struct CliArguments {
     #[command(subcommand)]
     pub cmd: Command,
 
+    // TODO: The whole accessing the environment thing should probably be
+    // abstracted in some fashion to allow us to more tightly control which
+    // things are accessed from the environment. Something akin to `HGPLAIN` but
+    // only for isolation.
+    /// Do not load the user configuration.
+    #[arg(long, global = true)]
+    pub no_user_config: bool,
+
     /// The project root directory.
     ///
     /// If none is given, then the first ancestor with a `typst.toml` is used.
