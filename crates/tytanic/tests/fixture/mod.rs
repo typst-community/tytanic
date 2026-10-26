@@ -71,7 +71,7 @@ impl Environment {
         F: FnOnce(&mut Command) -> &mut Command,
     {
         let mut cmd = Command::new(cargo_bin!("tt"));
-        cmd.current_dir(self.root());
+        cmd.current_dir(self.root()).arg("--no-user-config");
 
         f(&mut cmd);
 
