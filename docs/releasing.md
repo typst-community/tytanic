@@ -27,7 +27,7 @@ No major versions are currently provided as Tytanic is pre-1.0.
 The `latest` branch should be moved to the latest non-release-candidate patch release, in the example above it points to `v0.1.0`.
 
 > [!note]
-> Prior to version `v0.4` these branches were part of `main`, which meant that sometimes patch versions also received new features.
+> Prior to version `v0.5` these branches were part of `main`, which meant that sometimes patch versions also received new features.
 
 [Jujutsu] is recommended to keep the process of moving branches, or in jj-jargon "bookmarks", simple.
 
