@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use ecow::eco_vec;
 use tytanic_core::project::Project;
-use tytanic_core::test::Test;
+use tytanic_core::test::TestRef;
 
 use crate::test_set::ast::Pat;
 use crate::test_set::eval::Context;
@@ -14,7 +14,7 @@ use crate::test_set::eval::Value;
 
 /// The backing implementation for a [`Set`].
 type SetImpl =
-    Arc<dyn Fn(&Project, &Context, &Test) -> Result<bool, Error> + Send + Sync + 'static>;
+    Arc<dyn Fn(&Project, &Context, TestRef<'_>) -> Result<bool, Error> + Send + Sync + 'static>;
 
 /// A test set, this can be used to check if a test is contained in it and is
 /// expected to be the top level value in an [`ExpressionFilter`][filter].
@@ -27,7 +27,7 @@ impl Set {
     /// Create a new set with the given implementation.
     pub fn new<F>(f: F) -> Self
     where
-        F: Fn(&Project, &Context, &Test) -> Result<bool, Error> + Send + Sync + 'static,
+        F: Fn(&Project, &Context, TestRef<'_>) -> Result<bool, Error> + Send + Sync + 'static,
     {
         Self(Arc::new(f) as _)
     }
@@ -37,7 +37,7 @@ impl Set {
         &self,
         project_ctx: &Project,
         eval_ctx: &Context,
-        test: &Test,
+        test: TestRef<'_>,
     ) -> Result<bool, Error> {
         (self.0)(project_ctx, eval_ctx, test)
     }
@@ -54,7 +54,7 @@ impl Set {
     ///
     /// This is the test set created from pattern literals like `r:'foot-(\w-)+'`.
     pub fn coerce_pat(pat: Pat) -> Set {
-        Set::new(move |_, _, test: &Test| Ok(pat.is_match(test.id())))
+        Set::new(move |_, _, test: TestRef<'_>| Ok(pat.is_match(test.id())))
     }
 }
 

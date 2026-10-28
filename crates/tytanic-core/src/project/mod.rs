@@ -23,7 +23,7 @@ use tytanic_utils::result::io_not_found;
 use crate::TOOL_NAME;
 use crate::config::ProjectConfig;
 use crate::config::SystemConfig;
-use crate::test::Id;
+use crate::test::UnitId;
 
 pub mod vcs;
 
@@ -352,42 +352,42 @@ impl Project {
     }
 
     /// Create a path to the test directory for the given identifier.
-    pub fn unit_test_dir(&self, id: &Id) -> Utf8PathBuf {
+    pub fn unit_test_dir(&self, id: &UnitId) -> Utf8PathBuf {
         let mut dir = self.unit_tests_root();
-        dir.extend(id.components());
+        dir.extend(id.path().split('/'));
         dir
     }
 
     /// Create a path to the test script for the given identifier.
-    pub fn unit_test_script(&self, id: &Id) -> Utf8PathBuf {
+    pub fn unit_test_script(&self, id: &UnitId) -> Utf8PathBuf {
         let mut dir = self.unit_test_dir(id);
         dir.push("test.typ");
         dir
     }
 
     /// Create a path to the reference script for the given identifier.
-    pub fn unit_test_ref_script(&self, id: &Id) -> Utf8PathBuf {
+    pub fn unit_test_ref_script(&self, id: &UnitId) -> Utf8PathBuf {
         let mut dir = self.unit_test_dir(id);
         dir.push("ref.typ");
         dir
     }
 
     /// Create a path to the reference directory for the given identifier.
-    pub fn unit_test_ref_dir(&self, id: &Id) -> Utf8PathBuf {
+    pub fn unit_test_ref_dir(&self, id: &UnitId) -> Utf8PathBuf {
         let mut dir = self.unit_test_dir(id);
         dir.push("ref");
         dir
     }
 
     /// Create a path to the output directory for the given identifier.
-    pub fn unit_test_out_dir(&self, id: &Id) -> Utf8PathBuf {
+    pub fn unit_test_out_dir(&self, id: &UnitId) -> Utf8PathBuf {
         let mut dir = self.unit_test_dir(id);
         dir.push("out");
         dir
     }
 
     /// Create a path to the difference directory for the given identifier.
-    pub fn unit_test_diff_dir(&self, id: &Id) -> Utf8PathBuf {
+    pub fn unit_test_diff_dir(&self, id: &UnitId) -> Utf8PathBuf {
         let mut dir = self.unit_test_dir(id);
         dir.push("diff");
         dir
@@ -411,7 +411,7 @@ impl Project {
     }
 
     /// Create a file id to the test script for the given identifier.
-    pub fn unit_test_script_id(&self, id: &Id, project: &Project) -> FileId {
+    pub fn unit_test_script_id(&self, id: &UnitId, project: &Project) -> FileId {
         FileId::new(RootedPath::new(
             VirtualRoot::Project,
             VirtualPath::virtualize(
@@ -423,7 +423,7 @@ impl Project {
     }
 
     /// Create a file id to the reference script for the given identifier.
-    pub fn unit_test_ref_script_id(&self, id: &Id, project: &Project) -> FileId {
+    pub fn unit_test_ref_script_id(&self, id: &UnitId, project: &Project) -> FileId {
         FileId::new(RootedPath::new(
             VirtualRoot::Project,
             VirtualPath::virtualize(
@@ -667,7 +667,7 @@ mod tests {
     #[test]
     fn test_unit_test_paths() {
         let project = Project::new("root");
-        let id = Id::new("a/b").unwrap();
+        let id = UnitId::new("a/b").unwrap();
 
         assert_eq!(
             project.unit_tests_root(),

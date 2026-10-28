@@ -5,6 +5,9 @@
 - Set the use of system fonts in the configuration file and not only as a CLI flag
 - Added the `--no-user-config` flag to isolate the integration test suite
 - The Typst testing extensions such as `catch` and `assert-panic` are now available as a library for other projects
+- The `tests` field in the output of `tt status --json` has been renamed to `unit_tests` for forwards compatibility
+- Commands which previously accepted template test identifiers and then reported an operation failure such as `tt delete` will now report a parsing failure right away
+- `tt list` now reports template tests after unit tests
 
 ## Fixes
 

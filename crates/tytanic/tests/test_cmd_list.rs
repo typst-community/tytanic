@@ -10,7 +10,6 @@ fn test_status() {
     --- STDOUT:
 
     --- STDERR:
-    @template                          template    
     failing/compile                    compile-only
     failing/ephemeral-compare-failure  ephemeral   
     failing/ephemeral-compile-failure  ephemeral   
@@ -21,6 +20,7 @@ fn test_status() {
     passing/ephemeral                  ephemeral   
     passing/input-merge                compile-only
     passing/persistent                 persistent  
+    @template                          template    
 
     --- END
     ");
