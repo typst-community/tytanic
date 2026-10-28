@@ -63,22 +63,6 @@ Once CI passes and reviews are complete, merge the PR into the minor branch.
 ### Update Git References
 If necessary, update the `latest` branch to point to the new release, this should only be done for non-release-candidates.
 
-### Publish to crates.io
-Publish the crates on crates.io in order.
-```shell
-cargo publish -p tytanic-utils
-cargo publish -p tytanic-library
-cargo publish -p tytanic-filter
-cargo publish -p tytanic-core
-cargo publish -p tytanic
-```
-
-> [!note]
-> With Rust 1.90 this can be done in one step using the `--workflow` flag.
-
-> [!note]
-> With crates.io trusted builds this will also be ported to the release workflow soon.
-
 ## Yanking a Release
 If a release has critical bugs (including that of transitive dependencies) a patch version must be released and the broken release must be yanked:
 
