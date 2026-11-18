@@ -232,6 +232,8 @@ impl_switch! {
     /// The `--[no-]fail-fast` switch.
     FailFastSwitch(true) {
         /// Abort after the first test failure (default).
+        ///
+        /// Tests which are already running are not aborted.
         fail_fast = 'f',
         /// Don't abort after the first test failure.
         no_fail_fast = 'F',
@@ -310,7 +312,10 @@ pub struct CliArguments {
     #[arg(long, short, env = "TYPST_ROOT", global = true)]
     pub root: Option<Utf8PathBuf>,
 
-    /// The number of threads to use for compilation.
+    /// The number of threads to use for running tests and compilation.
+    ///
+    /// Tests are run in parallel and reported in the order they finish in, use
+    /// `--jobs 1` to run them one after another.
     #[arg(long, short, global = true)]
     pub jobs: Option<usize>,
 
