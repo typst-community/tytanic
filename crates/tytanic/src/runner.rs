@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
+use std::sync::mpsc;
 
 use color_eyre::eyre;
 use color_eyre::eyre::WrapErr;
@@ -81,7 +82,6 @@ pub struct Runner<'c, 'p, F> {
     pub suite: &'p FilteredSuite<F>,
     pub providers: &'p Providers,
 
-    pub result: SuiteResult,
     pub config: RunnerConfig<'c>,
 }
 
@@ -94,7 +94,6 @@ impl<'c, 'p, F> Runner<'c, 'p, F> {
     ) -> Self {
         Self {
             project,
-            result: SuiteResult::new(suite),
             suite,
             providers,
             config,
@@ -120,33 +119,74 @@ impl<'c, 'p, F> Runner<'c, 'p, F> {
         }
     }
 
-    pub fn run_inner(&mut self, reporter: &Reporter) -> eyre::Result<()> {
-        reporter.report_status(&self.result)?;
-
-        for test in self.suite.matched() {
-            if self.config.cancellation.load(Ordering::SeqCst) {
-                return Ok(());
-            }
-
-            let result = match test {
-                Test::Unit(test) => self.unit_test(test).run()?,
-                Test::Template(test) => self.template_test(test).run()?,
-            };
-
-            reporter.clear_status()?;
-
-            // TODO(tinger): Retrieve export var from action.
-            reporter.report_test_result(self.project, test, &result)?;
-
-            if result.is_fail() && self.config.fail_fast {
-                self.result.set_test_result(test.id().clone(), result);
-                return Ok(());
-            }
-
-            self.result.set_test_result(test.id().clone(), result);
-
-            reporter.report_status(&self.result)?;
+    fn run_test(&self, test: &'p Test) -> eyre::Result<TestResult> {
+        match test {
+            Test::Unit(test) => self.unit_test(test).run(),
+            Test::Template(test) => self.template_test(test).run(),
         }
+    }
+}
+
+impl<F: Sync> Runner<'_, '_, F> {
+    /// Runs the tests on the global thread pool and reports their results on
+    /// the calling thread in the order they finish in.
+    pub fn run_inner(&self, result: &mut SuiteResult, reporter: &Reporter) -> eyre::Result<()> {
+        reporter.report_status(result)?;
+
+        // Set if no further tests should be started.
+        let stop = AtomicBool::new(false);
+        let (tx, rx) = mpsc::channel();
+
+        rayon::in_place_scope(|scope| {
+            for test in self.suite.matched() {
+                let tx = tx.clone();
+                let stop = &stop;
+
+                scope.spawn(move |_| {
+                    if stop.load(Ordering::SeqCst)
+                        || self.config.cancellation.load(Ordering::SeqCst)
+                    {
+                        return;
+                    }
+
+                    let res = self.run_test(test);
+
+                    match &res {
+                        Ok(result) if result.is_fail() && self.config.fail_fast => {
+                            stop.store(true, Ordering::SeqCst);
+                        }
+                        Ok(_) => {}
+                        Err(_) => stop.store(true, Ordering::SeqCst),
+                    }
+
+                    // The receiver is only dropped if reporting failed.
+                    let _ = tx.send((test, res));
+                });
+            }
+
+            drop(tx);
+
+            let res = rx.into_iter().try_for_each(|(test, res)| {
+                let test_result = res?;
+
+                reporter.clear_status()?;
+
+                // TODO(tinger): Retrieve export var from action.
+                reporter.report_test_result(self.project, test, &test_result)?;
+
+                result.set_test_result(test.id().clone(), test_result);
+
+                reporter.report_status(result)?;
+
+                eyre::Ok(())
+            });
+
+            if res.is_err() {
+                stop.store(true, Ordering::SeqCst);
+            }
+
+            res
+        })?;
 
         reporter.clear_status()?;
 
@@ -154,16 +194,18 @@ impl<'c, 'p, F> Runner<'c, 'p, F> {
     }
 
     #[tracing::instrument(skip_all)]
-    pub fn run(mut self, reporter: &Reporter) -> eyre::Result<SuiteResult> {
-        self.result.start();
-        reporter.report_start(&self.result)?;
-        let res = self.run_inner(reporter);
-        self.result.end();
-        reporter.report_end(&self.result)?;
+    pub fn run(self, reporter: &Reporter) -> eyre::Result<SuiteResult> {
+        let mut result = SuiteResult::new(self.suite);
+
+        result.start();
+        reporter.report_start(&result)?;
+        let res = self.run_inner(&mut result, reporter);
+        result.end();
+        reporter.report_end(&result)?;
 
         res?;
 
-        Ok(self.result)
+        Ok(result)
     }
 }
 
