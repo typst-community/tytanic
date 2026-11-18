@@ -19,6 +19,21 @@ use tytanic_utils::result::ResultEx;
 // TODO(tinger): Add configuration options and presets for project
 // configurations such as tests and configurations.
 
+/// The tests of the default package fixture in suite order.
+pub const DEFAULT_PACKAGE_TESTS: [&str; 11] = [
+    "@template",
+    "failing/compile",
+    "failing/ephemeral-compare-failure",
+    "failing/ephemeral-compile-failure",
+    "failing/persistent-compare-failure",
+    "failing/persistent-compile-failure",
+    "failing/persistent-empty",
+    "passing/compile",
+    "passing/ephemeral",
+    "passing/input-merge",
+    "passing/persistent",
+];
+
 /// A test environment in which to execute Tytanic.
 #[derive(Debug)]
 pub struct Environment {
