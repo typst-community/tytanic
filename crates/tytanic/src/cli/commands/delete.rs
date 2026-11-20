@@ -2,8 +2,7 @@ use std::io::Write;
 
 use color_eyre::eyre;
 use termcolor::Color;
-use tytanic_core::Id;
-use tytanic_core::test::Test;
+use tytanic_core::test::TestRef;
 use tytanic_filter::test_set::builtin::dsl;
 use tytanic_filter::test_set::eval;
 use tytanic_utils::fmt::Term;
@@ -24,13 +23,6 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
     let project = ctx.project()?;
 
     let mut filter = ctx.filter(&args.filter)?;
-
-    if let Some(exact) = filter.exact()
-        && exact.expected().contains(&Id::template())
-    {
-        writeln!(ctx.ui.error()?, "Cannot delete template test")?;
-        eyre::bail!(OperationFailure);
-    }
 
     filter.map_test_set(|set| eval::Set::expr_diff(set, dsl::set_template()));
 
@@ -53,7 +45,7 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
     }
 
     for test in suite.matched() {
-        if let Test::Unit(test) = test {
+        if let TestRef::Unit(test) = test {
             test.delete(&project)?;
         }
     }

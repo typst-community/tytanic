@@ -2,7 +2,7 @@ use std::io::Write;
 
 use color_eyre::eyre;
 use termcolor::Color;
-use tytanic_core::test::unit::Kind;
+use tytanic_core::test::UnitKind;
 
 use super::Context;
 use crate::cwrite;
@@ -82,9 +82,9 @@ pub fn run(ctx: &mut Context, args: &Args) -> eyre::Result<()> {
 
         for test in suite.unit_tests() {
             match test.kind() {
-                Kind::Persistent => persistent += 1,
-                Kind::Ephemeral => ephemeral += 1,
-                Kind::CompileOnly => compile_only += 1,
+                UnitKind::Persistent => persistent += 1,
+                UnitKind::Ephemeral => ephemeral += 1,
+                UnitKind::CompileOnly => compile_only += 1,
             }
         }
 

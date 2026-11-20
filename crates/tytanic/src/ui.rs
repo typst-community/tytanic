@@ -18,7 +18,7 @@ use termcolor::HyperlinkSpec;
 use termcolor::StandardStream;
 use termcolor::StandardStreamLock;
 use termcolor::WriteColor;
-use tytanic_core::test::Id;
+use tytanic_core::IdRef;
 
 #[macro_export]
 macro_rules! cwrite {
@@ -323,13 +323,33 @@ pub fn hint<W: WriteColor>(w: W) -> io::Result<Indented<W>> {
 }
 
 /// Write a test id.
-pub fn write_test_id(mut w: &mut dyn WriteColor, id: &Id) -> io::Result<()> {
-    if !id.module().is_empty() {
-        cwrite!(colored(w, Color::Cyan), "{}/", id.module())?;
+pub fn write_test_id<'id, I>(mut w: &mut dyn WriteColor, id: I) -> io::Result<()>
+where
+    I: Into<IdRef<'id>>,
+{
+    match id.into() {
+        IdRef::Template(id) => {
+            cwrite!(colored(w, Color::Blue), "{id}")?;
+        }
+        IdRef::Unit(id) => {
+            if let Some(m) = id.module() {
+                cwrite!(colored(w, Color::Cyan), "{m}/")?;
+            }
+
+            cwrite!(bold_colored(w, Color::Blue), "{}", id.stem())?;
+        }
+        IdRef::Doc(id) => {
+            if let Some(m) = id.path_module() {
+                cwrite!(colored(w, Color::Cyan), "{m}/")?;
+            }
+
+            cwrite!(bold_colored(w, Color::Blue), "{}", id.path_stem())?;
+
+            if let Some(b) = id.block() {
+                cwrite!(bold_colored(w, Color::Yellow), "#{b}")?;
+            }
+        }
     }
-
-    cwrite!(bold_colored(w, Color::Blue), "{}", id.name())?;
-
     Ok(())
 }
 

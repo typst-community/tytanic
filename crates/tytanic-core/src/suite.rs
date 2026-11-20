@@ -3,6 +3,7 @@
 //! necessary for managing, filtering, and running tests.
 
 use camino::Utf8Path;
+use camino::Utf8PathBuf;
 use chrono::DateTime;
 use chrono::TimeDelta;
 use chrono::Utc;
@@ -10,47 +11,63 @@ use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::collections::btree_map;
 use std::io;
+use std::option;
 
 use thiserror::Error;
 use tytanic_utils::result::ResultEx;
 use tytanic_utils::result::io_not_found;
 use uuid::Uuid;
 
-use crate::Project;
-use crate::TemplateTest;
 use crate::filter::Filter;
 use crate::filter::FilterState;
-use crate::test::Id;
+use crate::project::Project;
+use crate::test::DocId;
+use crate::test::DocTest;
+use crate::test::IdRef;
 use crate::test::ParseIdError;
-use crate::test::Test;
+use crate::test::TemplateTest;
+use crate::test::TemplateTestLoadError;
+use crate::test::TestRef;
 use crate::test::TestResult;
+use crate::test::UnitId;
 use crate::test::UnitTest;
-use crate::test::unit::LoadError;
+use crate::test::UnitTestLoadError;
 
 /// A suite of tests.
 #[derive(Debug, Clone)]
 pub struct Suite {
-    tests: BTreeMap<Id, Test>,
-    nested: BTreeMap<Id, Test>,
+    unit_tests: BTreeMap<UnitId, UnitTest>,
+    nested_unit_tests: BTreeMap<UnitId, UnitTest>,
+    doc_tests: BTreeMap<DocId, DocTest>,
+    template_test: Option<TemplateTest>,
 }
 
 impl Suite {
     /// Creates a new empty suite.
     pub fn new() -> Self {
         Self {
-            tests: BTreeMap::new(),
-            nested: BTreeMap::new(),
+            unit_tests: BTreeMap::new(),
+            nested_unit_tests: BTreeMap::new(),
+            doc_tests: BTreeMap::new(),
+            template_test: None,
         }
     }
 
     /// Creates a new suite with the given tests.
-    pub fn from_tests<I>(tests: I) -> Self
+    pub fn from_tests<U, D, T>(unit_tests: U, doc_tests: D, template_test: T) -> Self
     where
-        I: IntoIterator<Item = Test>,
+        U: IntoIterator<Item = UnitTest>,
+        D: IntoIterator<Item = DocTest>,
+        T: Into<Option<TemplateTest>>,
     {
         Self {
-            tests: tests.into_iter().map(|t| (t.id().clone(), t)).collect(),
-            nested: BTreeMap::new(),
+            unit_tests: unit_tests
+                .into_iter()
+                .map(|t| (t.id().clone(), t))
+                .collect(),
+            nested_unit_tests: BTreeMap::new(),
+            doc_tests: doc_tests.into_iter().map(|t| (t.id().clone(), t)).collect(),
+            template_test: template_test.into(),
         }
     }
 
@@ -59,9 +76,11 @@ impl Suite {
     pub fn collect(project: &Project) -> Result<Self, Error> {
         let mut this = Self::new();
 
-        if let Some(test) = TemplateTest::load(project) {
+        if let Some(test) =
+            TemplateTest::load(project).ignore(|e| matches!(e, TemplateTestLoadError::NotFound))?
+        {
             tracing::debug!("found template test");
-            this.tests.insert(test.id().clone(), Test::Template(test));
+            this.template_test = Some(test);
         }
 
         let root = project.unit_tests_root();
@@ -85,26 +104,28 @@ impl Suite {
         }
 
         let without_leaves: BTreeSet<_> = this
-            .tests
+            .unit_tests
             .keys()
-            .flat_map(|test| test.ancestors().skip(1))
+            // TODO(id): Will this work on windows and Linux?
+            .flat_map(|test| Utf8Path::new(test).ancestors().skip(1))
             .map(|test| test.to_owned())
             .collect();
 
         let all: BTreeSet<_> = this
-            .tests
+            .unit_tests
             .keys()
-            .map(|test| test.as_str().to_owned())
+            // TODO(id): Will this work on windows and Linux?
+            .map(|test| Utf8PathBuf::from(test.as_str()))
             .collect();
 
         for id in all.intersection(&without_leaves) {
-            if let Some((id, test)) = this.tests.remove_entry(id.as_str()) {
-                this.nested.insert(id, test);
+            if let Some((id, test)) = this.unit_tests.remove_entry(id.as_str()) {
+                this.nested_unit_tests.insert(id, test);
             }
         }
 
-        if !this.nested.is_empty() {
-            tracing::trace!(nested = ?this.nested, "found nested tests");
+        if !this.nested_unit_tests.is_empty() {
+            tracing::trace!(nested = ?this.nested_unit_tests, "found nested tests");
         }
 
         Ok(this)
@@ -119,7 +140,7 @@ impl Suite {
             return Ok(());
         }
 
-        let id = match Id::new_from_path(dir) {
+        let id = match UnitId::new_from_path(dir) {
             Ok(id) => id,
             Err(err) => {
                 tracing::error!(?dir, ?err, "ignoring test with invalid id");
@@ -128,9 +149,11 @@ impl Suite {
         };
 
         tracing::trace!(?dir, "checking for test");
-        if let Some(test) = UnitTest::load(project, id.clone())? {
+        if let Some(test) = UnitTest::load(project, id.clone())
+            .ignore(|e| matches!(e, UnitTestLoadError::NotFound(_)))?
+        {
             tracing::debug!(id = %test.id(), "collected test");
-            self.tests.insert(id, Test::Unit(test));
+            self.unit_tests.insert(id, test);
         }
 
         tracing::trace!(?dir, "collecting sub directories");
@@ -152,52 +175,74 @@ impl Suite {
 }
 
 impl Suite {
-    /// The tests in this suite.
+    /// All tests in this suite.
     pub fn tests(&self) -> Tests<'_> {
         Tests {
-            iter: self.tests.values(),
+            unit_iter: self.unit_tests.values(),
+            doc_iter: self.doc_tests.values(),
+            template_iter: self.template_test.iter(),
         }
     }
 
     /// The unit tests in this suite.
     pub fn unit_tests(&self) -> UnitTests<'_> {
-        UnitTests { iter: self.tests() }
+        UnitTests {
+            iter: self.unit_tests.values(),
+        }
+    }
+
+    /// The unit tests in this suite.
+    pub fn doc_tests(&self) -> DocTests<'_> {
+        DocTests {
+            iter: self.doc_tests.values(),
+        }
     }
 
     /// The template test, if it exists.
     pub fn template_test(&self) -> Option<&TemplateTest> {
-        self.tests.get(&Id::template()).map(|test| {
-            test.as_template_test()
-                .expect("Suite invariant ensures that this is a TemplateTest")
-        })
+        self.template_test.as_ref()
     }
 
     /// The nested tests, those which contain other tests and need to be
     /// migrated.
     ///
     /// This is a temporary method and will be removed in a future release.
-    pub fn nested(&self) -> &BTreeMap<Id, Test> {
-        &self.nested
+    pub fn nested(&self) -> &BTreeMap<UnitId, UnitTest> {
+        &self.nested_unit_tests
     }
 
     /// Returns the test with the given id.
-    pub fn get(&self, id: &Id) -> Option<&Test> {
-        self.tests.get(id)
+    pub fn get<'id, I>(&self, id: I) -> Option<TestRef<'_>>
+    where
+        I: Into<IdRef<'id>>,
+    {
+        fn inner<'s>(this: &'s Suite, id: IdRef<'_>) -> Option<TestRef<'s>> {
+            match id {
+                IdRef::Template(_) => this.template_test.as_ref().map(TestRef::Template),
+                IdRef::Unit(id) => this.unit_tests.get(id).map(TestRef::Unit),
+                IdRef::Doc(id) => this.doc_tests.get(id).map(TestRef::Doc),
+            }
+        }
+
+        inner(self, id.into())
     }
 
     /// Returns true if a test is contained in this suite.
-    pub fn contains(&self, id: &Id) -> bool {
-        self.tests.contains_key(id)
+    pub fn contains<'id, I>(&self, id: I) -> bool
+    where
+        I: Into<IdRef<'id>>,
+    {
+        self.get(id).is_some()
     }
 
     /// Returns the total number of tests in this suite.
     pub fn len(&self) -> usize {
-        self.tests.len()
+        self.unit_tests.len()
     }
 
     /// Whether this suite is empty.
     pub fn is_empty(&self) -> bool {
-        self.tests.len() == 0
+        self.unit_tests.len() == 0
     }
 }
 
@@ -209,7 +254,7 @@ impl Suite {
     {
         tracing::warn!(
             "ignoring {} nested tests while filtering",
-            self.nested.len()
+            self.nested_unit_tests.len()
         );
 
         let mut filtered = Suite::new();
@@ -217,11 +262,27 @@ impl Suite {
 
         let mut state = filter.state();
 
-        for (id, test) in self.tests.clone() {
+        for (id, test) in self.unit_tests.clone() {
             if state.filter(project, &test)? {
-                matched.tests.insert(id, test);
+                matched.unit_tests.insert(id, test);
             } else {
-                filtered.tests.insert(id, test);
+                filtered.unit_tests.insert(id, test);
+            }
+        }
+
+        for (id, test) in self.doc_tests.clone() {
+            if state.filter(project, &test)? {
+                matched.doc_tests.insert(id, test);
+            } else {
+                filtered.doc_tests.insert(id, test);
+            }
+        }
+
+        if let Some(test) = self.template_test.clone() {
+            if state.filter(project, &test)? {
+                matched.template_test = Some(test);
+            } else {
+                filtered.template_test = Some(test);
             }
         }
 
@@ -244,7 +305,7 @@ impl Default for Suite {
 
 impl<'s> IntoIterator for &'s Suite {
     type IntoIter = Tests<'s>;
-    type Item = &'s Test;
+    type Item = TestRef<'s>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.tests()
@@ -254,34 +315,48 @@ impl<'s> IntoIterator for &'s Suite {
 /// Returned by [`Suite::tests`].
 #[derive(Debug)]
 pub struct Tests<'s> {
-    iter: btree_map::Values<'s, Id, Test>,
+    unit_iter: btree_map::Values<'s, UnitId, UnitTest>,
+    doc_iter: btree_map::Values<'s, DocId, DocTest>,
+    template_iter: option::Iter<'s, TemplateTest>,
 }
 
 impl<'s> Iterator for Tests<'s> {
-    type Item = &'s Test;
+    type Item = TestRef<'s>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.iter.next()
+        self.unit_iter
+            .next()
+            .map(TestRef::Unit)
+            .or_else(|| self.doc_iter.next().map(TestRef::Doc))
+            .or_else(|| self.template_iter.next().map(TestRef::Template))
     }
 }
 
 /// Returned by [`Suite::unit_tests`].
 #[derive(Debug)]
 pub struct UnitTests<'s> {
-    iter: Tests<'s>,
+    iter: btree_map::Values<'s, UnitId, UnitTest>,
 }
 
 impl<'s> Iterator for UnitTests<'s> {
     type Item = &'s UnitTest;
 
     fn next(&mut self) -> Option<Self::Item> {
-        for test in self.iter.by_ref() {
-            if let Test::Unit(test) = test {
-                return Some(test);
-            }
-        }
+        self.iter.next()
+    }
+}
 
-        None
+/// Returned by [`Suite::doc_tests`].
+#[derive(Debug)]
+pub struct DocTests<'s> {
+    iter: btree_map::Values<'s, DocId, DocTest>,
+}
+
+impl<'s> Iterator for DocTests<'s> {
+    type Item = &'s DocTest;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next()
     }
 }
 
@@ -319,13 +394,19 @@ impl<F> FilteredSuite<F> {
 /// Returned by [`Suite::collect`].
 #[derive(Debug, Error)]
 pub enum Error {
-    /// An error occurred while trying to parse a test [`Id`].
+    /// An error occurred while trying to parse a test [`Id`][id].
+    ///
+    /// [id]: crate::test::Id
     #[error("an error occurred while collecting a test")]
     Id(#[from] ParseIdError),
 
-    /// An error occurred while trying to collect a test.
-    #[error("an error occurred while collecting a test")]
-    Test(#[from] LoadError),
+    /// An error occurred while trying to collect the template test.
+    #[error("an error occurred while collecting the template test")]
+    LoadTemplateTest(#[from] TemplateTestLoadError),
+
+    /// An error occurred while trying to collect a unit test.
+    #[error("an error occurred while collecting a unit test")]
+    LoadUnitTest(#[from] UnitTestLoadError),
 
     /// An IO error occurred.
     #[error("an io error occurred")]
@@ -336,7 +417,7 @@ pub enum Error {
 /// suite, including filtered and not-yet-run tests, as well as cached values
 /// for the number of filtered, passed and failed tests.
 #[derive(Debug, Clone)]
-pub struct SuiteResult {
+pub struct SuiteResult<'s> {
     id: Uuid,
     total: usize,
     filtered: usize,
@@ -344,14 +425,14 @@ pub struct SuiteResult {
     failed: usize,
     timestamp: DateTime<Utc>,
     duration: TimeDelta,
-    results: BTreeMap<Id, TestResult>,
+    results: BTreeMap<IdRef<'s>, TestResult>,
 }
 
-impl SuiteResult {
+impl<'s> SuiteResult<'s> {
     /// Create a fresh result for a suite, this will have pre-filled results for
     /// all test set to canceled, these results can be overridden while running
     /// the suite.
-    pub fn new<F>(suite: &FilteredSuite<F>) -> Self {
+    pub fn new<F>(suite: &'s FilteredSuite<F>) -> Self {
         Self {
             id: Uuid::new_v4(),
             total: suite.inner().len(),
@@ -363,19 +444,19 @@ impl SuiteResult {
             results: suite
                 .matched()
                 .tests()
-                .map(|test| (test.id().clone(), TestResult::skipped()))
+                .map(|test| (test.id(), TestResult::skipped()))
                 .chain(
                     suite
                         .filtered()
                         .tests()
-                        .map(|test| (test.id().clone(), TestResult::filtered())),
+                        .map(|test| (test.id(), TestResult::filtered())),
                 )
                 .collect(),
         }
     }
 }
 
-impl SuiteResult {
+impl<'s> SuiteResult<'s> {
     /// The unique id of this run.
     pub fn id(&self) -> Uuid {
         self.id
@@ -432,7 +513,7 @@ impl SuiteResult {
     ///
     /// This contains results for all tests in the a suite, not just those added
     /// in [`SuiteResult::set_test_result`].
-    pub fn results(&self) -> &BTreeMap<Id, TestResult> {
+    pub fn results(&self) -> &BTreeMap<IdRef<'s>, TestResult> {
         &self.results
     }
 
@@ -442,7 +523,7 @@ impl SuiteResult {
     }
 }
 
-impl SuiteResult {
+impl<'s> SuiteResult<'s> {
     /// Sets the timestamp to [`Utc::now`].
     ///
     /// See [`SuiteResult::end`].
@@ -463,7 +544,7 @@ impl SuiteResult {
     /// - The results should also only contain failures or passes, cancellations
     ///   and filtered results are ignored, as these are pre-filled when the
     ///   result is constructed.
-    pub fn set_test_result(&mut self, id: Id, result: TestResult) {
+    pub fn set_test_result(&mut self, id: IdRef<'s>, result: TestResult) {
         debug_assert!(self.results.contains_key(&id));
         debug_assert!(result.is_pass() || result.is_fail());
 
@@ -484,7 +565,7 @@ mod tests {
 
     use super::*;
     use crate::test::Annotation;
-    use crate::test::unit::Kind;
+    use crate::test::UnitKind;
 
     #[test]
     fn test_collect() {
@@ -515,17 +596,15 @@ mod tests {
                 let suite = Suite::collect(&project).unwrap();
 
                 let tests = [
-                    ("compile-only", Kind::CompileOnly, eco_vec![]),
-                    ("compare/ephemeral", Kind::Ephemeral, eco_vec![]),
-                    ("compare/ephemeral-store", Kind::Ephemeral, eco_vec![]),
-                    ("compare/persistent", Kind::Persistent, eco_vec![]),
-                    ("ignored", Kind::CompileOnly, eco_vec![Annotation::Skip]),
+                    ("compile-only", UnitKind::CompileOnly, eco_vec![]),
+                    ("compare/ephemeral", UnitKind::Ephemeral, eco_vec![]),
+                    ("compare/ephemeral-store", UnitKind::Ephemeral, eco_vec![]),
+                    ("compare/persistent", UnitKind::Persistent, eco_vec![]),
+                    ("ignored", UnitKind::CompileOnly, eco_vec![Annotation::Skip]),
                 ];
 
                 for (key, kind, annotations) in tests {
-                    let Test::Unit(test) = &suite.tests[key] else {
-                        panic!("not testing template here");
-                    };
+                    let test = &suite.unit_tests[key];
                     assert_eq!(test.annotations(), &annotations[..]);
                     assert_eq!(test.kind(), kind);
                 }
@@ -546,11 +625,11 @@ mod tests {
                 let project = Project::new(root);
                 let suite = Suite::collect(&project).unwrap();
 
-                assert!(suite.nested.contains_key("foo"));
-                assert!(suite.nested.contains_key("qux"));
+                assert!(suite.nested_unit_tests.contains_key("foo"));
+                assert!(suite.nested_unit_tests.contains_key("qux"));
 
-                assert!(suite.tests.contains_key("foo/bar"));
-                assert!(suite.tests.contains_key("qux/quux/quz"));
+                assert!(suite.unit_tests.contains_key("foo/bar"));
+                assert!(suite.unit_tests.contains_key("qux/quux/quz"));
             },
         );
     }
